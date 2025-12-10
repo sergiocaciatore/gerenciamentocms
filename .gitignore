@@ -8,3 +8,4 @@ backend/.venv
 __pycache__/
 *.pyc
 .DS_Store
+DEPLOY_FIX_GUIDE.md

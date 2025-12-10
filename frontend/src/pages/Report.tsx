@@ -208,12 +208,32 @@ export default function Report() {
         }
     };
 
-    const handleSelectMap = (url: string) => {
+    const handleSelectMap = (name: string) => {
         if (currentMgmt) {
-            handleUpdateManagement('map_image', url);
-            saveManagement({ ...currentMgmt, map_image: url });
+            handleUpdateManagement('map_image', name);
+            saveManagement({ ...currentMgmt, map_image: name });
             setIsMapModalOpen(false);
         }
+    };
+
+    // Helper to resolve map URL from stored value (name or legacy path)
+    const getMapUrl = (val: string | undefined) => {
+        if (!val) return null;
+
+        // 1. Try finding by Name (New behavior: "GO", "SP")
+        const byName = mapImages.find(m => m.name === val);
+        if (byName) return byName.url;
+
+        // 2. Try parsing Legacy Dev Path (/src/assets/estados/GO.png)
+        const match = val.match(/estados\/([A-Z]{2})\.png/);
+        if (match) {
+            const stateCode = match[1];
+            const found = mapImages.find(m => m.name === stateCode);
+            if (found) return found.url;
+        }
+
+        // 3. Return original (e.g. Firebase Storage URL or valid production path)
+        return val;
     };
 
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'image_1' | 'image_2') => {
@@ -501,7 +521,7 @@ export default function Report() {
                         </div>
                         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4 p-2">
                             {mapImages.map((img, idx) => (
-                                <button key={idx} onClick={() => handleSelectMap(img.url)} className="group relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all bg-gray-50 flex flex-col items-center justify-center p-2 hover:shadow-lg">
+                                <button key={idx} onClick={() => handleSelectMap(img.name)} className="group relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all bg-gray-50 flex flex-col items-center justify-center p-2 hover:shadow-lg">
                                     <img src={img.url} alt={img.name} className="w-full h-full object-contain" />
                                     <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] text-center py-1 opacity-0 group-hover:opacity-100 transition-opacity uppercase font-bold tracking-wide">{img.name}</span>
                                 </button>
@@ -627,7 +647,7 @@ export default function Report() {
                             title="Alterar mapa"
                         >
                             {currentMgmt?.map_image ? (
-                                <img src={currentMgmt.map_image} className="w-full h-full object-contain p-1" />
+                                <img src={getMapUrl(currentMgmt.map_image) || ''} className="w-full h-full object-contain p-1" />
                             ) : (
                                 <div className="text-center">
                                     <span className="text-4xl block mb-2 opacity-50">🗺️</span>
