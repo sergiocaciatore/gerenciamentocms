@@ -29,16 +29,36 @@ def initialize_firebase():
         firebase_admin.initialize_app(cred)
         print(f"Firebase initialized with service account: {service_account_path}")
     else:
-        # Fallback for when no specific path is provided (e.g. Cloud Run with default credentials)
-        # Or if the path provided doesn't exist.
-        print(
-            "Warning: FIREBASE_SERVICE_ACCOUNT_PATH not set or file not found. Initializing with default credentials."
-        )
-        firebase_admin.initialize_app()
+        # Fallback
+        if service_account_path:
+            print(
+                f"Warning: FIREBASE_SERVICE_ACCOUNT_PATH was set to '{service_account_path}' but file does not exist."
+            )
+        else:
+            print("Warning: FIREBASE_SERVICE_ACCOUNT_PATH not set.")
+
+        # Try to get project_id from env to avoid "A project ID is required" error
+        # This acts as a fallback for verifying tokens even without a service account file (if ADC is somehow working or just for structure)
+        # But usually 'verify_id_token' needs the project ID to validate the issuer.
+        project_id = os.getenv("FIREBASE_PROJECT_ID") or os.getenv("GCLOUD_PROJECT")
+
+        # User frontend .env usually has VITE_FIREBASE_PROJECT_ID, maybe they set that in backend too?
+        if not project_id:
+            project_id = os.getenv("VITE_FIREBASE_PROJECT_ID")
+
+        if project_id:
+            print(f"Initializing with default credentials and projectId: {project_id}")
+            firebase_admin.initialize_app(options={"projectId": project_id})
+        else:
+            print(
+                "Initializing with default credentials (no projectId set). This may fail for auth verification."
+            )
+            firebase_admin.initialize_app()
 
     _firebase_initialized = True
 
 
+# Call init
 initialize_firebase()
 
 
