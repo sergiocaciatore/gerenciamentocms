@@ -17,7 +17,6 @@ services:
   - type: web
     name: cms-frontend
     runtime: static
-    region: oregon
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: frontend/dist
