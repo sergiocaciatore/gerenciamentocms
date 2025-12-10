@@ -32,6 +32,8 @@ interface LPU {
     allow_lpu_edit?: boolean;
 }
 
+import { LPU_STANDARD_ITEMS } from "../data/lpu_standard_items";
+
 export default function LPU() {
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [filterText, setFilterText] = useState("");
@@ -44,9 +46,18 @@ export default function LPU() {
     const [editingLpuId, setEditingLpuId] = useState<string | null>(null);
     const [lpuForm, setLpuForm] = useState({ work_id: "", limit_date: "" });
 
+    // Items Modal State
+    const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
+    const [currentLpu, setCurrentLpu] = useState<LPU | null>(null);
+
     // Delete Confirmation
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [lpuToDelete, setLpuToDelete] = useState<LPU | null>(null);
+
+    const openItemsModal = (lpu: LPU) => {
+        setCurrentLpu(lpu);
+        setIsItemsModalOpen(true);
+    };
 
     const fetchData = async () => {
         try {
@@ -251,6 +262,15 @@ export default function LPU() {
 
                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
+                                                    onClick={() => openItemsModal(lpu)}
+                                                    className="p-1.5 rounded-full bg-white/50 hover:bg-green-100 text-green-600 transition-colors"
+                                                    title="Itens da LPU"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                                                    </svg>
+                                                </button>
+                                                <button
                                                     onClick={() => openEditLpuModal(lpu)}
                                                     className="p-1.5 rounded-full bg-white/50 hover:bg-blue-100 text-blue-600 transition-colors"
                                                     title="Editar"
@@ -438,6 +458,48 @@ export default function LPU() {
                     <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-2">
                         <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
                         <button onClick={confirmDeleteLpu} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm">Excluir</button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Items View Modal */}
+            <Modal isOpen={isItemsModalOpen} onClose={() => setIsItemsModalOpen(false)} title={`Itens da LPU - ${works.find(w => w.id === currentLpu?.work_id)?.regional || currentLpu?.work_id}`}>
+                <div className="space-y-4">
+                    <div className="overflow-hidden border border-gray-200 rounded-xl">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidade</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {LPU_STANDARD_ITEMS.map((item) => (
+                                    <tr
+                                        key={item.id}
+                                        className={`
+                                            ${item.isGroup ? 'bg-gray-100' : ''} 
+                                            ${item.isSubGroup ? 'bg-gray-50' : ''}
+                                            hover:bg-blue-50 transition-colors
+                                        `}
+                                    >
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${item.isGroup ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                                            {item.id}
+                                        </td>
+                                        <td className={`px-6 py-4 text-sm ${item.isGroup ? 'font-bold text-gray-900' : (item.isSubGroup ? 'font-semibold text-gray-700' : 'text-gray-600')}`}>
+                                            {item.description}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                                            {item.unit || "-"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                        <button onClick={() => setIsItemsModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Fechar</button>
                     </div>
                 </div>
             </Modal>
