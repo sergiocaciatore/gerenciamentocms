@@ -18,9 +18,23 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 
 app = FastAPI()
 
-origins = [
+
+# Default origins for development and production
+DEFAULT_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:3000",
+    "https://cms-frontend-424v.onrender.com",
+    "https://gerenciamentocms.app.br",
+    "https://www.gerenciamentocms.app.br",
 ]
+
+# Read from env or use defaults
+# Parsing robusto: split por virgula, strip de espacos, remove vazios
+cors_origins_str = os.getenv("CORS_ORIGINS", "")
+if cors_origins_str and cors_origins_str.strip():
+    origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+else:
+    origins = DEFAULT_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
