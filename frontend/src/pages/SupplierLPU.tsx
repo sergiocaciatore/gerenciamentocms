@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LPU_STANDARD_ITEMS } from "../data/lpu_standard_items";
 
 interface LPU {
@@ -13,8 +13,23 @@ interface LPU {
         allow_remove_items: boolean;
         allow_lpu_edit: boolean;
     };
+    // Data
     prices?: Record<string, number>;
     quantities?: Record<string, number>;
+    selected_items?: string[];
+    // Expanded Data (Joined)
+    work?: {
+        id: string;
+        regional: string;
+        go_live_date: string;
+        address: {
+            street: string;
+            number: string;
+            city: string;
+            state: string;
+            neighborhood: string;
+        };
+    };
 }
 
 interface SupplierLPUProps {
@@ -23,13 +38,68 @@ interface SupplierLPUProps {
     cnpj: string;
 }
 
+// Helper: Currency Input Component
+const CurrencyInput = ({ value, onChange, disabled }: { value: number, onChange: (val: string) => void, disabled?: boolean }) => {
+    // We keep local state for formatting stability while typing
+    const [displayValue, setDisplayValue] = useState(
+        value === 0 ? "" : value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+    );
+
+    // Sync external changes (if any) - e.g. initial load
+    // This effect ensures that if the 'value' prop changes from outside (e.g., initial load or reset),
+    // the internal displayValue is updated.
+    useEffect(() => {
+        setDisplayValue(value === 0 ? "" : value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
+    }, [value]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value.replace(/\D/g, ""); // Remove non-digits
+
+        // Handle Backspace causing empty
+        if (v === "") {
+            setDisplayValue("");
+            onChange("0");
+            return;
+        }
+
+        // Convert to float (e.g. 1234 -> 12,34)
+        const floatVal = parseFloat(v) / 100;
+
+        // Update display with formatting
+        setDisplayValue(floatVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
+
+        // Send raw string or float up? Handler expects string currently but converts to float.
+        // Let's send the string representation of the float for the parent handler
+        onChange(floatVal.toString().replace(".", ","));
+    };
+
+    return (
+        <input
+            type="text"
+            className="w-full text-right bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
+            placeholder="0,00"
+            value={displayValue}
+            onChange={handleChange}
+            disabled={disabled}
+        />
+    );
+};
+
 export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProps) {
     const [lpu, setLpu] = useState<LPU>(initialLpu);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
+    // Submission Custom Modal State
+    const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+    const [signerName, setSignerName] = useState("");
+
     // Permissions Shortcuts
     const canEditQuantities = lpu.quote_permissions?.allow_quantity_change ?? false;
+
+    // Filter Logic: If selected_items exists and is not empty, only show those.
+    const hasSelectionFilter = lpu.selected_items && lpu.selected_items.length > 0;
+    const allowedItems = new Set(lpu.selected_items || []);
 
     // Expand/Collapse State
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -68,6 +138,9 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
         let total = 0;
         LPU_STANDARD_ITEMS.forEach(item => {
             if (!item.isGroup && !item.isSubGroup) {
+                // If filter is active, skip excluded items
+                if (hasSelectionFilter && !allowedItems.has(item.id)) return;
+
                 const price = lpu.prices?.[item.id] || 0;
                 const qty = lpu.quantities?.[item.id] || 0;
                 total += price * qty;
@@ -76,20 +149,24 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
         return total;
     };
 
-    // Submit Handler
-    const handleSubmit = async () => {
-        if (!confirm("Tem certeza que deseja enviar a cotação? Após o envio não será possível fazer mais alterações.")) return;
+    // Open Modal instead of confirm()
+    const handlePreSubmit = () => {
+        setIsSubmitModalOpen(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!signerName.trim()) return;
 
         setIsSubmitting(true);
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/public/supplier/lpus/${lpu.id}/submit`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     token,
                     cnpj,
+                    signer_name: signerName,
                     prices: lpu.prices,
                     quantities: lpu.quantities,
                 })
@@ -100,6 +177,7 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                 throw new Error(errData.detail || "Falha ao enviar cotação");
             }
 
+            setIsSubmitModalOpen(false);
             setIsSuccess(true);
         } catch (error: any) {
             console.error("Erro ao enviar:", error);
@@ -117,8 +195,12 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                         <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Sucesso!</h2>
-                    <p className="text-gray-600 mb-6">Sua cotação foi enviada com sucesso para nossa equipe.</p>
-                    <button onClick={() => window.close()} className="text-sm text-green-700 font-medium hover:underline">Fechar Janela</button>
+                    <p className="text-gray-600 mb-6 font-medium">Cotação enviada por {signerName}.</p>
+                    <p className="text-xs text-gray-400">Nossa equipe comercial entrará em contato.</p>
+                    <div className="mt-8 p-4 bg-green-100 rounded-lg text-sm text-green-800">
+                        <p className="font-bold">Processo finalizado.</p>
+                        <p>Você já pode fechar esta janela ou aba do navegador.</p>
+                    </div>
                 </div>
             </div>
         );
@@ -135,7 +217,15 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                         </div>
                         <div>
                             <h1 className="text-lg font-bold text-gray-900 leading-tight">Portal de Cotação</h1>
-                            <p className="text-xs text-gray-500">ID da Obra: <span className="font-mono font-medium text-gray-700">{lpu.work_id}</span></p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="font-mono font-medium text-gray-700">ID: {lpu.work_id}</span>
+                                {lpu.work?.regional && (
+                                    <>
+                                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                        <span>{lpu.work.regional}</span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -150,14 +240,34 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                             <p className="text-lg font-bold text-blue-600">{calculateTotal().toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                         </div>
                         <button
-                            onClick={handleSubmit}
+                            onClick={handlePreSubmit}
                             disabled={isSubmitting}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md shadow-blue-200 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Enviando...' : 'Enviar Cotação'}
+                            Enviar Cotação
                         </button>
                     </div>
                 </div>
+
+                {/* Work Details Banner */}
+                {lpu.work && (
+                    <div className="bg-blue-50 border-t border-blue-100 px-4 py-2">
+                        <div className="max-w-7xl mx-auto flex flex-wrap gap-6 text-xs text-blue-800">
+                            <div className="flex items-center gap-2">
+                                <span className="uppercase font-bold text-blue-400 tracking-wider">Site/Regional:</span>
+                                <span className="font-medium">{lpu.work.regional}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="uppercase font-bold text-blue-400 tracking-wider">Go Live:</span>
+                                <span className="font-medium">{lpu.work.go_live_date ? new Date(lpu.work.go_live_date).toLocaleDateString() : '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="uppercase font-bold text-blue-400 tracking-wider">Endereço:</span>
+                                <span className="font-medium">{lpu.work.address ? `${lpu.work.address.street}, ${lpu.work.address.number} - ${lpu.work.address.city}/${lpu.work.address.state}` : '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Main Content */}
@@ -170,8 +280,18 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     {LPU_STANDARD_ITEMS.filter(item => item.isGroup).map(group => {
+                        // Filter items in this group
+                        const groupItems = LPU_STANDARD_ITEMS.filter(i => {
+                            if (!i.id.startsWith(group.id + ".") || i.id === group.id) return false;
+                            // Check item filter
+                            if (hasSelectionFilter && !allowedItems.has(i.id) && !i.isSubGroup) return false;
+                            return true;
+                        });
+
+                        // If all items in this group are filtered out, don't show the group
+                        if (groupItems.length === 0) return null;
+
                         const isExpanded = expandedGroups.has(group.id);
-                        const groupItems = LPU_STANDARD_ITEMS.filter(i => i.id.startsWith(group.id + ".") && i.id !== group.id);
 
                         return (
                             <div key={group.id} className="border-b border-gray-100 last:border-0">
@@ -183,7 +303,10 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                                         <span className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${isExpanded ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{group.id}</span>
                                         <span className="font-bold text-sm uppercase text-gray-700">{group.description}</span>
                                     </div>
-                                    <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    <div className="flex items-center gap-3">
+                                        {hasSelectionFilter && <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">LPU Definitiva</span>}
+                                        <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
                                 </button>
 
                                 {isExpanded && (
@@ -210,12 +333,9 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                                                             <>
                                                                 <td className="px-4 py-2 text-center text-gray-500 text-xs">{item.unit}</td>
                                                                 <td className="px-4 py-2 text-right">
-                                                                    <input
-                                                                        type="text"
-                                                                        className="w-full text-right bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
-                                                                        placeholder="0,00"
-                                                                        value={(lpu.prices?.[item.id] || 0) === 0 ? '' : (lpu.prices?.[item.id] || 0)?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                                        onChange={e => handlePriceChange(item.id, e.target.value)}
+                                                                    <CurrencyInput
+                                                                        value={lpu.prices?.[item.id] || 0}
+                                                                        onChange={(val) => handlePriceChange(item.id, val)}
                                                                     />
                                                                 </td>
                                                                 <td className="px-4 py-2 text-center">
@@ -245,7 +365,7 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
 
                 <div className="flex justify-end pt-4 pb-12">
                     <button
-                        onClick={handleSubmit}
+                        onClick={handlePreSubmit}
                         disabled={isSubmitting}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-base font-bold shadow-lg shadow-blue-200 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
@@ -258,6 +378,57 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
                     </button>
                 </div>
             </div>
+
+            {/* Custom Submission Modal */}
+            {isSubmitModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setIsSubmitModalOpen(false)}></div>
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in duration-200">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Confirmar Envio da Cotação</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            Ao confirmar, você concorda com os valores e quantitativos preenchidos.
+                            Após o envio, <b>não será possível realizar alterações</b>.
+                        </p>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-700 uppercase mb-2">
+                                    Assinado Por (Digite seu Nome Completo)
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={signerName}
+                                    onChange={(e) => setSignerName(e.target.value)}
+                                    placeholder="Ex: João da Silva"
+                                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-300"
+                                    autoFocus
+                                />
+                                <p className="mt-2 text-[10px] text-gray-400">
+                                    Este registro será armazenado para auditoria.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSubmitModalOpen(false)}
+                                    className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!signerName.trim() || isSubmitting}
+                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? 'Enviando...' : 'Confirmar e Enviar'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

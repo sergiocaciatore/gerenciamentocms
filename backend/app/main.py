@@ -1,8 +1,16 @@
-from fastapi import FastAPI, BackgroundTasks, UploadFile, File
+```python
+from fastapi import (
+    FastAPI,
+    BackgroundTasks,
+    UploadFile,
+    File,
+    Body,
+    Depends,
+    HTTPException,
+)
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth.deps import get_current_user
-from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from firebase_admin import firestore
 from typing import List, Optional
@@ -765,6 +773,14 @@ def get_plannings(current_user: dict = Depends(get_current_user)):
     for doc in docs:
         data = doc.to_dict()
         data["id"] = doc.id
+
+        # Fetch Work Details for Header
+        work_id = data.get("work_id")
+        if work_id:
+            work_ref = db.collection("works").document(work_id).get()
+            if work_ref.exists:
+                data["work"] = work_ref.to_dict()
+                data["work"]["id"] = work_ref.id
         plannings.append(data)
 
     return plannings
@@ -1347,6 +1363,7 @@ def supplier_login(req: SupplierLoginRequest):
 class SupplierSubmitRequest(BaseModel):
     token: str
     cnpj: str
+    signer_name: str
     prices: dict
     quantities: dict
 
@@ -1355,7 +1372,7 @@ class SupplierSubmitRequest(BaseModel):
 def supplier_submit(lpu_id: str, req: SupplierSubmitRequest):
     db = firestore.client()
 
-    # 1. Verify LPU & Token again (Security)
+    # 1. Verify LPU & Token
     doc_ref = db.collection("lpus").document(lpu_id)
     doc = doc_ref.get()
 
@@ -1370,13 +1387,127 @@ def supplier_submit(lpu_id: str, req: SupplierSubmitRequest):
     if lpu_data.get("status") == "submitted":
         raise HTTPException(status_code=400, detail="Esta cotação já foi enviada.")
 
-    # 3. Verify CNPJ again? (Optional but good)
-    # Skipping deep check for speed, assuming token knowledge + previous login is enough,
-    # but strictly we should re-verify.
+    # 3. Find Supplier Name from CNPJ (for record keeping)
+    input_cnpj = "".join(filter(str.isdigit, req.cnpj))
+    supplier_name = "Fornecedor Desconhecido"
 
-    # 4. Update
+    invited_suppliers = lpu_data.get("invited_suppliers", [])
+    for invited in invited_suppliers:
+        sup_id = invited.get("id")
+        if not sup_id:
+            continue
+        sup_doc = db.collection("suppliers").document(sup_id).get()
+        if sup_doc.exists:
+            sup_data = sup_doc.to_dict()
+            stored_cnpj = sup_data.get("cnpj", "")
+            stored_clean = "".join(filter(str.isdigit, stored_cnpj))
+            if stored_clean == input_cnpj:
+                supplier_name = sup_data.get("social_reason") or sup_data.get("name")
+                break
+
+    # 4. Update with Metadata
+    from datetime import datetime
+
+    # Use UTC for storage, explicitly marked with Z
+    now = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
     doc_ref.update(
-        {"prices": req.prices, "quantities": req.quantities, "status": "submitted"}
+        {
+            "prices": req.prices,
+            "quantities": req.quantities,
+            "status": "submitted",
+            "submission_metadata": {
+                "signer_name": req.signer_name,
+                "submission_date": now,
+                "supplier_name": supplier_name,
+                "supplier_cnpj": req.cnpj,
+            },
+        }
     )
 
     return {"message": "Cotação enviada com sucesso"}
+
+
+class RevisionRequest(BaseModel):
+    comment: str
+
+
+@app.post("/lpus/{lpu_id}/revision")
+def create_revision(lpu_id: str, req: RevisionRequest):
+    db = firestore.client()
+    doc_ref = db.collection("lpus").document(lpu_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="LPU not found")
+
+    lpu_data = doc.to_dict()
+
+    # Snapshot current state to history
+    # Only snapshot if there is actual submitted data
+    current_history = lpu_data.get("history", [])
+
+    # If status is submitted, we save the current state as a revision
+    if lpu_data.get("status") == "submitted":
+        snapshot = {
+            "prices": lpu_data.get("prices", {}),
+            "quantities": lpu_data.get("quantities", {}),
+            "submission_metadata": lpu_data.get("submission_metadata", {}),
+            "created_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+            "revision_number": len(current_history) + 1,
+        }
+        current_history.append(snapshot)
+
+    # Reset for new revision
+    doc_ref.update(
+        {
+            "status": "waiting",
+            "history": current_history,
+            "revision_comment": req.comment,
+            "prices": {},  # Clear current
+            "quantities": {},  # Clear current
+            "submission_metadata": firestore.DELETE_FIELD,  # Remove metadata
+        }
+    )
+
+    return {"message": "New revision created"}
+
+
+class ApproveRequest(BaseModel):
+    revision_number: Optional[int] = None
+
+
+@app.post("/lpus/{lpu_id}/approve")
+def approve_lpu(lpu_id: str, req: ApproveRequest = Body(default=None)):
+    if req is None:
+        req = ApproveRequest()
+
+    db = firestore.client()
+    doc_ref = db.collection("lpus").document(lpu_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="LPU not found")
+
+    updates = {"status": "approved"}
+
+    if req.revision_number is not None:
+        lpu_data = doc.to_dict()
+        history = lpu_data.get("history", [])
+        revision = next(
+            (r for r in history if r.get("revision_number") == req.revision_number),
+            None,
+        )
+
+        if not revision:
+            raise HTTPException(
+                status_code=404, detail=f"Revision {req.revision_number} not found"
+            )
+
+        updates["prices"] = revision.get("prices", {})
+        updates["quantities"] = revision.get("quantities", {})
+        updates["submission_metadata"] = revision.get("submission_metadata")
+        # Keep the history, but update current state to match the approved revision
+
+    doc_ref.update(updates)
+    return {"message": "LPU approved", "restored_revision": req.revision_number}
