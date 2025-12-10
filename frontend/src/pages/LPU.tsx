@@ -46,18 +46,9 @@ export default function LPU() {
     const [editingLpuId, setEditingLpuId] = useState<string | null>(null);
     const [lpuForm, setLpuForm] = useState({ work_id: "", limit_date: "" });
 
-    // Items Modal State
-    const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
-    const [currentLpu, setCurrentLpu] = useState<LPU | null>(null);
-
     // Delete Confirmation
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [lpuToDelete, setLpuToDelete] = useState<LPU | null>(null);
-
-    const openItemsModal = (lpu: LPU) => {
-        setCurrentLpu(lpu);
-        setIsItemsModalOpen(true);
-    };
 
     const fetchData = async () => {
         try {
@@ -134,6 +125,15 @@ export default function LPU() {
         }
     };
 
+    // Expanded Items State (ID of LPUs allowed to show items)
+    const [expandedLpuItems, setExpandedLpuItems] = useState<string[]>([]);
+
+    const toggleLpuExpansion = (lpuId: string) => {
+        setExpandedLpuItems(prev =>
+            prev.includes(lpuId) ? prev.filter(id => id !== lpuId) : [...prev, lpuId]
+        );
+    };
+
     const handleDeleteLpu = (lpu: LPU) => {
         setLpuToDelete(lpu);
         setIsDeleteModalOpen(true);
@@ -194,15 +194,15 @@ export default function LPU() {
     // Toggle Component
     const ToggleSwitch = ({ label, checked, onChange }: { label: string, checked: boolean, onChange: () => void }) => (
         <div className="flex items-center justify-between py-2 border-b border-white/30 last:border-0 hover:bg-white/10 px-2 rounded-lg transition-colors">
-            <span className="text-sm font-medium text-gray-700">{label}</span>
+            <span className="text-xs font-medium text-gray-700">{label}</span>
             <button
                 type="button"
                 onClick={onChange}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${checked ? 'bg-blue-600' : 'bg-gray-200'
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${checked ? 'bg-blue-600' : 'bg-gray-200'
                     }`}
             >
                 <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-1'
                         }`}
                 />
             </button>
@@ -235,6 +235,8 @@ export default function LPU() {
                     <div className="grid grid-cols-1 gap-6">
                         {filteredLpus.map(lpu => {
                             const work = works.find(w => w.id === lpu.work_id);
+                            const isExpanded = expandedLpuItems.includes(lpu.id);
+
                             return (
                                 <div key={lpu.id} className="relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl p-6 transition-all hover:bg-white/50 group">
                                     <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -261,15 +263,6 @@ export default function LPU() {
                                             </div>
 
                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => openItemsModal(lpu)}
-                                                    className="p-1.5 rounded-full bg-white/50 hover:bg-green-100 text-green-600 transition-colors"
-                                                    title="Itens da LPU"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-                                                    </svg>
-                                                </button>
                                                 <button
                                                     onClick={() => openEditLpuModal(lpu)}
                                                     className="p-1.5 rounded-full bg-white/50 hover:bg-blue-100 text-blue-600 transition-colors"
@@ -353,6 +346,62 @@ export default function LPU() {
                                                 />
                                             </div>
                                         </div>
+
+                                        {/* INLINE LPU ITEMS ACCORDION */}
+                                        <div className="mt-4 pt-4 border-t border-white/40">
+                                            <button
+                                                onClick={() => toggleLpuExpansion(lpu.id)}
+                                                className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-50/50 hover:bg-blue-100/50 border border-blue-100 transition-colors group/acc"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">1</span>
+                                                    <span className="font-bold text-gray-800 text-sm group-hover/acc:text-blue-700 transition-colors uppercase">Mobilização e Serviços Preliminares</span>
+                                                </div>
+                                                <svg
+                                                    className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </button>
+
+                                            {isExpanded && (
+                                                <div className="mt-2 bg-white/60 rounded-xl border border-white/50 overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <table className="min-w-full divide-y divide-gray-200/50">
+                                                        <thead className="bg-gray-50/50">
+                                                            <tr>
+                                                                <th scope="col" className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider w-16">ID</th>
+                                                                <th scope="col" className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Descrição</th>
+                                                                <th scope="col" className="px-3 py-2 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider w-16">Unid.</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {LPU_STANDARD_ITEMS.filter(i => i.id !== "1").map((item) => (
+                                                                <tr
+                                                                    key={item.id}
+                                                                    className={`
+                                                                        ${item.isSubGroup ? 'bg-gray-100/80' : 'hover:bg-blue-50/50'} 
+                                                                        transition-colors
+                                                                    `}
+                                                                >
+                                                                    <td className={`px-3 py-2 text-xs align-top ${item.isSubGroup ? 'font-bold text-gray-800' : 'text-gray-500 font-mono'}`}>
+                                                                        {item.id}
+                                                                    </td>
+                                                                    <td className={`px-3 py-2 text-xs align-top leading-relaxed ${item.isSubGroup ? 'font-bold text-gray-800 uppercase' : 'text-gray-700'}`}>
+                                                                        {item.description}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-[10px] text-gray-500 font-mono text-center align-top">
+                                                                        {item.unit || ""}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -381,10 +430,7 @@ export default function LPU() {
                             className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
                         >
                             <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
+                                <span className="text-blue-600 text-lg font-bold right-0 top-0">i</span>
                             </div>
                             <span className="text-[10px] font-medium text-gray-600">Observações</span>
                         </button>
@@ -458,48 +504,6 @@ export default function LPU() {
                     <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-2">
                         <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
                         <button onClick={confirmDeleteLpu} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm">Excluir</button>
-                    </div>
-                </div>
-            </Modal>
-
-            {/* Items View Modal */}
-            <Modal isOpen={isItemsModalOpen} onClose={() => setIsItemsModalOpen(false)} title={`Itens da LPU - ${works.find(w => w.id === currentLpu?.work_id)?.regional || currentLpu?.work_id}`}>
-                <div className="space-y-4">
-                    <div className="overflow-hidden border border-gray-200 rounded-xl">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidade</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {LPU_STANDARD_ITEMS.map((item) => (
-                                    <tr
-                                        key={item.id}
-                                        className={`
-                                            ${item.isGroup ? 'bg-gray-100' : ''} 
-                                            ${item.isSubGroup ? 'bg-gray-50' : ''}
-                                            hover:bg-blue-50 transition-colors
-                                        `}
-                                    >
-                                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${item.isGroup ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
-                                            {item.id}
-                                        </td>
-                                        <td className={`px-6 py-4 text-sm ${item.isGroup ? 'font-bold text-gray-900' : (item.isSubGroup ? 'font-semibold text-gray-700' : 'text-gray-600')}`}>
-                                            {item.description}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                                            {item.unit || "-"}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="flex justify-end pt-2">
-                        <button onClick={() => setIsItemsModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Fechar</button>
                     </div>
                 </div>
             </Modal>
