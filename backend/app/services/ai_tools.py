@@ -128,10 +128,81 @@ def create_report_file(filename: str, content: str):
         return json.dumps({"error": f"Error writing file: {str(e)}"})
 
 
+def get_lpu_data(work_id: str = None):
+    """
+    Fetches LPU (Lista de Preços Unitários) data.
+    """
+    db = firestore.client()
+    query = db.collection("lpus")
+    if work_id:
+        query = query.where("work_id", "==", work_id)
+
+    docs = query.stream()
+    data = [doc.to_dict() for doc in docs]
+    return json.dumps(data, default=str)
+
+
+def get_control_tower_data():
+    """
+    Fetches Control Tower data (OCs and Events).
+    """
+    db = firestore.client()
+    ocs_docs = db.collection("ocs").stream()
+    events_docs = db.collection("oc_events").stream()
+
+    ocs = [doc.to_dict() for doc in ocs_docs]
+    events = [doc.to_dict() for doc in events_docs]
+
+    return json.dumps({"ocs": ocs, "events": events}, default=str)
+
+
+def get_team_members():
+    """
+    Fetches details about the team (Residents/Engineers).
+    """
+    db = firestore.client()
+    docs = db.collection("residents").stream()
+    data = [doc.to_dict() for doc in docs]
+    return json.dumps(data, default=str)
+
+
+def get_managements(work_id: str = None):
+    """
+    Fetches Management/Report data.
+    """
+    db = firestore.client()
+    query = db.collection("managements")
+    if work_id:
+        query = query.where("work_id", "==", work_id)
+
+    docs = query.stream()
+    data = [doc.to_dict() for doc in docs]
+    return json.dumps(data, default=str)
+
+
+def get_daily_logs(work_id: str, date: str = None):
+    """
+    Fetches Daily Logs (Diário de Obra).
+    """
+    db = firestore.client()
+    query = db.collection("daily_logs").where("workId", "==", work_id)
+    if date:
+        query = query.where("date", "==", date)
+
+    docs = query.stream()
+    data = [doc.to_dict() for doc in docs]
+    return json.dumps(data, default=str)
+
+
 AVAILABLE_TOOLS = {
     "get_all_works": get_all_works,
     "get_work_details": get_work_details,
     "get_work_planning": get_work_planning,
+    "get_lpu_data": get_lpu_data,
+    "get_control_tower_data": get_control_tower_data,
+    "get_team_members": get_team_members,
+    "get_managements": get_managements,
+    "get_daily_logs": get_daily_logs,
     "get_file_content": get_file_content,
     "create_report_file": create_report_file,
 }
@@ -198,6 +269,74 @@ TOOL_DEFINITIONS = [
                     }
                 },
                 "required": ["file_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_lpu_data",
+            "description": "Get LPU (Lista de Preços Unitários) data, optionally filtered by work_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "work_id": {
+                        "type": "string",
+                        "description": "Optional work ID to filter LPU items.",
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_control_tower_data",
+            "description": "Get Control Tower data including OCs (Ocorrências) and Events timeline.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_team_members",
+            "description": "Get list of team members (Residents, Engineers) and their assignments.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_managements",
+            "description": "Get management reports and status data.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "work_id": {
+                        "type": "string",
+                        "description": "Optional work ID to filter reports.",
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_daily_logs",
+            "description": "Get daily construction logs (Diário de Obra).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "work_id": {"type": "string", "description": "The ID of the work."},
+                    "date": {
+                        "type": "string",
+                        "description": "Optional date (YYYY-MM-DD) to filter logs.",
+                    },
+                },
+                "required": ["work_id"],
             },
         },
     },
