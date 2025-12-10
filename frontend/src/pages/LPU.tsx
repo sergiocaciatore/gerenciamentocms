@@ -59,6 +59,9 @@ export default function LPU() {
     const [editingLpuId, setEditingLpuId] = useState<string | null>(null);
     const [lpuForm, setLpuForm] = useState({ work_id: "", limit_date: "" });
 
+    // Focus State
+    const [focusedLpuId, setFocusedLpuId] = useState<string | null>(null);
+
     // Delete Confirmation
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [lpuToDelete, setLpuToDelete] = useState<LPU | null>(null);
@@ -208,6 +211,9 @@ export default function LPU() {
     };
 
     const filteredLpus = lpus.filter(lpu => {
+        // If focused, only show the focused card
+        if (focusedLpuId && lpu.id !== focusedLpuId) return false;
+
         const work = works.find(w => w.id === lpu.work_id);
         const searchString = `${work?.id} ${work?.regional} ${work?.address?.city}`.toLowerCase();
         return !filterText || searchString.includes(filterText.toLowerCase());
@@ -223,8 +229,8 @@ export default function LPU() {
                 />
             )}
 
-            {/* Main Content Area */}
-            <div className="transition-all duration-300 px-8 py-8 mr-80 w-auto ml-0">
+            {/* Main Content Area - Center if focused or no sidebar */}
+            <div className={`transition-all duration-300 px-8 py-8 ${focusedLpuId ? 'w-[95%] mx-auto' : 'mr-80 w-auto ml-0'}`}>
 
                 {filteredLpus.length === 0 ? (
                     <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
@@ -247,14 +253,16 @@ export default function LPU() {
                                 onUpdateLpu={handleUpdateLpu}
                                 onDeleteLpu={handleDeleteLpu}
                                 onEditLpu={openEditLpuModal}
+                                isFocused={focusedLpuId === lpu.id}
+                                onToggleFocus={() => setFocusedLpuId(focusedLpuId === lpu.id ? null : lpu.id)}
                             />
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Floating Sidebar */}
-            <div className="fixed right-8 top-32 flex flex-col gap-4 w-72 z-20">
+            {/* Floating Sidebar - Hide when focused */}
+            <div className={`fixed right-8 top-32 flex flex-col gap-4 w-72 z-20 transition-opacity duration-300 ${focusedLpuId ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 {/* Actions Section */}
                 <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>

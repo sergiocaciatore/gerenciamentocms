@@ -1,7 +1,7 @@
-
 import { useState } from "react";
 import { LPU_STANDARD_ITEMS } from "../data/lpu_standard_items";
 import { LPU_PRICES } from "../data/lpu_prices";
+import Modal from "../components/Modal";
 
 interface Work {
     id: string;
@@ -60,9 +60,12 @@ interface LPUCardProps {
     onUpdateLpu: (lpuId: string, updates: Partial<LPU>) => Promise<void>;
     onDeleteLpu: (lpu: LPU) => void;
     onEditLpu: (lpu: LPU) => void;
+    // Focus Mode
+    isFocused: boolean;
+    onToggleFocus: () => void;
 }
 
-export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu, onEditLpu }: LPUCardProps) {
+export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu, onEditLpu, isFocused, onToggleFocus }: LPUCardProps) {
     // === Local State for Menu Interno ===
     const [showPrices, setShowPrices] = useState(false);
     const [showQuantities, setShowQuantities] = useState(false);
@@ -165,11 +168,10 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
 
     // === Toggle Component ===
     const ToggleSwitch = ({ label, checked, onChange }: { label: string, checked: boolean, onChange: () => void }) => (
-        <div className="flex items-center justify-between py-2 border-b border-white/30 last:border-0 hover:bg-white/10 px-2 rounded-lg transition-colors">
-            <span className="text-xs font-medium text-gray-700">{label}</span>
+        <div className="flex items-center justify-between py-2 border-b border-white/30 last:border-0 hover:bg-white/10 px-2 rounded-lg transition-colors cursor-pointer" onClick={onChange}>
+            <span className="text-xs font-medium text-gray-700 select-none">{label}</span>
             <button
                 type="button"
-                onClick={onChange}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}
             >
                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-1'}`} />
@@ -183,7 +185,8 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
 
     return (
         <div className={`relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl hover:bg-white/50 group transition-all duration-300 ${isWaiting ? 'bg-stripes-blue' : ''}`}>
-            <div className="absolute top-0 right-0 p-4 opacity-10">
+            {/* Background Icon */}
+            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-24 h-24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
@@ -217,12 +220,21 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
                             </button>
                         )}
 
-                        {/* Expand/Collapse (Only in Draft) */}
+                        {/* Expand/Collapse/Focus (Only in Draft) */}
                         {!isWaiting && (
                             <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                                 <button onClick={expandAll} className="px-2 py-1 text-[10px] font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded transition-all">Expandir</button>
                                 <div className="w-px h-3 bg-gray-300"></div>
                                 <button onClick={collapseAll} className="px-2 py-1 text-[10px] font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded transition-all">Recolher</button>
+                                <div className="w-px h-3 bg-gray-300"></div>
+                                {/* Foco Button */}
+                                <button
+                                    onClick={onToggleFocus}
+                                    className={`px-2 py-1 text-[10px] font-bold rounded transition-all flex items-center gap-1 ${isFocused ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white hover:shadow-sm'}`}
+                                    title="Modo Foco (Tela Cheia)"
+                                >
+                                    Foco
+                                </button>
                             </div>
                         )}
 
@@ -243,7 +255,7 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
                     </div>
                     <div className="space-y-1 text-right">
                         <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Prazo LPU</div>
-                        <p className="text-sm font-medium text-orange-700">{new Date(lpu.limit_date).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm font-medium text-orange-700">{new Date(lpu.limit_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
                     </div>
                 </div>
 
@@ -255,7 +267,7 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Token de Acesso do Fornecedor</h4>
                             <div className="text-4xl font-mono font-bold text-blue-600 tracking-wider mb-4 select-all">{lpu.quote_token}</div>
                             <div className="text-xs text-gray-500">
-                                Link de acesso: <span className="text-blue-500 underline break-all">{window.location.origin}/fornecedor/login</span>
+                                Link de acesso: <span className="text-blue-500 underline break-all">{window.location.protocol}//{window.location.host}/fornecedor/login/{lpu.quote_token}</span>
                             </div>
                         </div>
 
@@ -293,22 +305,19 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
                     </div>
                 ) : (
                     <>
-                        {/* Menu Interno (Local per Card) */}
+                        {/* Menu Interno (Local per Card) - Using ToggleSwitch now */}
                         <div className="mt-2 p-3 bg-gray-50/50 rounded-xl border border-gray-100 flex flex-wrap gap-4 items-center">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">Visualização:</span>
                             <div className="flex gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={showPrices} onChange={() => setShowPrices(!showPrices)} className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
-                                    <span className="text-xs font-medium text-gray-600">Preços</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={showQuantities} onChange={() => setShowQuantities(!showQuantities)} className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
-                                    <span className="text-xs font-medium text-gray-600">Quantidades</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={isDefinitive} onChange={() => setIsDefinitive(!isDefinitive)} className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
-                                    <span className="text-xs font-medium text-gray-600">LPU Definitiva</span>
-                                </label>
+                                <div className="min-w-[120px]">
+                                    <ToggleSwitch label="Preços" checked={showPrices} onChange={() => setShowPrices(!showPrices)} />
+                                </div>
+                                <div className="min-w-[140px]">
+                                    <ToggleSwitch label="Quantidades" checked={showQuantities} onChange={() => setShowQuantities(!showQuantities)} />
+                                </div>
+                                <div className="min-w-[140px]">
+                                    <ToggleSwitch label="LPU Definitiva" checked={isDefinitive} onChange={() => setIsDefinitive(!isDefinitive)} />
+                                </div>
                             </div>
                         </div>
 
@@ -318,13 +327,6 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
                             {LPU_STANDARD_ITEMS.filter(item => item.isGroup).map(group => {
                                 const isExpanded = expandedGroups.has(group.id);
                                 const groupItems = LPU_STANDARD_ITEMS.filter(i => i.id.startsWith(group.id + ".") && i.id !== group.id);
-
-                                if (isDefinitive && !groupItems.some(i => selectedItems.has(i.id))) {
-                                    // If definitive group has no selected items, do we hide group? Maybe. 
-                                    // For simplicity, let's just keep group if any item visible or hide if none.
-                                    // Actually user requirement: "titles and subtitles of unselected items should be hidden".
-                                    // Let's rely on item filtering.
-                                }
 
                                 return (
                                     <div key={group.id} className="border-t border-white/40 pt-2 first:border-0">
@@ -415,72 +417,67 @@ export default function LPUCard({ lpu, work, suppliers, onUpdateLpu, onDeleteLpu
                 )}
             </div>
 
-            {/* QUOTATION MODAL (Nested/Portal would be better but keeping simple) */}
-            {isQuoteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-gray-800">Solicitar Cotação</h3>
-                            <button onClick={() => setIsQuoteModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
-                        </div>
-
-                        <div className="p-6 space-y-6">
-                            {/* 1. Add Suppliers */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Convidar Fornecedores</label>
-                                <div className="flex gap-2 mb-3">
-                                    <select
-                                        className="flex-1 rounded-lg border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white"
-                                        onChange={(e) => {
-                                            if (e.target.value) {
-                                                handleAddSupplier(e.target.value);
-                                                e.target.value = ""; // reset
-                                            }
-                                        }}
-                                    >
-                                        <option value="">Selecione um fornecedor...</option>
-                                        {suppliers.map(s => (
-                                            <option key={s.id} value={s.id}>{s.social_reason}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {/* List Added */}
-                                <div className="flex flex-wrap gap-2">
-                                    {quoteSuppliers.length === 0 && <span className="text-sm text-gray-400 italic">Nenhum fornecedor adicionado.</span>}
-                                    {quoteSuppliers.map(s => (
-                                        <div key={s.id} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium border border-blue-100">
-                                            {s.name}
-                                            <button onClick={() => handleRemoveSupplier(s.id)} className="hover:text-red-500">×</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* 2. Permissions */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Condições da LPU</label>
-                                <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                    <ToggleSwitch label="Permitir alterar quantitativos" checked={quotePermissions.allow_quantity_change} onChange={() => setQuotePermissions({ ...quotePermissions, allow_quantity_change: !quotePermissions.allow_quantity_change })} />
-                                    <ToggleSwitch label="Permitir adicionar novos itens" checked={quotePermissions.allow_add_items} onChange={() => setQuotePermissions({ ...quotePermissions, allow_add_items: !quotePermissions.allow_add_items })} />
-                                    <ToggleSwitch label="Permitir remover itens" checked={quotePermissions.allow_remove_items} onChange={() => setQuotePermissions({ ...quotePermissions, allow_remove_items: !quotePermissions.allow_remove_items })} />
-                                    <ToggleSwitch label="Permitir edição de descrições/obs" checked={quotePermissions.allow_lpu_edit} onChange={() => setQuotePermissions({ ...quotePermissions, allow_lpu_edit: !quotePermissions.allow_lpu_edit })} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-                            <button onClick={() => setIsQuoteModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg font-medium transition-colors">Cancelar</button>
-                            <button
-                                onClick={handleSaveQuote}
-                                disabled={quoteSuppliers.length === 0 || isSavingQuote}
-                                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* QUOTATION MODAL - Using Standard Modal Component */}
+            <Modal
+                isOpen={isQuoteModalOpen}
+                onClose={() => setIsQuoteModalOpen(false)}
+                title="Solicitar Cotação"
+                width="40rem" // Slightly wider
+            >
+                <div className="space-y-6">
+                    {/* 1. Add Suppliers */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Convidar Fornecedores</label>
+                        <div className="flex gap-2 mb-3">
+                            <select
+                                className="flex-1 rounded-lg border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        handleAddSupplier(e.target.value);
+                                        e.target.value = ""; // reset
+                                    }
+                                }}
                             >
-                                {isSavingQuote ? 'Salvando...' : 'Salvar e Gerar Token'}
-                            </button>
+                                <option value="">Selecione um fornecedor...</option>
+                                {suppliers.map(s => (
+                                    <option key={s.id} value={s.id}>{s.social_reason}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* List Added */}
+                        <div className="flex flex-wrap gap-2">
+                            {quoteSuppliers.length === 0 && <span className="text-sm text-gray-400 italic">Nenhum fornecedor adicionado.</span>}
+                            {quoteSuppliers.map(s => (
+                                <div key={s.id} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium border border-blue-100">
+                                    {s.name}
+                                    <button onClick={() => handleRemoveSupplier(s.id)} className="hover:text-red-500">×</button>
+                                </div>
+                            ))}
                         </div>
                     </div>
+
+                    {/* 2. Permissions */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Condições da LPU</label>
+                        <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <ToggleSwitch label="Permitir alterar quantitativos" checked={quotePermissions.allow_quantity_change} onChange={() => setQuotePermissions({ ...quotePermissions, allow_quantity_change: !quotePermissions.allow_quantity_change })} />
+                            <ToggleSwitch label="Permitir adicionar novos itens" checked={quotePermissions.allow_add_items} onChange={() => setQuotePermissions({ ...quotePermissions, allow_add_items: !quotePermissions.allow_add_items })} />
+                            <ToggleSwitch label="Permitir remover itens" checked={quotePermissions.allow_remove_items} onChange={() => setQuotePermissions({ ...quotePermissions, allow_remove_items: !quotePermissions.allow_remove_items })} />
+                            <ToggleSwitch label="Permitir edição de descrições/obs" checked={quotePermissions.allow_lpu_edit} onChange={() => setQuotePermissions({ ...quotePermissions, allow_lpu_edit: !quotePermissions.allow_lpu_edit })} />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4 border-t border-gray-100">
+                        <button
+                            onClick={handleSaveQuote}
+                            disabled={quoteSuppliers.length === 0 || isSavingQuote}
+                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSavingQuote ? 'Salvando...' : 'Salvar e Gerar Token'}
+                        </button>
+                    </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 }

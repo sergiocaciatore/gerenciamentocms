@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import SupplierLogin from "./pages/SupplierLogin";
 
 import Layout from "./components/Layout";
 import Assistant from "./pages/Assistant";
@@ -34,6 +35,7 @@ function App() {
           <Route path="/report" element={<Report />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
+        <Route path="/fornecedor/login/:token" element={<SupplierLogin />} />
       </Routes>
     </Router>
   );
