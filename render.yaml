@@ -10,14 +10,15 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0 # Verify your local python version if needed
-      # Add your FIREBASE_SERVICE_ACCOUNT or other vars here
+        value: 3.11.0
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: /etc/secrets/serviceAccountKey.json
     autoDeploy: false
 
+staticSites:
   # Frontend Service (Static Site)
-  - type: static
-    name: cms-frontend
-    region: oregon
+  - name: cms-frontend
+    region: oregon # or your preferred region
     rootDir: frontend
     buildCommand: npm install && npm run build
     publishDir: dist
