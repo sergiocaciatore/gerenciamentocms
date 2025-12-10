@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: radial-gradient(circle at 0% 0%, #ffe600ff 0%, #ffe600ff 30%, #ffffff 50%, #333333ff 80%, #333333ff 100%);
+    background-size: 200% 200%;
+    animation: gradientBG 15s ease infinite;
+    min-height: 100vh;
+    transition: background 0.5s ease;
+}
+
+body.static-background {
+    background: #f0f4f8;
+    /* Ice White / Cool Gray */
+    background-size: 100% 100%;
+    animation: none;
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Progress Bar Animations */
+@keyframes stripe-slide {
+  0% { background-position: 0 0; }
+  100% { background-position: 1rem 0; }
+}
+
+.striped-bar {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.3) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.3) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+  animation: stripe-slide 1s linear infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-150%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
