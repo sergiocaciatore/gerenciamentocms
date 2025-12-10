@@ -29,12 +29,19 @@ DEFAULT_ORIGINS = [
 ]
 
 # Read from env or use defaults
+# Read from env or use defaults
 # Parsing robusto: split por virgula, strip de espacos, remove vazios
 cors_origins_str = os.getenv("CORS_ORIGINS", "")
+env_origins = []
 if cors_origins_str and cors_origins_str.strip():
-    origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
-else:
-    origins = DEFAULT_ORIGINS
+    env_origins = [
+        origin.strip() for origin in cors_origins_str.split(",") if origin.strip()
+    ]
+
+# MERGE defaults with env origins to ensure safely
+origins = list(set(DEFAULT_ORIGINS + env_origins))
+
+print(f"CORS Origins Configured: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
