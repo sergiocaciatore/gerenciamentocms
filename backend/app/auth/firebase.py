@@ -25,9 +25,18 @@ def initialize_firebase():
     service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
 
     if service_account_path and os.path.exists(service_account_path):
-        cred = credentials.Certificate(service_account_path)
-        firebase_admin.initialize_app(cred)
-        print(f"Firebase initialized with service account: {service_account_path}")
+        import json
+
+        try:
+            with open(service_account_path, "r") as f:
+                service_account_info = json.load(f)
+            cred = credentials.Certificate(service_account_info)
+            firebase_admin.initialize_app(cred)
+            print(f"Firebase initialized with service account: {service_account_path}")
+        except Exception as e:
+            print(f"Error loading service account file: {e}")
+            # Fallthrogh to default or re-raise if critical
+            raise e
     else:
         # Fallback
         if service_account_path:
@@ -59,7 +68,7 @@ def initialize_firebase():
 
 
 # Call init
-initialize_firebase()
+# initialize_firebase()  <-- Moved to main.py startup event to avoid deadlock on import
 
 
 def verify_token(token: str):

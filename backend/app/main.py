@@ -1,4 +1,3 @@
-```python
 from fastapi import (
     FastAPI,
     BackgroundTasks,
@@ -11,6 +10,7 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth.deps import get_current_user
+from app.auth.firebase import initialize_firebase
 from pydantic import BaseModel
 from firebase_admin import firestore
 from typing import List, Optional
@@ -25,6 +25,11 @@ TEMP_DIR = "/tmp/cms_ai_files"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def startup_event():
+    initialize_firebase()
 
 
 # Default origins for development and production

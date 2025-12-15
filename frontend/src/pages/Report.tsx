@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
@@ -64,14 +64,19 @@ interface OC {
 
 // Load Map Images
 const mapImagesGlob = import.meta.glob('../assets/estados/*.png', { eager: true });
-const mapImages = Object.entries(mapImagesGlob).map(([path, mod]: [string, any]) => ({
+const mapImages = Object.entries(mapImagesGlob).map(([path, mod]: [string, unknown]) => ({
     name: path.split('/').pop()?.replace('.png', '') || '',
-    url: mod.default
+    url: (mod as { default: string }).default
 }));
 
 export default function Report() {
     // --- State ---
     const [works, setWorks] = useState<Work[]>([]);
+    const [hiddenWorkIds, setHiddenWorkIds] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem('hiddenWorkIds');
+        return new Set(saved ? JSON.parse(saved) : []);
+    });
+
     const [managements, setManagements] = useState<Management[]>([]);
     const [plannings, setPlannings] = useState<Planning[]>([]);
     const [ocs, setOcs] = useState<OC[]>([]);
@@ -88,7 +93,21 @@ export default function Report() {
     const [isFlipped, setIsFlipped] = useState(false);
 
     // Derived
-    const currentWork = works[currentIndex];
+    const visibleWorks = useMemo(() => works.filter(w => !hiddenWorkIds.has(w.id)), [works, hiddenWorkIds]);
+    const currentWork = visibleWorks[currentIndex];
+
+    // Maintain valid index when list shrinks
+    useEffect(() => {
+        if (currentIndex >= visibleWorks.length && visibleWorks.length > 0) {
+            setCurrentIndex(visibleWorks.length - 1);
+        }
+    }, [visibleWorks.length, currentIndex]);
+
+    // Persist hidden state
+    useEffect(() => {
+        localStorage.setItem('hiddenWorkIds', JSON.stringify([...hiddenWorkIds]));
+    }, [hiddenWorkIds]);
+
     const currentMgmt = managements.find(m => m.work_id === currentWork?.id);
     const currentPlanning = plannings.find(p => p.work_id === currentWork?.id);
     const currentOcs = ocs.filter(o => o.work_id === currentWork?.id);
@@ -110,7 +129,7 @@ export default function Report() {
                     ]);
 
                     if (resWorks.ok) {
-                        let w: Work[] = await resWorks.json();
+                        const w: Work[] = await resWorks.json();
                         const savedOrder = JSON.parse(localStorage.getItem('worksOrder') || '[]');
                         if (savedOrder && savedOrder.length > 0) {
                             w.sort((a, b) => {
@@ -144,26 +163,40 @@ export default function Report() {
 
     // --- Actions ---
     const handleNext = () => {
-        if (currentIndex < works.length - 1) setCurrentIndex(currentIndex + 1);
+        if (currentIndex < visibleWorks.length - 1) setCurrentIndex(currentIndex + 1);
     };
 
     const handlePrev = () => {
         if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
     };
 
+    const toggleVisibility = (id: string) => {
+        setHiddenWorkIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
     const handleUpdateManagement = async (field: keyof Management, value: string) => {
-        if (!currentMgmt) return;
-        const updatedManagements = managements.map(m =>
-            m.work_id === currentMgmt.work_id ? { ...m, [field]: value } : m
-        );
-        setManagements(updatedManagements);
+        if (!currentWork) return;
+
+        setManagements(prev => {
+            const exists = prev.find(m => m.work_id === currentWork.id);
+            if (exists) {
+                return prev.map(m => m.work_id === currentWork.id ? { ...m, [field]: value } : m);
+            } else {
+                return [...prev, { work_id: currentWork.id, [field]: value }];
+            }
+        });
     };
 
     const handleAIEnhance = async (field: 'presentation_highlights' | 'attention_points') => {
-        if (!currentMgmt) return;
+        if (!currentWork) return;
 
         setIsEnhancing(field);
-        const originalText = currentMgmt[field] || "";
+        const originalText = currentMgmt?.[field] || "";
 
         try {
             const token = await auth.currentUser?.getIdToken();
@@ -175,15 +208,20 @@ export default function Report() {
                 },
                 body: JSON.stringify({
                     text: originalText,
-                    context: `Obra: ${currentWork?.id}. Regional: ${currentWork?.regional}.`
+                    context: `Obra: ${currentWork.id}. Regional: ${currentWork.regional}.`
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
                 handleUpdateManagement(field, data.formatted_text);
-                // Save immediately
-                saveManagement({ ...currentMgmt, [field]: data.formatted_text });
+
+                // Construct object if missing for save
+                const newMgmt = currentMgmt
+                    ? { ...currentMgmt, [field]: data.formatted_text }
+                    : { work_id: currentWork.id, [field]: data.formatted_text };
+
+                saveManagement(newMgmt);
             }
         } catch (e) {
             console.error("AI Enhance failed", e);
@@ -209,11 +247,24 @@ export default function Report() {
     };
 
     const handleSelectMap = (name: string) => {
-        if (currentMgmt) {
-            handleUpdateManagement('map_image', name);
-            saveManagement({ ...currentMgmt, map_image: name });
-            setIsMapModalOpen(false);
-        }
+        if (!currentWork) return;
+
+        const newMgmt: Management = currentMgmt
+            ? { ...currentMgmt, map_image: name }
+            : { work_id: currentWork.id, map_image: name };
+
+        // Update Local State
+        setManagements(prev => {
+            const exists = prev.find(m => m.work_id === currentWork.id);
+            if (exists) {
+                return prev.map(m => m.work_id === currentWork.id ? newMgmt : m);
+            } else {
+                return [...prev, newMgmt];
+            }
+        });
+
+        saveManagement(newMgmt);
+        setIsMapModalOpen(false);
     };
 
     // Helper to resolve map URL from stored value (name or legacy path)
@@ -238,7 +289,8 @@ export default function Report() {
 
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'image_1' | 'image_2') => {
         const file = event.target.files?.[0];
-        if (!file || !currentWork || !currentMgmt) return;
+        if (!file || !currentWork) return;
+        // Logic: if !currentMgmt, we proceed to create
 
         setIsUploading(true);
         try {
@@ -247,7 +299,13 @@ export default function Report() {
             const downloadUrl = await getDownloadURL(storageRef);
 
             handleUpdateManagement(field, downloadUrl);
-            await saveManagement({ ...currentMgmt, [field]: downloadUrl });
+
+            // Construct object if missing for save
+            const newMgmt = currentMgmt
+                ? { ...currentMgmt, [field]: downloadUrl }
+                : { work_id: currentWork.id, [field]: downloadUrl };
+
+            await saveManagement(newMgmt);
         } catch (error) {
             console.error("Error uploading image:", error);
             alert("Erro ao enviar imagem. Verifique se você tem permissão.");
@@ -448,7 +506,7 @@ export default function Report() {
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h3 className="text-xl font-bold text-gray-800">Organizar Obras</h3>
-                            <button onClick={() => setIsReorderModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => setIsReorderModalOpen(false)} className="text-gray-400 hover:text-gray-600" title="Fechar modal" aria-label="Fechar modal">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -467,7 +525,7 @@ export default function Report() {
                                                         <div
                                                             ref={provided.innerRef}
                                                             {...provided.draggableProps}
-                                                            className={`flex items-center justify-between p-3 rounded-xl transition-all border groupSelect ${snapshot.isDragging ? 'bg-white shadow-xl border-blue-400 z-50 scale-105' : 'bg-gray-50 hover:bg-gray-100 border-transparent hover:border-gray-200'}`}
+                                                            className={`flex items-center justify-between p-3 rounded-xl transition-all border group ${snapshot.isDragging ? 'bg-white shadow-xl border-blue-400 z-50 scale-105' : 'bg-gray-50 hover:bg-gray-100 border-transparent hover:border-gray-200'} ${hiddenWorkIds.has(work.id) ? 'opacity-50 grayscale' : ''}`}
                                                             style={provided.draggableProps.style}
                                                         >
                                                             <div className="flex items-center gap-3 overflow-hidden flex-1">
@@ -483,12 +541,19 @@ export default function Report() {
                                                                     <span className="text-xs text-gray-500 truncate">{work.regional}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex gap-1">
                                                                 <button onClick={() => moveWork(idx, 'up')} disabled={idx === 0} className="p-1.5 hover:bg-white rounded shadow-sm disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 hover:text-blue-600 transition-colors" title="Mover para Cima">
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                                                                 </button>
                                                                 <button onClick={() => moveWork(idx, 'down')} disabled={idx === works.length - 1} className="p-1.5 hover:bg-white rounded shadow-sm disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 hover:text-blue-600 transition-colors" title="Mover para Baixo">
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                </button>
+                                                                <button onClick={() => toggleVisibility(work.id)} className={`p-1.5 hover:bg-white rounded shadow-sm text-gray-600 transition-colors ${hiddenWorkIds.has(work.id) ? 'text-gray-400 hover:text-gray-600' : 'hover:text-blue-600'}`} title={hiddenWorkIds.has(work.id) ? "Mostrar na apresentação" : "Ocultar da apresentação"}>
+                                                                    {hiddenWorkIds.has(work.id) ? (
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                                                    ) : (
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                                    )}
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -515,7 +580,7 @@ export default function Report() {
                     <div className="bg-white rounded-2xl p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-xl font-bold text-gray-800">Selecione o Mapa</h3>
-                            <button onClick={() => setIsMapModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => setIsMapModalOpen(false)} className="text-gray-400 hover:text-gray-600" title="Fechar modal" aria-label="Fechar modal">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -542,7 +607,7 @@ export default function Report() {
                                 <h3 className="text-xl font-bold text-gray-800">Editar Datas Realizadas</h3>
                                 <p className="text-xs text-gray-500">Atualize as datas de conclusão (Realizado) das etapas.</p>
                             </div>
-                            <button onClick={() => setIsTimelineModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => setIsTimelineModalOpen(false)} className="text-gray-400 hover:text-gray-600" title="Fechar modal" aria-label="Fechar modal">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -569,6 +634,9 @@ export default function Report() {
                                                 newSchedule[idx] = { ...task, end_real: newDate };
                                                 setTempSchedule(newSchedule);
                                             }}
+                                            aria-label="Data Realizada"
+                                            title="Data Realizada"
+                                            placeholder="dd/mm/aaaa"
                                         />
                                     </div>
                                 </div>
@@ -602,7 +670,7 @@ export default function Report() {
                 </div>
 
                 <div className="flex items-center gap-4 z-10 w-[500px] justify-between bg-white/50 p-1.5 rounded-full border border-white/30">
-                    <button onClick={handlePrev} disabled={currentIndex === 0} className="p-2 bg-white/80 rounded-full shadow-sm hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-all shrink-0">
+                    <button onClick={handlePrev} disabled={currentIndex === 0} className="p-2 bg-white/80 rounded-full shadow-sm hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-all shrink-0" title="Obra anterior" aria-label="Obra anterior">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
 
@@ -615,12 +683,15 @@ export default function Report() {
                         </div>
                     </div>
 
-                    <button onClick={handleNext} disabled={currentIndex === works.length - 1} className="p-2 bg-white/80 rounded-full shadow-sm hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-all shrink-0">
+                    <button onClick={handleNext} disabled={currentIndex === works.length - 1} className="p-2 bg-white/80 rounded-full shadow-sm hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-all shrink-0" title="Próxima obra" aria-label="Próxima obra">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </button>
                 </div>
 
                 <div className="flex items-center gap-3 z-10">
+                    <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-xs font-bold border border-white/20 z-10 shadow-lg">
+                        {currentWork ? currentIndex + 1 : 0} / {visibleWorks.length}
+                    </div>
                     <button
                         onClick={() => setIsReorderModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-1.5 bg-white/50 hover:bg-white/80 text-gray-600 rounded-lg text-xs font-medium transition-colors border border-white/30"
@@ -629,7 +700,6 @@ export default function Report() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         <span>Organizar</span>
                     </button>
-                    <span className="text-xs font-mono bg-white/50 px-2 py-1.5 rounded text-gray-500 font-bold border border-white/30">{currentIndex + 1} / {works.length}</span>
                 </div>
             </div>
 
@@ -647,7 +717,7 @@ export default function Report() {
                             title="Alterar mapa"
                         >
                             {currentMgmt?.map_image ? (
-                                <img src={getMapUrl(currentMgmt.map_image) || ''} className="w-full h-full object-contain p-1" />
+                                <img src={getMapUrl(currentMgmt.map_image) || ''} className="w-full h-full object-contain p-1" alt="Mapa da Obra" title="Mapa da Obra" />
                             ) : (
                                 <div className="text-center">
                                     <span className="text-4xl block mb-2 opacity-50">🗺️</span>
@@ -671,7 +741,7 @@ export default function Report() {
                             <span className="text-[10px] text-gray-500 absolute top-2 left-3 bg-white/90 px-2 py-1 rounded-md shadow-sm z-10 font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">Foto 1</span>
                             {currentMgmt?.image_1 ? (
                                 <>
-                                    <img src={currentMgmt.image_1} className="absolute inset-0 w-full h-full object-cover" />
+                                    <img src={currentMgmt.image_1} className="absolute inset-0 w-full h-full object-cover" alt="Foto 1 da Obra" title="Foto 1 da Obra" />
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <span className="text-white text-xs font-bold uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm">Alterar Foto</span>
                                     </div>
@@ -697,7 +767,7 @@ export default function Report() {
                             <span className="text-[10px] text-gray-500 absolute top-2 left-3 bg-white/90 px-2 py-1 rounded-md shadow-sm z-10 font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">Foto 2</span>
                             {currentMgmt?.image_2 ? (
                                 <>
-                                    <img src={currentMgmt.image_2} className="absolute inset-0 w-full h-full object-cover" />
+                                    <img src={currentMgmt.image_2} className="absolute inset-0 w-full h-full object-cover" alt="Foto 2 da Obra" title="Foto 2 da Obra" />
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <span className="text-white text-xs font-bold uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm">Alterar Foto</span>
                                     </div>
@@ -746,10 +816,10 @@ export default function Report() {
                                 <label className="text-[10px] text-gray-400 uppercase block font-bold mb-1">C.Tower</label>
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-[10px] font-bold">
-                                        {((currentMgmt?.control_tower || (currentWork as any)?.control_tower || "CT") as string).charAt(0)}
+                                        {((currentMgmt?.control_tower || (currentWork as unknown as Management)?.control_tower || "CT") as string).charAt(0)}
                                     </div>
-                                    <p className="font-medium text-xs text-gray-800 truncate" title={currentMgmt?.control_tower || (currentWork as any)?.control_tower}>
-                                        {currentMgmt?.control_tower || (currentWork as any)?.control_tower || "N/A"}
+                                    <p className="font-medium text-xs text-gray-800 truncate" title={currentMgmt?.control_tower || (currentWork as unknown as Management)?.control_tower}>
+                                        {currentMgmt?.control_tower || (currentWork as unknown as Management)?.control_tower || "N/A"}
                                     </p>
                                 </div>
                             </div>
@@ -757,10 +827,10 @@ export default function Report() {
                                 <label className="text-[10px] text-gray-400 uppercase block font-bold mb-1">PM</label>
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 text-[10px] font-bold">
-                                        {((currentMgmt?.pm || (currentWork as any)?.pm || "P") as string).charAt(0)}
+                                        {((currentMgmt?.pm || (currentWork as unknown as Management)?.pm || "P") as string).charAt(0)}
                                     </div>
-                                    <p className="font-medium text-xs text-gray-800 truncate" title={currentMgmt?.pm || (currentWork as any)?.pm}>
-                                        {currentMgmt?.pm || (currentWork as any)?.pm || "N/A"}
+                                    <p className="font-medium text-xs text-gray-800 truncate" title={currentMgmt?.pm || (currentWork as unknown as Management)?.pm}>
+                                        {currentMgmt?.pm || (currentWork as unknown as Management)?.pm || "N/A"}
                                     </p>
                                 </div>
                             </div>
@@ -768,10 +838,10 @@ export default function Report() {
                                 <label className="text-[10px] text-gray-400 uppercase block font-bold mb-1">CM</label>
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-[10px] font-bold">
-                                        {((currentMgmt?.cm || (currentWork as any)?.cm || "C") as string).charAt(0)}
+                                        {((currentMgmt?.cm || (currentWork as unknown as Management)?.cm || "C") as string).charAt(0)}
                                     </div>
-                                    <p className="font-medium text-xs text-gray-800 truncate" title={currentMgmt?.cm || (currentWork as any)?.cm}>
-                                        {currentMgmt?.cm || (currentWork as any)?.cm || "N/A"}
+                                    <p className="font-medium text-xs text-gray-800 truncate" title={currentMgmt?.cm || (currentWork as unknown as Management)?.cm}>
+                                        {currentMgmt?.cm || (currentWork as unknown as Management)?.cm || "N/A"}
                                     </p>
                                 </div>
                             </div>
@@ -789,8 +859,9 @@ export default function Report() {
                                         setIsTimelineModalOpen(true);
                                     }
                                 }}
-                                className="text-gray-300 hover:text-blue-500 transition-colors opacity-0 group-hover/timeline:opacity-100 p-1"
-                                title="Editar Datas Realizadas"
+                                disabled={!currentPlanning?.data?.schedule}
+                                className={`text-gray-300 hover:text-blue-500 transition-colors p-1 ${!currentPlanning?.data?.schedule ? 'opacity-30 cursor-not-allowed' : 'opacity-0 group-hover/timeline:opacity-100'}`}
+                                title={!currentPlanning?.data?.schedule ? "Nenhum planejamento disponível" : "Editar Datas Realizadas"}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                             </button>

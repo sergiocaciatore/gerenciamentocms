@@ -1,13 +1,15 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./serviceAccountKey.json:/run/secrets/firebase_sa.json:ro
+      # Service Account is now baked into /secrets/ via Dockerfile to avoid bind mount deadlocks
     environment:
-      - FIREBASE_SERVICE_ACCOUNT_PATH=/run/secrets/firebase_sa.json
+      - FIREBASE_SERVICE_ACCOUNT_PATH=/secrets/serviceAccountKey.json
   frontend:
     build: ./frontend
     ports:
