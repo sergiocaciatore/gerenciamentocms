@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Toast from "../components/Toast";
 import Modal from "../components/Modal";
 import { getAuthToken } from "../firebase";
@@ -21,6 +21,11 @@ interface Work {
     cnpj: string;
 }
 
+interface Supplier {
+    id: string;
+    social_reason: string;
+}
+
 interface LPU {
     id: string;
     work_id: string;
@@ -35,7 +40,7 @@ interface LPU {
     prices?: Record<string, number>;
     quantities?: Record<string, number>;
     // Phase 1
-    status?: 'draft' | 'waiting';
+    status?: 'draft' | 'waiting' | 'submitted' | 'approved';
     quote_token?: string;
     invited_suppliers?: { id: string, name: string }[];
     quote_permissions?: {
@@ -44,6 +49,27 @@ interface LPU {
         allow_remove_items: boolean;
         allow_lpu_edit: boolean;
     };
+    // Additional fields to match LPUCard structure if needed
+    selected_items?: string[];
+    submission_metadata?: {
+        signer_name: string;
+        submission_date: string;
+        supplier_name: string;
+        supplier_cnpj: string;
+    };
+    history?: {
+        revision_number: number;
+        created_at: string;
+        prices: Record<string, number>;
+        quantities: Record<string, number>;
+        submission_metadata?: {
+            signer_name: string;
+            submission_date: string;
+            supplier_name: string;
+            supplier_cnpj: string;
+        };
+    }[];
+    revision_comment?: string;
 }
 
 export default function LPU() {
@@ -52,7 +78,7 @@ export default function LPU() {
 
     const [works, setWorks] = useState<Work[]>([]);
     const [lpus, setLpus] = useState<LPU[]>([]);
-    const [suppliers, setSuppliers] = useState<any[]>([]);
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,7 +92,7 @@ export default function LPU() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [lpuToDelete, setLpuToDelete] = useState<LPU | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const token = await getAuthToken();
             if (!token) return;
@@ -86,11 +112,12 @@ export default function LPU() {
             console.error("Error fetching data:", error);
             setToast({ message: "Erro ao carregar dados", type: "error" });
         }
-    };
+    }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const openNewLpuModal = () => {
         setEditingLpuId(null);
@@ -181,6 +208,7 @@ export default function LPU() {
                 setToast({ message: "Erro ao salvar LPU", type: "error" });
             }
         } catch (error) {
+            console.error(error);
             setToast({ message: "Erro de conexão", type: "error" });
         }
     };
@@ -206,6 +234,7 @@ export default function LPU() {
                 fetchData();
             }
         } catch (error) {
+            console.error(error);
             setToast({ message: "Erro ao excluir", type: "error" });
         }
     };

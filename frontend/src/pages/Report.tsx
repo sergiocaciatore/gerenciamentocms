@@ -689,9 +689,6 @@ export default function Report() {
                 </div>
 
                 <div className="flex items-center gap-3 z-10">
-                    <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-xs font-bold border border-white/20 z-10 shadow-lg">
-                        {currentWork ? currentIndex + 1 : 0} / {visibleWorks.length}
-                    </div>
                     <button
                         onClick={() => setIsReorderModalOpen(true)}
                         className="flex items-center gap-2 px-3 py-1.5 bg-white/50 hover:bg-white/80 text-gray-600 rounded-lg text-xs font-medium transition-colors border border-white/30"
@@ -700,6 +697,9 @@ export default function Report() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         <span>Organizar</span>
                     </button>
+                    <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-xs font-bold border border-white/20 z-10 shadow-lg">
+                        {currentWork ? currentIndex + 1 : 0} / {visibleWorks.length}
+                    </div>
                 </div>
             </div>
 
