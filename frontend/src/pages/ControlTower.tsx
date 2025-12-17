@@ -1,31 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import type { DropResult } from "@hello-pangea/dnd";
 import { auth } from "../firebase";
 import Modal from "../components/Modal";
 import Toast from "../components/Toast";
+import type { Oc, OcEvent, Alert, ControlTowerWork, OcEventDefinition } from "../types/ControlTower";
+import OcCard from "../components/ControlTower/OcCard";
 
-// Define a placeholder type for Oc if it's not imported or defined elsewhere
-type Oc = {
-    id: string;
-    work_id: string;
-    type: string;
-    description: string;
-    details?: string;
-    value?: number;
-    status?: string;
-    events?: any[]; // Assuming events might be part of the OC object for HUD calculations
-};
 
-type Alert = {
-    id: string;
-    workId: string; // "all" or ID
-    eventFilter: string;
-    recurrenceDays: number;
-    recurrenceActive: boolean;
-    leadTimeDays: number;
-    leadTimeActive: boolean;
-    createdAt: number;
-};
 
 
 // --- HUD Component ---
@@ -103,7 +85,7 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
 };
 
 // --- Timeline Component ---
-const TimelineView = ({ ocs, events }: { ocs: Oc[], events: any[] }) => {
+const TimelineView = ({ ocs, events }: { ocs: Oc[], events: OcEvent[] }) => {
     // Filter events for visible OCs
     const visibleEvents = events.filter(evt => ocs.some(oc => oc.id === evt.oc_id));
 
@@ -173,7 +155,7 @@ const TimelineView = ({ ocs, events }: { ocs: Oc[], events: any[] }) => {
                                             left: `${getLeft(evt.start_date || "")}%`,
                                             width: `${getWidth(evt.start_date || "", evt.end_date || "")}%`
                                         }}
-                                        title={`${evt.description} (${evt.start_date} - ${evt.end_date})`}
+                                        title={`${evt.description} (${evt.start_date || "?"} - ${evt.end_date || "?"})`}
                                     ></div>
                                 ))}
                             </div>
@@ -186,9 +168,9 @@ const TimelineView = ({ ocs, events }: { ocs: Oc[], events: any[] }) => {
 };
 
 // --- Kanban Component ---
-const KanbanBoard = ({ ocs, statuses, onDragEnd }: { ocs: Oc[], statuses: string[], onDragEnd: (result: any) => void }) => {
+const KanbanBoard = ({ ocs, statuses, onDragEnd }: { ocs: Oc[], statuses: string[], onDragEnd: (result: DropResult) => void }) => {
     // Group OCs by status
-    const columns = statuses.reduce((acc: any, status) => {
+    const columns = statuses.reduce((acc: Record<string, Oc[]>, status) => {
         acc[status] = ocs.filter(oc => (oc.status || "Pendente") === status);
         return acc;
     }, {});
@@ -218,7 +200,7 @@ const KanbanBoard = ({ ocs, statuses, onDragEnd }: { ocs: Oc[], statuses: string
                                     ref={provided.innerRef}
                                     className={`flex-1 p-3 space-y-3 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent ${snapshot.isDraggingOver ? 'bg-blue-50/20' : ''}`}
                                 >
-                                    {columns[status]?.map((oc: any, index: number) => (
+                                    {columns[status]?.map((oc: Oc, index: number) => (
                                         <Draggable key={oc.id} draggableId={oc.id} index={index}>
                                             {(provided, snapshot) => (
                                                 <div
@@ -274,10 +256,10 @@ export default function ControlTower() {
     const [expandedOcId, setExpandedOcId] = useState<string | null>(null);
 
     // Data State
-    const [works, setWorks] = useState<any[]>([]);
-    const [ocs, setOcs] = useState<any[]>([]);
-    const [existingEvents, setExistingEvents] = useState<any[]>([]); // This will now be event definitions
-    const [ocEvents, setOcEvents] = useState<any[]>([]); // Actual instances on cards
+    const [works, setWorks] = useState<ControlTowerWork[]>([]);
+    const [ocs, setOcs] = useState<Oc[]>([]);
+    const [existingEvents, setExistingEvents] = useState<OcEventDefinition[]>([]);
+    const [ocEvents, setOcEvents] = useState<OcEvent[]>([]);
 
     // Form State (OC)
     const [selectedWorkId, setSelectedWorkId] = useState("");
@@ -344,7 +326,7 @@ export default function ControlTower() {
         if (alerts.length > 0) {
             setToast({ message: `${alerts.length} alertas ativos monitorando suas obras.`, type: "success" });
         }
-    }, []);
+    }, [alerts.length]);
 
     const handleSaveAlert = () => {
         const newAlert: Alert = {
@@ -412,7 +394,7 @@ export default function ControlTower() {
     const [isKanbanView, setIsKanbanView] = useState(false);   // Existing
     const [isTimelineView, setIsTimelineView] = useState(false); // New
 
-    const handleDragEnd = async (result: any) => {
+    const handleDragEnd = async (result: DropResult) => {
         if (!result.destination) return;
 
         const { source, destination, draggableId } = result;
@@ -472,9 +454,9 @@ export default function ControlTower() {
     };
 
     // Filter Logic
-    const availableStatuses = Array.from(new Set(ocEvents.map(e => e.status).filter(Boolean)));
+    const availableStatuses = useMemo(() => Array.from(new Set(ocEvents.map(e => e.status).filter((s): s is string => !!s))), [ocEvents]);
 
-    const filteredOcs = ocs.filter(oc => {
+    const filteredOcs = useMemo(() => ocs.filter(oc => {
         const work = works.find(w => w.id === oc.work_id);
         const searchString = `${oc.description} ${oc.type} ${work?.id} ${work?.regional} `.toLowerCase();
 
@@ -491,15 +473,15 @@ export default function ControlTower() {
 
         // 2. Overdue Toggle
         if (filterOverdue) {
-            const hasOverdueEvent = events.some(e => isOverdue(e.end_date));
+            const hasOverdueEvent = events.some(e => isOverdue(e.end_date || ""));
             if (!hasOverdueEvent) return false;
         }
 
         // 3. Near Deadline Toggle (>= 50% elapsed)
         if (filterNearDeadline) {
             const hasNearDeadlineEvent = events.some(e => {
-                const pct = calculateTimeElapsed(e.start_date, e.end_date);
-                return pct >= 50 && !isOverdue(e.end_date); // Only "Near" deadline, exclude already overdue? OR include?
+                const pct = calculateTimeElapsed(e.start_date || "", e.end_date || "");
+                return pct >= 50 && !isOverdue(e.end_date || ""); // Only "Near" deadline, exclude already overdue? OR include?
                 // User said "a partir de 50% entra nesse ponto". Usually simpler to just say >= 50.
             });
             if (!hasNearDeadlineEvent) return false;
@@ -512,13 +494,11 @@ export default function ControlTower() {
         }
 
         return true;
-    });
+    }), [ocs, works, ocEvents, filterText, filterOverdue, filterNearDeadline, filterStatus]);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
 
-    const fetchData = async () => {
+
+    const fetchData = useCallback(async () => {
         try {
             const token = await auth.currentUser?.getIdToken();
             if (!token) return;
@@ -541,7 +521,11 @@ export default function ControlTower() {
             console.error("Error fetching data:", error);
             setToast({ message: "Erro ao carregar dados.", type: "error" });
         }
-    };
+    }, [])
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const handleButtonClick = (label: string) => {
         setEditingOcId(null);
@@ -555,7 +539,7 @@ export default function ControlTower() {
         setIsModalOpen(true);
     };
 
-    const handleEdit = (oc: any) => {
+    const handleEdit = (oc: Oc) => {
         setEditingOcId(oc.id);
         setModalType("Editar OC");
         setSelectedWorkId(oc.work_id);
@@ -710,7 +694,7 @@ export default function ControlTower() {
             }
 
             // 2. Create OC Event Instance
-            let payload: any = {
+            const payload = {
                 oc_id: currentOcId,
                 description: finalDescription,
                 status_options: finalStatusOptions
@@ -759,7 +743,7 @@ export default function ControlTower() {
         }
     };
 
-    const handleUpdateEvent = async (event: any, field: string, value: any) => {
+    const handleUpdateEvent = async (event: OcEvent, field: string, value: string) => {
         try {
             const token = await auth.currentUser?.getIdToken();
             if (!token) return;
@@ -797,7 +781,7 @@ export default function ControlTower() {
         setIsManageEventsModalOpen(true);
     };
 
-    const handleEditDefinition = (def: any) => {
+    const handleEditDefinition = (def: OcEventDefinition) => {
         setEditingDefinitionId(def.id);
         setEventDescription(def.description);
         setCustomStatusOptions(def.default_status_options || []);
@@ -872,166 +856,12 @@ export default function ControlTower() {
     );
 
     // --- Helper Logic for OC Rendering ---
-    const renderOcCard = (oc: any) => {
-        const isExpanded = expandedOcId === oc.id;
-        const currentEvents = ocEvents.filter(e => e.oc_id === oc.id);
+    // Moved to OcCard component for performance
 
-        return (
-            <div key={oc.id} className={`relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl p-6 transition-all hover:bg-white/50 group flex flex-col ${isExpanded ? 'row-span-2' : ''}`}>
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-24 h-24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                </div>
-                <div className="relative z-10 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-2">
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100/50 text-blue-700 border border-blue-200/50">
-                                OC
-                            </span>
-                            {currentEvents.length > 0 && (
-                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                                    {currentEvents.length} Eventos
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setExpandedOcId(isExpanded ? null : oc.id)}
-                                className="p-1.5 rounded-full bg-white/50 hover:bg-gray-100 text-gray-600 transition-colors"
-                                title={isExpanded ? "Recolher" : "Expandir"}
-                            >
-                                {isExpanded ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => handleEdit(oc)}
-                                className="p-1.5 rounded-full bg-white/50 hover:bg-blue-100 text-blue-600 transition-colors"
-                                title="Editar"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
-                            </button>
-                            <button
-                                onClick={() => handleDeleteClick(oc.id, 'oc')}
-                                className="p-1.5 rounded-full bg-white/50 hover:bg-red-100 text-red-600 transition-colors"
-                                title="Excluir"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{oc.description}</h3>
-                    <p className="text-sm text-gray-600 mb-2">Obra: {oc.work_id}</p>
-                    <p className="text-sm text-gray-600 mb-2">Tipo: {oc.type}</p>
-                    {oc.value > 0 && (
-                        <p className="text-sm font-bold text-gray-800 mb-4">
-                            Orçado: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(oc.value)}
-                        </p>
-                    )}
-
-                    {isExpanded && (
-                        <div className="mt-4 border-t border-gray-200 pt-4">
-                            <div className="flex justify-between items-center mb-4">
-                                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Eventos vinculados</h4>
-                                <button
-                                    onClick={() => handleAddEvent(oc.id)}
-                                    className="py-1 px-3 rounded-lg border border-dashed border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-400 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                    </svg>
-                                    Novo Evento
-                                </button>
-                            </div>
-
-                            {currentEvents.length === 0 ? (
-                                <p className="text-sm text-gray-400 italic text-center py-2">Nenhum evento vinculado.</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 uppercase px-2">
-                                        <div className="col-span-3">Descrição</div>
-                                        <div className="col-span-2">Início</div>
-                                        <div className="col-span-2">Fim</div>
-                                        <div className="col-span-2">Status</div>
-                                        <div className="col-span-2">Protocolo</div>
-                                        <div className="col-span-1"></div>
-                                    </div>
-                                    {currentEvents.map(evt => (
-                                        <div key={evt.id} className="grid grid-cols-12 gap-2 items-center bg-white/40 p-2 rounded-lg border border-white/50 text-sm">
-                                            <div className="col-span-3 font-medium text-gray-800 truncate" title={evt.description}>
-                                                {evt.description}
-                                            </div>
-                                            <div className="col-span-2">
-                                                <input
-                                                    type="date"
-                                                    value={evt.start_date || ""}
-                                                    onChange={(e) => handleUpdateEvent(evt, 'start_date', e.target.value)}
-                                                    className="w-full bg-transparent border-none p-0 text-xs focus:ring-0 text-gray-600"
-                                                />
-                                            </div>
-                                            <div className="col-span-2">
-                                                <input
-                                                    type="date"
-                                                    value={evt.end_date || ""}
-                                                    onChange={(e) => handleUpdateEvent(evt, 'end_date', e.target.value)}
-                                                    className="w-full bg-transparent border-none p-0 text-xs focus:ring-0 text-gray-600"
-                                                />
-                                            </div>
-                                            <div className="col-span-2">
-                                                <select
-                                                    value={evt.status || ""}
-                                                    onChange={(e) => handleUpdateEvent(evt, 'status', e.target.value)}
-                                                    className="w-full bg-transparent border-none p-0 text-xs focus:ring-0 text-gray-600"
-                                                >
-                                                    <option value="">Status</option>
-                                                    {(evt.status_options || []).map((opt: string) => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="col-span-2">
-                                                <input
-                                                    type="text"
-                                                    value={evt.protocol || ""}
-                                                    onChange={(e) => handleUpdateEvent(evt, 'protocol', e.target.value)}
-                                                    placeholder="Protocolo"
-                                                    className="w-full bg-transparent border-none p-0 text-xs focus:ring-0 text-gray-600 placeholder-gray-300"
-                                                />
-                                            </div>
-                                            <div className="col-span-1 flex justify-end">
-                                                <button
-                                                    onClick={() => handleDeleteClick(evt.id, 'event')}
-                                                    className="text-red-400 hover:text-red-600 transition-colors"
-                                                    title="Excluir Evento"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-                {/* Visual Accent */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${isExpanded ? 'bg-blue-500' : 'bg-transparent group-hover:bg-blue-200'} transition-colors`}></div>
-            </div>
-        );
-    };
 
     // --- Grouped View Logic ---
     const groupedOcs = isGroupedView
-        ? Object.values(filteredOcs.reduce((acc: any, oc: any) => {
+        ? Object.values(filteredOcs.reduce((acc: Record<string, Oc[]>, oc: Oc) => {
             const workId = oc.work_id || "Sem Obra";
             if (!acc[workId]) acc[workId] = [];
             acc[workId].push(oc);
@@ -1039,7 +869,7 @@ export default function ControlTower() {
         }, {}))
         : [];
 
-    const GroupedOcCard = ({ ocs }: { ocs: any[] }) => {
+    const GroupedOcCard = ({ ocs }: { ocs: Oc[] }) => {
         const [isExpanded, setIsExpanded] = useState(false);
         const workId = ocs[0]?.work_id;
         const work = works.find(w => w.id === workId);
@@ -1082,7 +912,20 @@ export default function ControlTower() {
                     <div className="px-6 pb-6 pt-0 space-y-4 border-t border-white/30 mt-2 bg-black/5 rounded-b-2xl">
                         <div className="pt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cartões da Obra</div>
                         <div className="grid grid-cols-1 gap-4">
-                            {ocs.map(oc => renderOcCard(oc))}
+                            {ocs.map(oc => (
+                                <OcCard
+                                    key={oc.id}
+                                    oc={oc}
+                                    ocEvents={ocEvents}
+                                    expandedOcId={expandedOcId}
+                                    onExpand={setExpandedOcId}
+                                    onEdit={handleEdit}
+                                    onDelete={(id) => handleDeleteClick(id, 'oc')}
+                                    onAddEvent={handleAddEvent}
+                                    onUpdateEvent={handleUpdateEvent}
+                                    onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}
@@ -1124,11 +967,24 @@ export default function ControlTower() {
                     ) : isTimelineView ? (
                         <TimelineView ocs={filteredOcs} events={ocEvents} />
                     ) : isGroupedView ? (
-                        groupedOcs.map((group: any, idx: number) => (
+                        groupedOcs.map((group: Oc[], idx: number) => (
                             <GroupedOcCard key={group[0]?.work_id || idx} ocs={group} />
                         ))
                     ) : (
-                        filteredOcs.map((oc) => renderOcCard(oc))
+                        filteredOcs.map((oc) => (
+                            <OcCard
+                                key={oc.id}
+                                oc={oc}
+                                ocEvents={ocEvents}
+                                expandedOcId={expandedOcId}
+                                onExpand={setExpandedOcId}
+                                onEdit={handleEdit}
+                                onDelete={(id) => handleDeleteClick(id, 'oc')}
+                                onAddEvent={handleAddEvent}
+                                onUpdateEvent={handleUpdateEvent}
+                                onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
+                            />
+                        ))
                     )}
                 </div>
 
@@ -1281,377 +1137,377 @@ export default function ControlTower() {
                     )}
                 </div>
             </div>
-                            {/* Modal for OC */}
-                            <Modal
-                                isOpen={isModalOpen}
-                                onClose={() => setIsModalOpen(false)}
-                                title={modalType}
-                            >
-                                {/* ... (OC Form - same as before) ... */}
-                                <form className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Obra</label>
-                                        <select
-                                            value={selectedWorkId}
-                                            onChange={(e) => setSelectedWorkId(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
-                                        >
-                                            <option value="">Selecione uma obra</option>
-                                            {works.map((work) => (
-                                                <option key={work.id} value={work.id}>
-                                                    {work.id} - {work.regional}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+            {/* Modal for OC */}
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={modalType}
+            >
+                {/* ... (OC Form - same as before) ... */}
+                <form className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Obra</label>
+                        <select
+                            value={selectedWorkId}
+                            onChange={(e) => setSelectedWorkId(e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
+                        >
+                            <option value="">Selecione uma obra</option>
+                            {works.map((work) => (
+                                <option key={work.id} value={work.id}>
+                                    {work.id} - {work.regional}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Tipo</label>
-                                        <input
-                                            type="text"
-                                            value={ocType}
-                                            onChange={(e) => setOcType(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
-                                            placeholder="Digite o tipo"
-                                        />
-                                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Tipo</label>
+                        <input
+                            type="text"
+                            value={ocType}
+                            onChange={(e) => setOcType(e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
+                            placeholder="Digite o tipo"
+                        />
+                    </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Categoria</label>
-                                        <select
-                                            value={ocDescription}
-                                            onChange={(e) => setOcDescription(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
-                                        >
-                                            {descriptionOptions.map((option) => (
-                                                <option key={option} value={option}>{option}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Categoria</label>
+                        <select
+                            value={ocDescription}
+                            onChange={(e) => setOcDescription(e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
+                        >
+                            {descriptionOptions.map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                            ))}
+                        </select>
+                    </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Descrição</label>
-                                        <textarea
-                                            value={ocDetails}
-                                            onChange={(e) => setOcDetails(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200 min-h-[80px]"
-                                            placeholder="Detalhes adicionais..."
-                                        />
-                                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Descrição</label>
+                        <textarea
+                            value={ocDetails}
+                            onChange={(e) => setOcDetails(e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200 min-h-[80px]"
+                            placeholder="Detalhes adicionais..."
+                        />
+                    </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Valor (R$)</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            value={ocValue}
-                                            onChange={(e) => setOcValue(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
-                                            placeholder="0.00"
-                                        />
-                                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Valor (R$)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={ocValue}
+                            onChange={(e) => setOcValue(e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
+                            placeholder="0.00"
+                        />
+                    </div>
 
-                                    <div className="mt-6 flex justify-end gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsModalOpen(false)}
-                                            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleSave}
-                                            disabled={isSaving}
-                                            className={`rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg flex items-center gap-2 ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-                                        >
-                                            {isSaving ? "Salvando..." : "Salvar"}
-                                        </button>
-                                    </div>
-                                </form>
-                            </Modal>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsModalOpen(false)}
+                            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className={`rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg flex items-center gap-2 ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                        >
+                            {isSaving ? "Salvando..." : "Salvar"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
-                            {/* Modal for Events */}
-                            <Modal
-                                isOpen={isEventModalOpen}
-                                onClose={() => setIsEventModalOpen(false)}
-                                title="Adicionar Evento"
-                            >
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Buscar na Biblioteca</label>
-                                        <select
-                                            value={selectedDefinitionId}
-                                            onChange={(e) => setSelectedDefinitionId(e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
-                                        >
-                                            <option value="">Selecione um modelo de evento</option>
-                                            {existingEvents.map((evt) => (
-                                                <option key={evt.id} value={evt.id}>
-                                                    {evt.description}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="mt-2 text-xs text-gray-500">
-                                            Selecione um evento da biblioteca para vincular a esta OC. Você poderá editar os detalhes no card.
-                                        </p>
-                                    </div>
+            {/* Modal for Events */}
+            <Modal
+                isOpen={isEventModalOpen}
+                onClose={() => setIsEventModalOpen(false)}
+                title="Adicionar Evento"
+            >
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Buscar na Biblioteca</label>
+                        <select
+                            value={selectedDefinitionId}
+                            onChange={(e) => setSelectedDefinitionId(e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200"
+                        >
+                            <option value="">Selecione um modelo de evento</option>
+                            {existingEvents.map((evt) => (
+                                <option key={evt.id} value={evt.id}>
+                                    {evt.description}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-2 text-xs text-gray-500">
+                            Selecione um evento da biblioteca para vincular a esta OC. Você poderá editar os detalhes no card.
+                        </p>
+                    </div>
 
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsEventModalOpen(false)}
-                                            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleSaveEvent}
-                                            disabled={isSaving}
-                                            className={`rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg flex items-center gap-2 ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-                                        >
-                                            {isSaving ? "Vinculando..." : "Vincular Evento"}
-                                        </button>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => setIsEventModalOpen(false)}
+                            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSaveEvent}
+                            disabled={isSaving}
+                            className={`rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg flex items-center gap-2 ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                        >
+                            {isSaving ? "Vinculando..." : "Vincular Evento"}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal for Managing Event Library */}
+            <Modal
+                isOpen={isManageEventsModalOpen}
+                onClose={() => setIsManageEventsModalOpen(false)}
+                title="Gerenciar Biblioteca de Eventos"
+            >
+                <div className="space-y-6">
+                    {/* Add/Edit Form Section */}
+
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <h4 className="text-sm font-bold text-gray-700 mb-3">{editingDefinitionId ? "Editar Evento" : "Novo Modelo de Evento"}</h4>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Evento</label>
+                                <input
+                                    type="text"
+                                    value={eventDescription}
+                                    onChange={(e) => setEventDescription(e.target.value)}
+                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base p-3 transition-all hover:border-gray-300"
+                                    placeholder="Ex: Instalação Elétrica"
+                                />
+                            </div>
+
+                            {/* Optional Fields Container */}
+                            <div className="grid grid-cols-1 gap-4 bg-white/50 p-4 rounded-xl border border-gray-200/50">
+                                <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Configurações Padrão</h5>
+
+                                <div className="flex items-center justify-between p-2 hover:bg-white/50 rounded-lg transition-colors">
+                                    <span className="text-sm font-medium text-gray-700">Data de Início</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`transition-all duration-300 overflow-hidden ${useStartDate ? 'w-40 opacity-100' : 'w-0 opacity-0'}`}>
+                                            <input type="date" value={eventStartDate} onChange={e => setEventStartDate(e.target.value)} className="w-full text-sm p-1.5 border-gray-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                                        </div>
+                                        <ToggleSwitch checked={useStartDate} onChange={setUseStartDate} />
                                     </div>
                                 </div>
-                            </Modal>
 
-                            {/* Modal for Managing Event Library */}
-                            <Modal
-                                isOpen={isManageEventsModalOpen}
-                                onClose={() => setIsManageEventsModalOpen(false)}
-                                title="Gerenciar Biblioteca de Eventos"
-                            >
-                                <div className="space-y-6">
-                                    {/* Add/Edit Form Section */}
+                                <div className="flex items-center justify-between p-2 hover:bg-white/50 rounded-lg transition-colors">
+                                    <span className="text-sm font-medium text-gray-700">Data de Fim</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`transition-all duration-300 overflow-hidden ${useEndDate ? 'w-40 opacity-100' : 'w-0 opacity-0'}`}>
+                                            <input type="date" value={eventEndDate} onChange={e => setEventEndDate(e.target.value)} className="w-full text-sm p-1.5 border-gray-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                                        </div>
+                                        <ToggleSwitch checked={useEndDate} onChange={setUseEndDate} />
+                                    </div>
+                                </div>
 
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                        <h4 className="text-sm font-bold text-gray-700 mb-3">{editingDefinitionId ? "Editar Evento" : "Novo Modelo de Evento"}</h4>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Evento</label>
-                                                <input
-                                                    type="text"
-                                                    value={eventDescription}
-                                                    onChange={(e) => setEventDescription(e.target.value)}
-                                                    className="w-full rounded-xl border-gray-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base p-3 transition-all hover:border-gray-300"
-                                                    placeholder="Ex: Instalação Elétrica"
-                                                />
-                                            </div>
+                                <div className="flex items-center justify-between p-2 hover:bg-white/50 rounded-lg transition-colors">
+                                    <span className="text-sm font-medium text-gray-700">Protocolo</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`transition-all duration-300 overflow-hidden ${useProtocol ? 'w-40 opacity-100' : 'w-0 opacity-0'}`}>
+                                            <input type="text" value={eventProtocol} onChange={e => setEventProtocol(e.target.value)} className="w-full text-sm p-1.5 border-gray-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Protocolo" />
+                                        </div>
+                                        <ToggleSwitch checked={useProtocol} onChange={setUseProtocol} />
+                                    </div>
+                                </div>
+                            </div>
 
-                                            {/* Optional Fields Container */}
-                                            <div className="grid grid-cols-1 gap-4 bg-white/50 p-4 rounded-xl border border-gray-200/50">
-                                                <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Configurações Padrão</h5>
+                            <div className="bg-white/50 p-4 rounded-xl border border-gray-200/50 space-y-3">
+                                <label className="block text-sm font-medium text-gray-600">Opções de Status</label>
 
-                                                <div className="flex items-center justify-between p-2 hover:bg-white/50 rounded-lg transition-colors">
-                                                    <span className="text-sm font-medium text-gray-700">Data de Início</span>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`transition-all duration-300 overflow-hidden ${useStartDate ? 'w-40 opacity-100' : 'w-0 opacity-0'}`}>
-                                                            <input type="date" value={eventStartDate} onChange={e => setEventStartDate(e.target.value)} className="w-full text-sm p-1.5 border-gray-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" />
-                                                        </div>
-                                                        <ToggleSwitch checked={useStartDate} onChange={setUseStartDate} />
-                                                    </div>
-                                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newStatusOption}
+                                        onChange={(e) => setNewStatusOption(e.target.value)}
+                                        placeholder="Nova opção (ex: Em Andamento)"
+                                        className="flex-1 rounded-xl border-gray-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 transition-all hover:border-gray-300"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleAddCustomStatusOption}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+                                    >
+                                        Adicionar
+                                    </button>
+                                </div>
 
-                                                <div className="flex items-center justify-between p-2 hover:bg-white/50 rounded-lg transition-colors">
-                                                    <span className="text-sm font-medium text-gray-700">Data de Fim</span>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`transition-all duration-300 overflow-hidden ${useEndDate ? 'w-40 opacity-100' : 'w-0 opacity-0'}`}>
-                                                            <input type="date" value={eventEndDate} onChange={e => setEventEndDate(e.target.value)} className="w-full text-sm p-1.5 border-gray-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" />
-                                                        </div>
-                                                        <ToggleSwitch checked={useEndDate} onChange={setUseEndDate} />
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between p-2 hover:bg-white/50 rounded-lg transition-colors">
-                                                    <span className="text-sm font-medium text-gray-700">Protocolo</span>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`transition-all duration-300 overflow-hidden ${useProtocol ? 'w-40 opacity-100' : 'w-0 opacity-0'}`}>
-                                                            <input type="text" value={eventProtocol} onChange={e => setEventProtocol(e.target.value)} className="w-full text-sm p-1.5 border-gray-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Protocolo" />
-                                                        </div>
-                                                        <ToggleSwitch checked={useProtocol} onChange={setUseProtocol} />
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white/50 p-4 rounded-xl border border-gray-200/50 space-y-3">
-                                                <label className="block text-sm font-medium text-gray-600">Opções de Status</label>
-
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={newStatusOption}
-                                                        onChange={(e) => setNewStatusOption(e.target.value)}
-                                                        placeholder="Nova opção (ex: Em Andamento)"
-                                                        className="flex-1 rounded-xl border-gray-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 transition-all hover:border-gray-300"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleAddCustomStatusOption}
-                                                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
-                                                    >
-                                                        Adicionar
-                                                    </button>
-                                                </div>
-
-                                                {customStatusOptions.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-2 pt-1">
-                                                        {customStatusOptions.map(opt => (
-                                                            <span key={opt} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 group transition-all hover:bg-blue-100">
-                                                                {opt}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleRemoveCustomStatusOption(opt)}
-                                                                    className="ml-2 text-blue-400 hover:text-red-500 focus:outline-none transition-colors"
-                                                                >
-                                                                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                                                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                                    </svg>
-                                                                </button>
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-xs text-gray-400 italic pl-1">Nenhuma opção configurada.</p>
-                                                )}
-
-                                                <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-sm text-gray-600">Definir Status Inicial?</span>
-                                                        <ToggleSwitch checked={useStatus} onChange={setUseStatus} />
-                                                    </div>
-                                                    {useStatus && (
-                                                        <select
-                                                            value={eventStatus}
-                                                            onChange={e => setEventStatus(e.target.value)}
-                                                            className="text-sm pl-3 pr-8 py-1.5 border-gray-200 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500"
-                                                        >
-                                                            <option value="">Selecione...</option>
-                                                            {customStatusOptions.map(o => <option key={o} value={o}>{o}</option>)}
-                                                        </select>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-end pt-2">
+                                {customStatusOptions.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {customStatusOptions.map(opt => (
+                                            <span key={opt} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 group transition-all hover:bg-blue-100">
+                                                {opt}
                                                 <button
                                                     type="button"
-                                                    onClick={handleSaveDefinition}
-                                                    disabled={isSaving}
-                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm"
+                                                    onClick={() => handleRemoveCustomStatusOption(opt)}
+                                                    className="ml-2 text-blue-400 hover:text-red-500 focus:outline-none transition-colors"
                                                 >
-                                                    {editingDefinitionId ? "Atualizar" : "Criar Modelo"}
+                                                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                    </svg>
                                                 </button>
-                                            </div>
-                                        </div>
+                                            </span>
+                                        ))}
                                     </div>
+                                ) : (
+                                    <p className="text-xs text-gray-400 italic pl-1">Nenhuma opção configurada.</p>
+                                )}
 
-                                    {/* List Section */}
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-700 mb-3">Eventos Disponíveis</h4>
-                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                            {existingEvents.length === 0 ? (
-                                                <p className="text-sm text-gray-400 italic">Nenhum evento na biblioteca.</p>
-                                            ) : (
-                                                existingEvents.map(def => (
-                                                    <div key={def.id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-                                                        <div>
-                                                            <p className="text-sm font-semibold text-gray-800">{def.description}</p>
-                                                            <p className="text-xs text-gray-500 truncate max-w-xs">
-                                                                Opções: {def.default_status_options?.join(", ") || "Nenhuma"}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => handleEditDefinition(def)}
-                                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                                                </svg>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteClick(def.id, 'definition')}
-                                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                                </svg>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
+                                <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-2">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm text-gray-600">Definir Status Inicial?</span>
+                                        <ToggleSwitch checked={useStatus} onChange={setUseStatus} />
                                     </div>
-                                </div>
-                            </Modal>
-                            {/* Delete Confirmation Modal */}
-                            <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title={`Excluir ${deleteTarget?.type === 'oc' ? 'OC' : deleteTarget?.type === 'event' ? 'Evento' : 'Definição'}`}>
-                                <div className="space-y-4">
-                                    <p className="text-sm text-gray-600">
-                                        Tem certeza que deseja excluir?
-                                        <br />
-                                        <span className="font-bold text-gray-900">{deleteTarget?.id}</span>
-                                        <br /><span className="text-xs text-red-500">Essa ação não pode ser desfeita.</span>
-                                    </p>
-                                    <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-2">
-                                        <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
-                                        <button onClick={confirmDelete} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm">Excluir</button>
-                                    </div>
-                                </div>
-                            </Modal>
-
-                            {/* Alert Modal */}
-                            <Modal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} title={editingAlert ? "Editar Alerta" : "Criar Alerta"}>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Obra</label>
-                                        <select value={alertWorkId} onChange={e => setAlertWorkId(e.target.value)} className="w-full mt-1 rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200">
-                                            <option value="">Todas as Obras</option>
-                                            {works.map(w => <option key={w.id} value={w.id}>{w.id} - {w.regional}</option>)}
+                                    {useStatus && (
+                                        <select
+                                            value={eventStatus}
+                                            onChange={e => setEventStatus(e.target.value)}
+                                            className="text-sm pl-3 pr-8 py-1.5 border-gray-200 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500"
+                                        >
+                                            <option value="">Selecione...</option>
+                                            {customStatusOptions.map(o => <option key={o} value={o}>{o}</option>)}
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Etapa / Evento</label>
-                                        <input type="text" value={alertEventFilter} onChange={e => setAlertEventFilter(e.target.value)} placeholder="Filtrar por nome do evento..." className="w-full mt-1 rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200" />
-                                    </div>
-
-                                    <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-700">Lembrete Recorrente</span>
-                                            <ToggleSwitch checked={alertRecurrenceActive} onChange={setAlertRecurrenceActive} />
-                                        </div>
-                                        {alertRecurrenceActive && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-gray-500">A cada</span>
-                                                <input type="number" value={alertRecurrenceDays} onChange={e => setAlertRecurrenceDays(Number(e.target.value))} className="w-16 p-1 text-sm border rounded" />
-                                                <span className="text-xs text-gray-500">dias</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-700">Alerta de Vencimento</span>
-                                            <ToggleSwitch checked={alertLeadTimeActive} onChange={setAlertLeadTimeActive} />
-                                        </div>
-                                        {alertLeadTimeActive && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-gray-500">Avisar</span>
-                                                <input type="number" value={alertLeadTimeDays} onChange={e => setAlertLeadTimeDays(Number(e.target.value))} className="w-16 p-1 text-sm border rounded" />
-                                                <span className="text-xs text-gray-500">dias antes</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="mt-6 flex justify-end gap-3">
-                                        <button onClick={() => setIsAlertModalOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">Cancelar</button>
-                                        <button onClick={handleSaveAlert} className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all">Salvar Alerta</button>
-                                    </div>
+                                    )}
                                 </div>
-                            </Modal>
-                        </div >
-                    );
+                            </div>
+
+                            <div className="flex justify-end pt-2">
+                                <button
+                                    type="button"
+                                    onClick={handleSaveDefinition}
+                                    disabled={isSaving}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm"
+                                >
+                                    {editingDefinitionId ? "Atualizar" : "Criar Modelo"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* List Section */}
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-700 mb-3">Eventos Disponíveis</h4>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {existingEvents.length === 0 ? (
+                                <p className="text-sm text-gray-400 italic">Nenhum evento na biblioteca.</p>
+                            ) : (
+                                existingEvents.map(def => (
+                                    <div key={def.id} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-800">{def.description}</p>
+                                            <p className="text-xs text-gray-500 truncate max-w-xs">
+                                                Opções: {def.default_status_options?.join(", ") || "Nenhuma"}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleEditDefinition(def)}
+                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteClick(def.id, 'definition')}
+                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+            {/* Delete Confirmation Modal */}
+            <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title={`Excluir ${deleteTarget?.type === 'oc' ? 'OC' : deleteTarget?.type === 'event' ? 'Evento' : 'Definição'}`}>
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                        Tem certeza que deseja excluir?
+                        <br />
+                        <span className="font-bold text-gray-900">{deleteTarget?.id}</span>
+                        <br /><span className="text-xs text-red-500">Essa ação não pode ser desfeita.</span>
+                    </p>
+                    <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-2">
+                        <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
+                        <button onClick={confirmDelete} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm">Excluir</button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Alert Modal */}
+            <Modal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} title={editingAlert ? "Editar Alerta" : "Criar Alerta"}>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Obra</label>
+                        <select value={alertWorkId} onChange={e => setAlertWorkId(e.target.value)} className="w-full mt-1 rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200">
+                            <option value="">Todas as Obras</option>
+                            {works.map(w => <option key={w.id} value={w.id}>{w.id} - {w.regional}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Etapa / Evento</label>
+                        <input type="text" value={alertEventFilter} onChange={e => setAlertEventFilter(e.target.value)} placeholder="Filtrar por nome do evento..." className="w-full mt-1 rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 ring-1 ring-gray-200" />
+                    </div>
+
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Lembrete Recorrente</span>
+                            <ToggleSwitch checked={alertRecurrenceActive} onChange={setAlertRecurrenceActive} />
+                        </div>
+                        {alertRecurrenceActive && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">A cada</span>
+                                <input type="number" value={alertRecurrenceDays} onChange={e => setAlertRecurrenceDays(Number(e.target.value))} className="w-16 p-1 text-sm border rounded" />
+                                <span className="text-xs text-gray-500">dias</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Alerta de Vencimento</span>
+                            <ToggleSwitch checked={alertLeadTimeActive} onChange={setAlertLeadTimeActive} />
+                        </div>
+                        {alertLeadTimeActive && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Avisar</span>
+                                <input type="number" value={alertLeadTimeDays} onChange={e => setAlertLeadTimeDays(Number(e.target.value))} className="w-16 p-1 text-sm border rounded" />
+                                <span className="text-xs text-gray-500">dias antes</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button onClick={() => setIsAlertModalOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">Cancelar</button>
+                        <button onClick={handleSaveAlert} className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all">Salvar Alerta</button>
+                    </div>
+                </div>
+            </Modal>
+        </div >
+    );
 }
