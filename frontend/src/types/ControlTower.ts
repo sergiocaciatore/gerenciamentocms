@@ -44,5 +44,5 @@ export interface OcEventDefinition {
     description: string;
     default_status_options?: string[];
     // Add other fields as discovered or needed
-    [key: string]: any; // Allow flexibility for now while strict on known fields
+    [key: string]: unknown; // Allow flexibility for now while strict on known fields
 }
