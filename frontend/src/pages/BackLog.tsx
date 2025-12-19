@@ -1,44 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getAuthToken } from "../firebase";
 import Toast from "../components/Toast";
 import Modal from "../components/Modal";
-
-interface Work {
-    id: string;
-    regional: string;
-    site?: string;
-}
-
-interface BacklogAnnotation {
-    date: string;
-    description: string;
-}
-
-interface TimelineEvent {
-    date: string;
-    description: string;
-    status: string;
-}
-
-interface BacklogCompletion {
-    date: string;
-    description: string;
-}
-
-interface BacklogItem {
-    id: string;
-    work_id: string;
-    start_date: string;
-    sla: number;
-    description: string;
-    status: 'Novo' | 'Em Andamento' | 'Concluído';
-    has_timeline: boolean;
-    annotations: BacklogAnnotation[];
-    timeline_events?: TimelineEvent[];
-    completion?: BacklogCompletion;
-    created_at?: string;
-    created_by?: string;
-}
+import type { Work, BacklogItem } from "../types/BackLog";
 
 export default function BackLog() {
     // --- State ---
@@ -59,6 +23,7 @@ export default function BackLog() {
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
     const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Selected Items
     const [selectedItemForAction, setSelectedItemForAction] = useState<BacklogItem | null>(null);
@@ -98,16 +63,9 @@ export default function BackLog() {
 
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-    // --- Effects ---
-    useEffect(() => {
-        const init = async () => {
-            await fetchWorks();
-            await fetchItems();
-        };
-        init();
-    }, []);
+    // --- Helpers / Fetching ---
 
-    const fetchWorks = async () => {
+    const fetchWorks = useCallback(async () => {
         try {
             const token = await getAuthToken();
             if (!token) return;
@@ -121,9 +79,9 @@ export default function BackLog() {
             console.error("Error fetching works:", error);
             setToast({ message: "Erro ao carregar obras", type: "error" });
         }
-    };
+    }, []);
 
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async () => {
         try {
             const token = await getAuthToken();
             if (!token) return;
@@ -136,7 +94,16 @@ export default function BackLog() {
         } catch (error) {
             console.error("Error fetching items:", error);
         }
-    };
+    }, []);
+
+    // --- Effects ---
+    useEffect(() => {
+        const init = async () => {
+            await fetchWorks();
+            await fetchItems();
+        };
+        init();
+    }, [fetchWorks, fetchItems]);
 
     // --- Helpers ---
     const calculateEndDate = (startDate: string, sla: number) => {
@@ -255,7 +222,10 @@ export default function BackLog() {
                     setIsNewModalOpen(false);
                     resetNewItemForm();
                 }
-            } catch (e) { setToast({ message: "Erro ao criar", type: "error" }); }
+            } catch (error) {
+                console.error("Error saving item:", error);
+                setToast({ message: "Erro ao criar", type: "error" });
+            }
         }
     };
 
@@ -291,7 +261,7 @@ export default function BackLog() {
     const handleSaveTimelineEvent = async () => {
         if (!selectedItemForAction || !timelineEventData.description) return;
 
-        let currentEvents = [...(selectedItemForAction.timeline_events || [])];
+        const currentEvents = [...(selectedItemForAction.timeline_events || [])];
 
         if (editingEventIndex !== null) {
             // Update existing
@@ -342,7 +312,8 @@ export default function BackLog() {
 
     // --- Delete ---
     const handleDeleteItem = async () => {
-        if (!selectedItemForAction) return;
+        if (!selectedItemForAction || isDeleting) return;
+        setIsDeleting(true);
         try {
             const token = await getAuthToken();
             const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/backlog-items/${selectedItemForAction.id}`, {
@@ -360,6 +331,8 @@ export default function BackLog() {
         } catch (e) {
             console.error(e);
             setToast({ message: "Erro de conexão", type: "error" });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -722,8 +695,18 @@ export default function BackLog() {
                 <div className="space-y-4">
                     <p>Tem certeza que deseja excluir este item?</p>
                     <div className="flex justify-end gap-2 pt-4">
-                        <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
-                        <button onClick={handleDeleteItem} className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 shadow">Excluir</button>
+                        <button onClick={() => setIsDeleteModalOpen(false)} disabled={isDeleting} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50">Cancelar</button>
+                        <button onClick={handleDeleteItem} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 shadow flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isDeleting ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Excluindo...
+                                </>
+                            ) : "Excluir"}
+                        </button>
                     </div>
                 </div>
             </Modal>

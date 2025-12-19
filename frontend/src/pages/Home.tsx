@@ -1,22 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { auth, getAuthToken } from "../firebase";
 import { signOut } from "firebase/auth";
-import { getAuthToken } from "../firebase";
-
-interface UserData {
-    uid: string;
-    email: string;
-    name: string;
-    picture: string;
-    tenant_id: string;
-    roles: string[];
-}
+import type { UserData } from "../types/Home";
 
 export default function Home() {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+
+    const handleLogout = useCallback(async () => {
+        await signOut(auth);
+        localStorage.removeItem("idToken");
+        navigate("/login");
+    }, [navigate]);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -49,13 +46,7 @@ export default function Home() {
         };
 
         fetchUserData();
-    }, [navigate]);
-
-    const handleLogout = async () => {
-        await signOut(auth);
-        localStorage.removeItem("idToken");
-        navigate("/login");
-    };
+    }, [navigate, handleLogout]);
 
     if (loading) {
         return <div className="flex h-screen items-center justify-center">Loading...</div>;

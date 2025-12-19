@@ -7,6 +7,7 @@ import Layout from "./components/Layout";
 import Assistant from "./pages/Assistant";
 import Registration from "./pages/Registration";
 import Engineering from "./pages/Engineering";
+import ProjectAvoidance from "./pages/ProjectAvoidance";
 import ControlTower from "./pages/ControlTower";
 import Planning from "./pages/Planning";
 import BackLog from "./pages/BackLog";
@@ -26,6 +27,7 @@ function App() {
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/engineering" element={<Engineering />} />
+          <Route path="/project-avoidance" element={<ProjectAvoidance />} />
           <Route path="/control-tower" element={<ControlTower />} />
           <Route path="/planning" element={<Planning />} />
           <Route path="/backlog" element={<BackLog />} />

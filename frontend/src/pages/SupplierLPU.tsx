@@ -1,42 +1,6 @@
 import { useState, useEffect } from "react";
 import { LPU_STANDARD_ITEMS } from "../data/lpu_standard_items";
-
-interface LPU {
-    id: string;
-    work_id: string;
-    limit_date: string;
-    status?: 'draft' | 'waiting' | 'submitted';
-    quote_token?: string;
-    quote_permissions?: {
-        allow_quantity_change: boolean;
-        allow_add_items: boolean;
-        allow_remove_items: boolean;
-        allow_lpu_edit: boolean;
-    };
-    // Data
-    prices?: Record<string, number>;
-    quantities?: Record<string, number>;
-    selected_items?: string[];
-    // Expanded Data (Joined)
-    work?: {
-        id: string;
-        regional: string;
-        go_live_date: string;
-        address: {
-            street: string;
-            number: string;
-            city: string;
-            state: string;
-            neighborhood: string;
-        };
-    };
-}
-
-interface SupplierLPUProps {
-    initialLpu: LPU;
-    token: string;
-    cnpj: string;
-}
+import type { SupplierLPUProps, SupplierLPUData } from "../types/Supplier";
 
 // Helper: Currency Input Component
 const CurrencyInput = ({ value, onChange, disabled }: { value: number, onChange: (val: string) => void, disabled?: boolean }) => {
@@ -49,11 +13,12 @@ const CurrencyInput = ({ value, onChange, disabled }: { value: number, onChange:
     // This effect ensures that if the 'value' prop changes from outside (e.g., initial load or reset),
     // the internal displayValue is updated.
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDisplayValue(value === 0 ? "" : value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }));
     }, [value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let v = e.target.value.replace(/\D/g, ""); // Remove non-digits
+        const v = e.target.value.replace(/\D/g, ""); // Remove non-digits
 
         // Handle Backspace causing empty
         if (v === "") {
@@ -86,7 +51,7 @@ const CurrencyInput = ({ value, onChange, disabled }: { value: number, onChange:
 };
 
 export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProps) {
-    const [lpu, setLpu] = useState<LPU>(initialLpu);
+    const [lpu, setLpu] = useState<SupplierLPUData>(initialLpu);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -179,9 +144,10 @@ export default function SupplierLPU({ initialLpu, token, cnpj }: SupplierLPUProp
 
             setIsSubmitModalOpen(false);
             setIsSuccess(true);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Erro ao enviar:", error);
-            alert(`Erro: ${error.message || "Ocorreu um erro ao enviar sua cotação. Tente novamente."}`);
+            const msg = error instanceof Error ? error.message : "Ocorreu um erro ao enviar sua cotação. Tente novamente.";
+            alert(`Erro: ${msg}`);
         } finally {
             setIsSubmitting(false);
         }

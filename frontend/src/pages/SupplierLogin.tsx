@@ -1,23 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import SupplierLPU from "./SupplierLPU";
-
-// Define Interface (matching LPUCard)
-interface LPU {
-    id: string;
-    work_id: string;
-    limit_date: string;
-    status?: 'draft' | 'waiting' | 'submitted';
-    quote_token?: string;
-    quote_permissions?: {
-        allow_quantity_change: boolean;
-        allow_add_items: boolean;
-        allow_remove_items: boolean;
-        allow_lpu_edit: boolean;
-    };
-    prices?: Record<string, number>;
-    quantities?: Record<string, number>;
-}
+import type { SupplierLPUData } from "../types/Supplier";
 
 export default function SupplierLogin() {
     const { token } = useParams<{ token: string }>();
@@ -25,7 +9,7 @@ export default function SupplierLogin() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [lpu, setLpu] = useState<LPU | null>(null);
+    const [lpu, setLpu] = useState<SupplierLPUData | null>(null);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -56,9 +40,13 @@ export default function SupplierLogin() {
             setLpu(data);
             setIsAuthenticated(true);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err.message || "Erro ao acessar. Verifique o CNPJ.");
+            if (err instanceof Error) {
+                setError(err.message || "Erro ao acessar. Verifique o CNPJ.");
+            } else {
+                setError("Erro desconhecido ao acessar.");
+            }
         } finally {
             setLoading(false);
         }

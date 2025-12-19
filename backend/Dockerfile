@@ -2,12 +2,16 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY backend/requirements.txt .
+# Install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/app ./app
-COPY serviceAccountKey.json /secrets/serviceAccountKey.json
+# Copy application code
+COPY app ./app
 
-EXPOSE 8000
+# Expose port (Cloud Run uses environment variable PORT, typically 8080)
+EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Run with Gunicorn using Uvicorn workers
+# Binding to 0.0.0.0:$PORT
+CMD ["sh","-c","gunicorn -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 4"]

@@ -1,22 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getAuthToken } from "../firebase";
 import Toast from "../components/Toast";
+import type { DashboardWork, DashboardOC, DashboardPlanning, DashboardOccurrence, DashboardScheduleStage } from "../types/Dashboard";
 
 export default function Dashboard() {
-    const [works, setWorks] = useState<any[]>([]);
-    const [ocs, setOcs] = useState<any[]>([]);
-    const [plannings, setPlannings] = useState<any[]>([]);
-    const [occurrences, setOccurrences] = useState<any[]>([]);
+    const [works, setWorks] = useState<DashboardWork[]>([]);
+    const [ocs, setOcs] = useState<DashboardOC[]>([]);
+    const [plannings, setPlannings] = useState<DashboardPlanning[]>([]);
+    const [occurrences, setOccurrences] = useState<DashboardOccurrence[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [selectedWorkId, setSelectedWorkId] = useState("all");
     const [activeTab, setActiveTab] = useState<'gerencial' | 'estrategico'>('gerencial');
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const token = await getAuthToken();
             if (!token) return;
@@ -41,7 +38,11 @@ export default function Dashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     // Filter Data Logic
     const filteredWorks = selectedWorkId === "all"
@@ -319,7 +320,7 @@ export default function Dashboard() {
 
                                             const bcValue = parseFloat(w.business_case?.replace('R$', '').replace(/\./g, '').replace(',', '.') || '0');
                                             const workOcs = ocs.filter(o => o.work_id === w.id);
-                                            const realizedValue = workOcs.reduce((acc, curr) => acc + parseFloat(curr.value || '0'), 0);
+                                            const realizedValue = workOcs.reduce((acc, curr) => acc + (curr.value || 0), 0);
 
                                             regionalData[reg].count += 1;
                                             regionalData[reg].bc += bcValue;
@@ -378,7 +379,7 @@ export default function Dashboard() {
 
                                                 plannings.forEach(p => {
                                                     if (!p.data?.schedule) return;
-                                                    p.data.schedule.forEach((s: any) => {
+                                                    p.data.schedule.forEach((s: DashboardScheduleStage) => {
                                                         if (s.end_planned && s.end_real) {
                                                             const planned = new Date(s.end_planned);
                                                             const real = new Date(s.end_real);
@@ -490,13 +491,13 @@ export default function Dashboard() {
                                                 const planning = plannings.find(p => p.work_id === w.id);
                                                 const schedule = planning?.data?.schedule || [];
 
-                                                const goLiveStage = schedule.find((s: any) => s.name === "CloseOut - GoLive");
+                                                const goLiveStage = schedule.find((s: DashboardScheduleStage) => s.name === "CloseOut - GoLive");
                                                 const isFinished = !!goLiveStage?.end_real;
 
                                                 if (isFinished) return null;
 
                                                 const today = new Date();
-                                                const targetDate = new Date(w.go_live_date);
+                                                const targetDate = new Date(w.go_live_date!);
                                                 const diffTime = targetDate.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
                                                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -504,7 +505,7 @@ export default function Dashboard() {
                                                     id: w.id,
                                                     regional: w.regional,
                                                     site: w.site,
-                                                    date: w.go_live_date,
+                                                    date: w.go_live_date!,
                                                     days: diffDays,
                                                     planningId: planning?.id
                                                 };
@@ -565,16 +566,16 @@ export default function Dashboard() {
                                                     const schedule = planning.data.schedule;
 
                                                     const today = new Date().toISOString().split('T')[0];
-                                                    const plannedStage = schedule.find((s: any) =>
+                                                    const plannedStage = schedule.find((s: DashboardScheduleStage) =>
                                                         s.start_planned && s.end_planned &&
                                                         s.start_planned <= today && s.end_planned >= today
                                                     );
 
-                                                    let currentStage = schedule.find((s: any) => s.start_real && !s.end_real);
+                                                    let currentStage = schedule.find((s: DashboardScheduleStage) => s.start_real && !s.end_real);
                                                     let statusType = 'progress';
 
                                                     if (!currentStage) {
-                                                        const completed = [...schedule].reverse().find((s: any) => s.end_real);
+                                                        const completed = [...schedule].reverse().find((s: DashboardScheduleStage) => s.end_real);
                                                         if (completed) {
                                                             currentStage = completed;
                                                             statusType = 'done';

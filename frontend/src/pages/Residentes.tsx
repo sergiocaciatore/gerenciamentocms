@@ -1,52 +1,16 @@
 import { useEffect, useState } from "react";
 import { getAuthToken } from "../firebase";
 import Modal from "../components/Modal";
-
-interface Evaluation {
-    technical: number;
-    management: number;
-    leadership: number;
-    organization: number;
-    commitment: number;
-    communication: number;
-}
-
-interface Metrics {
-    technical: number;
-    management: number;
-    leadership: number;
-    organization: number;
-    commitment: number;
-    communication: number;
-    count: number;
-}
-
-interface ResidentAssignment {
-    id: string;
-    name: string;
-    contract_start: string;
-    contract_end: string;
-    evaluation?: Evaluation;
-}
-
-interface Work {
-    id: string;
-    regional: string;
-    site?: string;
-    status?: string;
-    residents?: ResidentAssignment[];
-}
-
-interface Resident {
-    id: string;
-    name: string;
-    email: string;
-    crea: string;
-    metrics?: Metrics;
-}
+import {
+    type ResidentAssignment,
+    type ResidentWork,
+    type Resident,
+    type ResidentEvaluation,
+    type ResidentMetrics
+} from "../types/Residentes";
 
 export default function Residentes() {
-    const [works, setWorks] = useState<Work[]>([]);
+    const [works, setWorks] = useState<ResidentWork[]>([]);
     const [residents, setResidents] = useState<Resident[]>([]);
 
     // Resident Form State (Create/Edit)
@@ -57,7 +21,7 @@ export default function Residentes() {
 
     // Assignment Logic
     const [draggedResident, setDraggedResident] = useState<Resident | null>(null);
-    const [targetWork, setTargetWork] = useState<Work | null>(null);
+    const [targetWork, setTargetWork] = useState<ResidentWork | null>(null);
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
     const [isUnassignModalOpen, setIsUnassignModalOpen] = useState(false);
     const [unassignData, setUnassignData] = useState<{ workId: string, residentId: string, residentName: string } | null>(null);
@@ -66,13 +30,18 @@ export default function Residentes() {
     // Evaluation Logic
     const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
     const [evaluatingResident, setEvaluatingResident] = useState<{ workId: string, residentId: string, name: string } | null>(null);
-    const [evaluationData, setEvaluationData] = useState<Evaluation>({
+    const [evaluationData, setEvaluationData] = useState<ResidentEvaluation>({
         technical: 0, management: 0, leadership: 0, organization: 0, commitment: 0, communication: 0
     });
 
     // Metrics View Logic
     const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
     const [viewingMetricsResident, setViewingMetricsResident] = useState<Resident | null>(null);
+
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [residentToDelete, setResidentToDelete] = useState<Resident | null>(null);
+
 
     // Fetchers
     const fetchWorks = async () => {
@@ -108,9 +77,10 @@ export default function Residentes() {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchWorks();
         fetchResidents();
-    }, []);
+    }, []); // fetch functions are stable in this context or can be ignored if not wrapped
 
     // Resident Management Handlers
     const openNewResidentModal = () => {
@@ -159,14 +129,10 @@ export default function Residentes() {
                 fetchResidents(); // Refresh list
             }
         } catch (error) {
+            console.error("Error saving resident", error);
             setToast({ message: "Erro ao salvar", type: "error" });
         }
     };
-
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [residentToDelete, setResidentToDelete] = useState<Resident | null>(null);
-
-    // ... (existing code)
 
     const handleDeleteResident = (resident: Resident) => {
         setResidentToDelete(resident);
@@ -190,13 +156,10 @@ export default function Residentes() {
                 setResidentToDelete(null);
             }
         } catch (error) {
+            console.error("Error deleting resident", error);
             setToast({ message: "Erro ao excluir", type: "error" });
         }
     };
-
-    // ... (existing code)
-
-
 
     // Drag and Drop Handlers
     const handleDragStart = (resident: Resident) => {
@@ -207,7 +170,7 @@ export default function Residentes() {
         e.preventDefault();
     };
 
-    const handleDrop = (work: Work) => {
+    const handleDrop = (work: ResidentWork) => {
         if (!draggedResident) return;
         setTargetWork(work);
         setIsAssignmentModalOpen(true);
@@ -243,6 +206,7 @@ export default function Residentes() {
                 fetchWorks(); // Refresh works to show new assignment
             }
         } catch (error) {
+            console.error("Error assigning resident", error);
             setToast({ message: "Erro ao atribuir", type: "error" });
         }
     };
@@ -269,6 +233,7 @@ export default function Residentes() {
                 fetchWorks(); // Refresh works
             }
         } catch (error) {
+            console.error("Error unassigning resident", error);
             setToast({ message: "Erro ao remover residente", type: "error" });
         }
     };
@@ -303,6 +268,7 @@ export default function Residentes() {
                 fetchResidents(); // Refresh residents to update the aggregated metrics
             }
         } catch (error) {
+            console.error("Error saving evaluation", error);
             setToast({ message: "Erro ao salvar avaliação", type: "error" });
         }
     };
@@ -329,7 +295,7 @@ export default function Residentes() {
         }
     }, [toast]);
 
-    const renderStars = (criterion: keyof Evaluation, value: number) => {
+    const renderStars = (criterion: keyof ResidentEvaluation, value: number) => {
         return (
             <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map(star => (
@@ -556,7 +522,7 @@ export default function Residentes() {
                         ].map((criterion) => (
                             <div key={criterion.key} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
                                 <span className="text-sm font-medium text-gray-700">{criterion.label}</span>
-                                {renderStars(criterion.key as keyof Evaluation, evaluationData[criterion.key as keyof Evaluation])}
+                                {renderStars(criterion.key as keyof ResidentEvaluation, evaluationData[criterion.key as keyof ResidentEvaluation])}
                             </div>
                         ))}
                     </div>
@@ -581,8 +547,8 @@ export default function Residentes() {
                                 { key: 'commitment', label: 'Comprometimento' },
                                 { key: 'communication', label: 'Comunicação e Relatórios' }
                             ].map((criterion) => {
-                                // @ts-ignore
-                                const value = viewingMetricsResident.metrics[criterion.key] || 0;
+                                const key = criterion.key as keyof ResidentMetrics;
+                                const value = viewingMetricsResident?.metrics?.[key] || 0;
                                 return (
                                     <div key={criterion.key} className="space-y-1">
                                         <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
