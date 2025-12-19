@@ -25,5 +25,4 @@ coverage.xml
 .DS_Store
 
 # Secrets
-serviceAccountKey.json
 secrets/
