@@ -1,4 +1,4 @@
-serviceAccountKey.json
+
 serviceAccount.json
 *.env
 frontend/node_modules
