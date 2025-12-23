@@ -3,6 +3,7 @@ import type { Oc, OcEvent } from "../../types/ControlTower";
 
 interface OcCardProps {
     oc: Oc;
+    workName: string; // New prop
     ocEvents: OcEvent[];
     expandedOcId: string | null;
     isGrouped?: boolean;
@@ -16,6 +17,7 @@ interface OcCardProps {
 
 const OcCard = ({
     oc,
+    workName,
     ocEvents,
     expandedOcId,
     onExpand,
@@ -50,7 +52,7 @@ const OcCard = ({
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-2">
                         <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100/50 text-blue-700 border border-blue-200/50">
-                            OC
+                            {workName}
                         </span>
                         {filteredEvents.length > 0 && (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
@@ -91,7 +93,6 @@ const OcCard = ({
                     </div>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-1">{oc.description}</h3>
-                <p className="text-sm text-gray-600 mb-2">Obra: {oc.work_id}</p>
                 <p className="text-sm text-gray-600 mb-2">Tipo: {oc.type}</p>
                 {oc.value > 0 && (
                     <p className="text-sm font-bold text-gray-800 mb-4">

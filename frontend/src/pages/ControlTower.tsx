@@ -912,20 +912,26 @@ export default function ControlTower() {
                     <div className="px-6 pb-6 pt-0 space-y-4 border-t border-white/30 mt-2 bg-black/5 rounded-b-2xl">
                         <div className="pt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cartões da Obra</div>
                         <div className="grid grid-cols-1 gap-4">
-                            {ocs.map(oc => (
-                                <OcCard
-                                    key={oc.id}
-                                    oc={oc}
-                                    ocEvents={ocEvents}
-                                    expandedOcId={expandedOcId}
-                                    onExpand={setExpandedOcId}
-                                    onEdit={handleEdit}
-                                    onDelete={(id) => handleDeleteClick(id, 'oc')}
-                                    onAddEvent={handleAddEvent}
-                                    onUpdateEvent={handleUpdateEvent}
-                                    onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
-                                />
-                            ))}
+                            {ocs.map(oc => {
+                                const work = works.find(w => w.id === oc.work_id);
+                                const workName = work ? `${work.id} - ${work.regional}` : (oc.work_id || "Sem Obra");
+
+                                return (
+                                    <OcCard
+                                        key={oc.id}
+                                        oc={oc}
+                                        workName={workName}
+                                        ocEvents={ocEvents}
+                                        expandedOcId={expandedOcId}
+                                        onExpand={setExpandedOcId}
+                                        onEdit={handleEdit}
+                                        onDelete={(id) => handleDeleteClick(id, 'oc')}
+                                        onAddEvent={handleAddEvent}
+                                        onUpdateEvent={handleUpdateEvent}
+                                        onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -971,20 +977,25 @@ export default function ControlTower() {
                             <GroupedOcCard key={group[0]?.work_id || idx} ocs={group} />
                         ))
                     ) : (
-                        filteredOcs.map((oc) => (
-                            <OcCard
-                                key={oc.id}
-                                oc={oc}
-                                ocEvents={ocEvents}
-                                expandedOcId={expandedOcId}
-                                onExpand={setExpandedOcId}
-                                onEdit={handleEdit}
-                                onDelete={(id) => handleDeleteClick(id, 'oc')}
-                                onAddEvent={handleAddEvent}
-                                onUpdateEvent={handleUpdateEvent}
-                                onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
-                            />
-                        ))
+                        filteredOcs.map((oc) => {
+                            const work = works.find(w => w.id === oc.work_id);
+                            const workName = work ? `${work.id} - ${work.regional}` : (oc.work_id || "Sem Obra");
+                            return (
+                                <OcCard
+                                    key={oc.id}
+                                    oc={oc}
+                                    workName={workName}
+                                    ocEvents={ocEvents}
+                                    expandedOcId={expandedOcId}
+                                    onExpand={setExpandedOcId}
+                                    onEdit={handleEdit}
+                                    onDelete={(id) => handleDeleteClick(id, 'oc')}
+                                    onAddEvent={handleAddEvent}
+                                    onUpdateEvent={handleUpdateEvent}
+                                    onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
+                                />
+                            );
+                        })
                     )}
                 </div>
 

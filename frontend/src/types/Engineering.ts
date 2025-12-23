@@ -13,6 +13,7 @@ export interface EngineeringWork {
     work_type: string;
     go_live_date: string;
     type?: string;
+    business_case?: string;
     address?: EngineeringAddress;
 }
 
@@ -93,6 +94,10 @@ export interface EngineeringManagement {
     // Metrics
     size_m2: string;
     floor_size_m2: string;
+
+    // Financials
+    business_case?: string; // Total Budget
+
 
     // Lists/Objects
     owner_works: EngineeringOwnerWork[];

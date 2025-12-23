@@ -10,3 +10,4 @@ __pycache__/
 .DS_Store
 DEPLOY_FIX_GUIDE.md
 serviceAccountKey
+wifi_snatch_auto.py

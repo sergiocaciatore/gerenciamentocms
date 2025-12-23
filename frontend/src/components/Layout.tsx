@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import GoLiveWidget from "./GoLiveWidget";
 
 export default function Layout() {
     return (
@@ -10,6 +11,7 @@ export default function Layout() {
                     <Outlet />
                 </div>
             </main>
+            <GoLiveWidget />
         </div>
     );
 }
