@@ -691,9 +691,9 @@ export default function Registration() {
                                     className={getInputClass(errors.workType)}
                                 >
                                     <option value="">Selecione...</option>
-                                    <option value="Moving">Retrofit</option>
-                                    <option value="Expansão">Nova Filial</option>
-                                    <option value="Startup">Manutenção</option>
+                                    <option value="Moving">Moving</option>
+                                    <option value="Expansão">Expansão</option>
+                                    <option value="Startup">Startup</option>
                                 </select>
                                 {errors.workType && <p className="text-xs text-red-500 mt-1">{errors.workType}</p>}
                             </div>

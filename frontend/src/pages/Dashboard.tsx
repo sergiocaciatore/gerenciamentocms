@@ -601,7 +601,7 @@ export default function Dashboard() {
 
                                                 return trackingData.map((row) => (
                                                     <tr key={row.id} className="hover:bg-white/60 transition-colors">
-                                                        <td className="px-4 py-3 font-semibold text-gray-700">{row.regional}</td>
+                                                        <td className="px-4 py-3 font-semibold text-gray-700">{row.id}</td>
                                                         <td className="px-4 py-3 text-blue-600 font-medium">
                                                             <div className="flex items-center gap-1.5 align-middle">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
