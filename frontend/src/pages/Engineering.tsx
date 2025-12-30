@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
 import Toast from "../components/Toast";
@@ -119,38 +119,11 @@ export default function Engineering() {
         special_attention: "", action_plans: "", relevant_activities: "", observations: ""
     });
 
-    // Management Data Structure
-    const [ownerWorks, setOwnerWorks] = useState<EngineeringOwnerWork[]>([]);
-    const [licenses, setLicenses] = useState<EngineeringLicense[]>([]);
-    const [thermometer, setThermometer] = useState<EngineeringThermometer[]>([]);
-
-    // Additional Info
+    // Management Data Structure - Simplified for Modal
     const [operator, setOperator] = useState("");
-    const [sizeM2, setSizeM2] = useState("");
-    const [floorSizeM2, setFloorSizeM2] = useState("");
     const [engineer, setEngineer] = useState("");
     const [coordinator, setCoordinator] = useState("");
     const [controlTower, setControlTower] = useState("");
-    const [pm, setPm] = useState("");
-    const [cm, setCm] = useState("");
-
-    // Schedules
-    const [macroSchedule, setMacroSchedule] = useState<EngineeringScheduleItem[]>([]);
-    const [supplySchedule, setSupplySchedule] = useState<EngineeringScheduleItem[]>([]);
-
-    // Advanced Info State
-    const [complementaryInfo, setComplementaryInfo] = useState<EngineeringComplementaryInfo[]>([]);
-    const [generalDocs, setGeneralDocs] = useState<EngineeringGeneralDocs>(initGeneralDocs());
-    const [capex, setCapex] = useState<EngineeringCapex>(initCapex());
-    const [dailyLog, setDailyLog] = useState<EngineeringDailyLog[]>([]);
-    const [highlights, setHighlights] = useState<EngineeringHighlights>(initHighlights());
-
-    // Preservation State (Report Fields)
-    const [presentationHighlights, setPresentationHighlights] = useState("");
-    const [attentionPoints, setAttentionPoints] = useState("");
-    const [image1, setImage1] = useState("");
-    const [image2, setImage2] = useState("");
-    const [mapImage, setMapImage] = useState("");
 
     // Expanded Card State
     const [cardTab, setCardTab] = useState("overview");
@@ -160,49 +133,67 @@ export default function Engineering() {
         id: '', work_id: '', date: '', description: '', type: 'Atividade', status: 'Active'
     });
 
+
     // Filter State
     const [searchText, setSearchText] = useState("");
     const [filterRegional, setFilterRegional] = useState("");
 
-    const resetManagementData = useCallback(() => {
-        setOwnerWorks(initOwnerWorks());
-        setLicenses(initLicenses());
-        setThermometer(initThermometer());
-        setOperator("");
-        setSizeM2("");
-        setFloorSizeM2("");
-        setEngineer("");
-        setCoordinator("");
-        setControlTower("");
-        setPm("");
-        setCm("");
-        setMacroSchedule(initMacroSchedule());
-        setSupplySchedule(initSupplySchedule());
-        setComplementaryInfo(initComplementaryInfo());
-        setGeneralDocs(initGeneralDocs());
-        setCapex(initCapex());
-        setDailyLog(initDailyLog());
-        setHighlights(initHighlights());
-        setPresentationHighlights("");
-        setAttentionPoints("");
-        setImage1("");
-        setImage2("");
-        setMapImage("");
-    }, []);
+    // Pagination & Filter State
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
-    const fetchWorks = useCallback(async () => {
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchText);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchText]);
+
+    const isLoadingRef = useRef(false);
+
+    const fetchWorks = useCallback(async (pageToFetch: number, reset: boolean, searchVal: string, regionalVal: string) => {
+        if (isLoadingRef.current) return; // Prevent double fetch
+        isLoadingRef.current = true;
+        setIsLoading(true);
         try {
             const token = await getAuthToken();
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/works`, {
+            const limit = 20;
+            const offset = pageToFetch * limit;
+
+            const params = new URLSearchParams({
+                limit: limit.toString(),
+                offset: offset.toString()
+            });
+
+            if (searchVal) params.append("search", searchVal);
+            if (regionalVal) params.append("regional", regionalVal);
+
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/works?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
             if (response.ok) {
-                setWorks(await response.json());
+                const data = await response.json();
+                if (reset) {
+                    setWorks(data);
+                } else {
+                    setWorks(prev => [...prev, ...data]);
+                }
+
+                setHasMore(data.length === limit);
+                setPage(pageToFetch);
             }
         } catch (error) {
             console.error("Error fetching works:", error);
+            setToast({ message: "Erro ao carregar obras.", type: "error" });
+        } finally {
+            setIsLoading(false);
+            isLoadingRef.current = false;
         }
-    }, []);
+    }, []); // No deps needed now
 
     const fetchManagements = useCallback(async () => {
         try {
@@ -243,7 +234,6 @@ export default function Engineering() {
         }
     }, []);
 
-    // Fetch Control Tower Data
     const fetchControlTowerData = useCallback(async () => {
         try {
             const token = await getAuthToken();
@@ -259,263 +249,162 @@ export default function Engineering() {
         }
     }, []);
 
-    const fetchManagementData = useCallback(async (workId: string) => {
-        try {
-            const token = await getAuthToken();
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements/${workId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data && Object.keys(data).length > 0) {
-                    setOwnerWorks(data.owner_works || initOwnerWorks());
-                    setLicenses(data.licenses || initLicenses());
-                    setThermometer(data.thermometer || initThermometer());
-                    setOperator(data.operator || "");
-                    setSizeM2(data.size_m2 || "");
-                    setFloorSizeM2(data.floor_size_m2 || "");
-                    setEngineer(data.engineer || "");
-                    setCoordinator(data.coordinator || "");
-                    setControlTower(data.control_tower || "");
-                    setPm(data.pm || "");
-                    setCm(data.cm || "");
-                    setMacroSchedule(data.macro_schedule || initMacroSchedule());
-                    setSupplySchedule(data.supply_schedule || initSupplySchedule());
-                    setComplementaryInfo(data.complementary_info || initComplementaryInfo());
-                    setGeneralDocs(data.general_docs || initGeneralDocs());
-                    setCapex(data.capex || initCapex());
-                    setDailyLog(data.daily_log || initDailyLog());
-                    setHighlights(data.highlights || initHighlights());
-                    setPresentationHighlights(data.presentation_highlights || "");
-                    setAttentionPoints(data.attention_points || "");
-                    setImage1(data.image_1 || "");
-                    setImage2(data.image_2 || "");
-                    setMapImage(data.map_image || "");
-                } else {
-                    resetManagementData();
-                }
-            } else {
-                resetManagementData();
-            }
-        } catch (error) {
-            console.error("Error fetching management:", error);
-            resetManagementData();
-        }
-    }, [resetManagementData]);
-
+    // Initial Fetch & Filter Change
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchWorks();
+        fetchWorks(0, true, debouncedSearch, filterRegional);
         fetchManagements();
         fetchOccurrences();
         fetchControlTowerData();
-    }, [fetchWorks, fetchManagements, fetchOccurrences, fetchControlTowerData]);
+    }, [debouncedSearch, filterRegional, fetchWorks, fetchManagements, fetchOccurrences, fetchControlTowerData]);
 
-    // Data Loading when selecting work (moved out of useEffect)
-    // We will trigger this when selectedWorkId changes via user interaction, 
-    // OR we just use useEffect but without setState of selectedWork.
+    // Form Population Effect (Replaces fetchManagementData)
     useEffect(() => {
-        if (selectedWorkId) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            fetchManagementData(selectedWorkId);
-        } else {
-            resetManagementData();
-        }
-    }, [selectedWorkId, fetchManagementData, resetManagementData]);
-
-    const handleSaveOccurrence = async () => {
-        if (!occurrenceForm.description || !occurrenceForm.date || !occurrenceForm.work_id) {
-            setToast({ message: "Preencha os campos obrigatórios.", type: "error" });
-            return;
-        }
-
-        try {
-            const token = await getAuthToken();
-            const isEdit = !!occurrenceForm.id;
-            const method = isEdit ? "PUT" : "POST";
-            const url = isEdit
-                ? `${import.meta.env.VITE_API_BASE_URL}/occurrences/${occurrenceForm.id}`
-                : `${import.meta.env.VITE_API_BASE_URL}/occurrences`;
-
-            // Generate ID if new
-            const payload = isEdit ? occurrenceForm : { ...occurrenceForm, id: "occ_" + Math.random().toString(36).substr(2, 9) };
-
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                setToast({ message: "Ocorrência salva!", type: "success" });
-                setIsOccurrenceModalOpen(false);
-                fetchOccurrences();
-                setOccurrenceForm({ id: '', work_id: '', date: '', description: '', type: 'Atividade', status: 'Active' });
+        if (selectedWorkId && managements.length > 0) {
+            const m = managements.find(mg => mg.work_id === selectedWorkId);
+            if (m) {
+                setOperator(m.operator || "");
+                setEngineer(m.engineer || "");
+                setCoordinator(m.coordinator || "");
+                setControlTower(m.control_tower || "");
             } else {
-                setToast({ message: "Erro ao salvar.", type: "error" });
+                // Reset if no management exists (new)
+                setOperator("");
+                setEngineer("");
+                setCoordinator("");
+                setControlTower("");
             }
-        } catch (error) {
-            console.error("Error saving occurrence:", error);
-            setToast({ message: "Erro de conexão.", type: "error" });
         }
+    }, [selectedWorkId, managements]);
+
+    const getDateColor = (planned: string, real?: string) => {
+        if (!planned) return "text-gray-400";
+        if (real) {
+            return real > planned ? "text-red-600 font-bold" : "text-green-600";
+        }
+        const today = new Date().toISOString().split('T')[0];
+        return planned < today ? "text-red-600 font-bold" : "text-gray-600";
     };
 
-    const handleButtonClick = (type: string) => {
-        setModalType(type);
-        setIsModalOpen(true);
-        setSelectedWorkId(""); // Reset selection
-        // setActiveTab(0); // Removed unused
+    const handleInlineUpdate = (workId: string, section: keyof EngineeringManagement, indexOrField: number | string, subField: string | null, value: string) => {
+        setManagements(prev => prev.map(m => {
+            if (m.work_id !== workId) return m;
+            const updated = { ...m };
+
+            // Handle Array Updates (Schedule, Log)
+            if ((section === 'macro_schedule' || section === 'supply_schedule' || section === 'daily_log') && Array.isArray(updated[section]) && typeof indexOrField === 'number') {
+                const list = [...(updated[section] as unknown as unknown[])];
+                if (list[indexOrField] && typeof list[indexOrField] === 'object') {
+                    // Assert list item as Record to update key
+                    const item = { ...(list[indexOrField] as Record<string, unknown>) };
+                    if (subField) item[subField] = value;
+                    list[indexOrField] = item;
+                    (updated as unknown as Record<string, unknown>)[section] = list;
+                }
+            }
+            // Handle Object Updates (Docs, Highlights)
+            else if (typeof updated[section] === 'object' && updated[section] !== null) {
+                const key = typeof indexOrField === 'string' ? indexOrField : subField;
+                if (key) {
+                    const sectionObj = { ...(updated[section] as unknown as Record<string, unknown>) };
+                    sectionObj[key] = value;
+                    (updated as unknown as Record<string, unknown>)[section] = sectionObj;
+                }
+            }
+            // Handle Primitive Updates
+            else {
+                (updated as unknown as Record<string, unknown>)[section] = value;
+            }
+            return updated;
+        }));
     };
 
     const handleSaveManagement = async () => {
-        if (!selectedWorkId) {
-            setToast({ message: "Selecione uma obra.", type: "error" });
-            return;
-        }
-
-        const payload: EngineeringManagement = {
-            work_id: selectedWorkId,
-            owner_works: ownerWorks,
-            licenses: licenses,
-            thermometer: thermometer,
-            operator: operator,
-            size_m2: sizeM2,
-            floor_size_m2: floorSizeM2,
-            engineer: engineer,
-            coordinator: coordinator,
-            control_tower: controlTower,
-            pm: pm,
-            cm: cm,
-            macro_schedule: macroSchedule,
-            supply_schedule: supplySchedule,
-            complementary_info: complementaryInfo,
-            general_docs: generalDocs,
-            capex: capex,
-            daily_log: dailyLog,
-            highlights: highlights,
-            presentation_highlights: presentationHighlights,
-            attention_points: attentionPoints,
-            image_1: image1,
-            image_2: image2,
-            map_image: mapImage
-        };
-
+        if (!selectedWorkId) return;
         try {
+            const payload = {
+                work_id: selectedWorkId,
+                operator, engineer, coordinator, control_tower: controlTower
+            };
             const token = await getAuthToken();
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
-
-            if (response.ok) {
+            if (res.ok) {
                 setToast({ message: "Gestão salva com sucesso!", type: "success" });
                 setIsModalOpen(false);
-                fetchManagements(); // Refresh list
+                fetchManagements();
             } else {
                 setToast({ message: "Erro ao salvar.", type: "error" });
             }
         } catch (error) {
-            console.error("Error saving:", error);
+            console.error(error);
             setToast({ message: "Erro de conexão.", type: "error" });
         }
     };
 
-    // Helper: Determine Date Color
-    const getDateColor = (planned: string, real: string) => {
-        if (!planned || !real) return "text-gray-600";
-        if (real > planned) return "text-red-500 font-bold";
-        return "text-green-500 font-bold";
-    };
-
-    // Inline Update Handler for ALL Fields
-    const handleInlineUpdate = async (workId: string, section: keyof EngineeringManagement, indexOrField: number | string, subField: string | null, value: string) => {
-        // 1. Update Local State
-        const updatedManagements = managements.map(m => {
-            if (m.work_id === workId) {
-                const updatedM = { ...m };
-                const target = updatedM[section];
-
-                if (Array.isArray(target)) {
-                    // Handle Array (Schedule, OwnerWorks, Licenses, etc.)
-                    if (typeof indexOrField === 'number' && target[indexOrField]) {
-                        // Create shallow copy of the item
-                        const item = { ...target[indexOrField] };
-                        if (subField) {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            (item as any)[subField] = value;
-                        } else {
-                            // Should not happen for objects in array, but safe fallback
-                        }
-                        // Create shallow copy of array
-                        const newArray = [...target];
-                        newArray[indexOrField] = item;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (updatedM as any)[section] = newArray;
-                    }
-                } else if (typeof target === 'object' && target !== null) {
-                    // Handle Object (GeneralDocs, Highlights, Capex)
-                    // field is indexOrField (string)
-                    const fieldName = indexOrField as string;
-                    const newObj = { ...target, [fieldName]: value };
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (updatedM as any)[section] = newObj;
-                }
-
-                return updatedM;
+    const handleSaveOccurrence = async () => {
+        try {
+            const token = await getAuthToken();
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/occurrences`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(occurrenceForm)
+            });
+            if (res.ok) {
+                setToast({ message: "Ocorrência registrada!", type: "success" });
+                setIsOccurrenceModalOpen(false);
+                fetchOccurrences();
             }
-            return m;
-        });
-        setManagements(updatedManagements);
-
-        // 2. Persist to Backend (Debounced ideally, but direct for now)
-        const managementToSave = updatedManagements.find(m => m.work_id === workId);
-        if (managementToSave) {
-            try {
-                const token = await getAuthToken();
-                await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(managementToSave)
-                });
-            } catch (error) {
-                console.error("Failed to auto-save", error);
-            }
+        } catch {
+            setToast({ message: "Erro ao salvar ocorrência.", type: "error" });
         }
     };
 
-    // Filter Logic
+    const handleButtonClick = (id: string) => {
+        if (id === "Nova Gestão") {
+            setModalType("Nova Gestão");
+            setSelectedWorkId(""); // Reset to allow selection
+            setIsModalOpen(true);
+        } else {
+            console.log("Button clicked", id);
+        }
+    };
+
+    const handleLoadMore = () => {
+        fetchWorks(page + 1, false, debouncedSearch, filterRegional);
+    };
+
+    // MERGE Logic: Works (Driver) + Managements (Data)
     const filteredManagements = useMemo(() => {
-        return managements.filter(m => {
-            const work = works.find(w => w.id === m.work_id);
-            const regional = work?.regional || m.regional;
-            const workType = work?.work_type || m.work_type;
+        return works.map(w => {
+            const m = managements.find(mg => mg.work_id === w.id);
+            // Default Structure if m is missing
+            const defaultM: EngineeringManagement = {
+                work_id: w.id,
+                owner_works: initOwnerWorks(),
+                licenses: initLicenses(),
+                thermometer: initThermometer(),
+                operator: "", size_m2: "", floor_size_m2: "", engineer: "", coordinator: "", control_tower: "", pm: "", cm: "",
+                macro_schedule: initMacroSchedule(),
+                supply_schedule: initSupplySchedule(),
+                complementary_info: initComplementaryInfo(),
+                general_docs: initGeneralDocs(),
+                capex: initCapex(),
+                daily_log: initDailyLog(),
+                highlights: initHighlights(),
+                presentation_highlights: "", attention_points: "", image_1: "", image_2: "", map_image: "",
+                // Preserve work properties in the merged object for UI to use (regional, work_type)
+                ...w
+            } as EngineeringManagement;
 
-            const searchLower = searchText.toLowerCase();
-            const textMatch =
-                !searchText ||
-                m.work_id.toLowerCase().includes(searchLower) ||
-                (regional?.toLowerCase() || "").includes(searchLower) ||
-                (m.operator?.toLowerCase() || "").includes(searchLower) ||
-                (workType?.toLowerCase() || "").includes(searchLower);
-
-            if (!textMatch) return false;
-
-            if (filterRegional && regional?.trim() !== filterRegional) return false;
-
-            return true;
+            if (m) {
+                return { ...defaultM, ...m, ...w };
+            }
+            return defaultM;
         });
-    }, [managements, works, searchText, filterRegional]);
+    }, [works, managements]);
 
     const handleCardClick = (workId: string) => {
         setModalType("Editar Gestão");
@@ -1137,6 +1026,35 @@ export default function Engineering() {
                                 </div>
                             );
                         })}
+
+
+                        {/* Load More Button */}
+                        {hasMore && (
+                            <div className="flex justify-center pb-20 mt-8">
+                                <button
+                                    onClick={handleLoadMore}
+                                    disabled={isLoading}
+                                    className="px-6 py-3 bg-white/50 hover:bg-white text-blue-600 font-bold rounded-full shadow-lg backdrop-blur-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Carregando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                            </svg>
+                                            Carregar Mais
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

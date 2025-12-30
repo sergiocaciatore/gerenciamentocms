@@ -18,6 +18,7 @@ export interface RegistrationWork {
     business_case: string;
     capex_approved: string;
     internal_order: string;
+    oi: string;
     has_engineering?: boolean;
     has_control_tower?: boolean;
     has_planning?: boolean;

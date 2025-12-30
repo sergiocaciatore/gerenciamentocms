@@ -47,6 +47,7 @@ export default function Registration() {
     const [businessCase, setBusinessCase] = useState("");
     const [capex, setCapex] = useState("");
     const [internalOrder, setInternalOrder] = useState("");
+    const [oi, setOi] = useState("");
 
     // Events Form
     const [eventDescription, setEventDescription] = useState("");
@@ -223,6 +224,7 @@ export default function Registration() {
         setBusinessCase("");
         setCapex("");
         setInternalOrder("");
+        setOi("");
         setEventDescription("");
         setEventType("Novo");
         setEventSla("");
@@ -274,6 +276,7 @@ export default function Registration() {
                 setBusinessCase(work.business_case || "");
                 setCapex(work.capex_approved || "");
                 setInternalOrder(work.internal_order || "");
+                setOi(work.oi || "");
             } else if (item.itemType === "Evento") {
                 const event = item as RegistrationEvent;
                 setEventDescription(event.description || "");
@@ -333,7 +336,8 @@ export default function Registration() {
                     cnpj,
                     business_case: businessCase,
                     capex_approved: capex,
-                    internal_order: internalOrder
+                    internal_order: internalOrder,
+                    oi,
                 };
             } else if (modalType === "Cadastrar Evento") {
                 endpoint = "events";
@@ -766,6 +770,10 @@ export default function Registration() {
                             <div>
                                 <label className="block text-xs font-medium text-gray-700">Business Case</label>
                                 <input type="text" value={businessCase} onChange={(e) => handleCurrencyChange(e, setBusinessCase)} className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-2 ring-1 ring-gray-200" placeholder="R$ 0,00" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700">OI</label>
+                                <input type="text" value={oi} onChange={(e) => setOi(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 bg-white/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-2 ring-1 ring-gray-200" placeholder="OI" />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-700">Capex</label>

@@ -5,10 +5,12 @@ from fastapi import (
     File,
     Body,
     Depends,
+    Depends,
     HTTPException,
 )
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from app.auth.deps import get_current_user
 from app.auth.firebase import initialize_firebase
 from pydantic import BaseModel
@@ -63,6 +65,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.get("/health")
@@ -130,6 +134,7 @@ class WorkCreate(BaseModel):
     business_case: str
     capex_approved: str
     internal_order: str
+    oi: str
     residents: List[ResidentAssignment] = []
 
 
@@ -143,11 +148,31 @@ def create_work(work: WorkCreate, current_user: dict = Depends(get_current_user)
 
 
 @app.get("/works")
-def get_works(current_user: dict = Depends(get_current_user)):
+def get_works(
+    limit: int = 20,
+    offset: int = 0,
+    search: Optional[str] = None,
+    regional: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
     db = firestore.client()
 
-    # 1. Fetch all Works
-    works_docs = db.collection("works").stream()
+    # Base Query
+    works_ref = db.collection("works")
+
+    # Appply Filters
+    if regional and regional.strip():
+        works_ref = works_ref.where("regional", "==", regional.strip())
+
+    # Search (limited to Prefix on regional for optimization or just fetch all if search is heavy?
+    # Firestore doesn't support 'contains'. For now, let's apply offset/limit.
+    # If a search term is generic, we might miss data if we only search the first page.
+    # TODO: Implement full text search engine (e.g. Algolia or specialized collection)
+    # For now, we apply pagination to the filtered result.
+
+    works_ref = works_ref.limit(limit).offset(offset)
+    works_docs = works_ref.stream()
+
     works_list = []
     for doc in works_docs:
         w = doc.to_dict()
@@ -155,37 +180,57 @@ def get_works(current_user: dict = Depends(get_current_user)):
             w["id"] = doc.id
         works_list.append(w)
 
-    # 2. Fetch All Keys/Metadata for Relations (Batch operations to avoid N+1 queries)
-    # Using select([]) fetches only document references (metadata), reducing value transfer.
+    if not works_list:
+        return []
 
-    # Plannings (ID matches Work ID)
-    plannings_ids = {d.id for d in db.collection("plannings").select([]).stream()}
+    # 2. Optimized Relation Checks (Only for fetched works)
+    work_ids = [w["id"] for w in works_list]
 
-    # Managements/Reports (ID matches Work ID)
-    managements_ids = {d.id for d in db.collection("managements").select([]).stream()}
+    # Batch check for existence where ID == WorkID (1:1 relations)
+    # create references
+    plan_refs = [db.collection("plannings").document(wid) for wid in work_ids]
+    mgmt_refs = [db.collection("managements").document(wid) for wid in work_ids]
+    team_refs = [db.collection("team").document(wid) for wid in work_ids]
 
-    # Team/Engineering (ID matches Work ID OR field 'id' matches Work ID)
-    # Previously we looked at 'residents' inside work, but data is in 'team' collection
-    team_ids = set()
-    for d in db.collection("team").select(["id"]).stream():
-        team_ids.add(d.id)
-        data = d.to_dict()
-        if data and "id" in data:
-            team_ids.add(data["id"])
+    # getAll is efficient for bulk reads
+    plan_snaps = db.get_all(plan_refs)
+    mgmt_snaps = db.get_all(mgmt_refs)
+    team_snaps = db.get_all(team_refs)
 
-    # Control Tower / OCs (Query needs work_id field)
-    ocs_docs = db.collection("ocs").select(["work_id"]).stream()
-    ocs_work_ids = {
-        d.to_dict().get("work_id") for d in ocs_docs if d.to_dict().get("work_id")
-    }
+    plannings_map = {snap.id: snap.exists for snap in plan_snaps}
+    managements_map = {snap.id: snap.exists for snap in mgmt_snaps}
+    team_map = {snap.id: snap.exists for snap in team_snaps}
 
-    # 3. Map Flags to Works
+    # Control Tower / OCs (One-to-Many: Work -> OCs)
+    # Optimization: Check if ANY OC exists for these works.
+    # Firestore 'in' query supports up to 10 (or 30) values. If limit > 10, run in chunks.
+    ocs_work_ids = set()
+
+    # Process in chunks of 10 for 'in' queries
+    chunk_size = 10
+    for i in range(0, len(work_ids), chunk_size):
+        chunk = work_ids[i : i + chunk_size]
+        # We only need to know if at least one exists.
+        # This query gets all OCs for these works. Heavy if many OCs, but better than ALL OCs.
+        # select([]) minimizes bandwidth.
+        ocs_query = (
+            db.collection("ocs")
+            .where("work_id", "in", chunk)
+            .select(["work_id"])
+            .stream()
+        )
+        for d in ocs_query:
+            # We just need to mark the work_id as having an OC
+            data = d.to_dict()
+            if "work_id" in data:
+                ocs_work_ids.add(data["work_id"])
+
+    # 3. Map Flags
     for work in works_list:
         wid = work["id"]
-
-        work["has_engineering"] = wid in team_ids
-        work["has_planning"] = wid in plannings_ids
-        work["has_report"] = wid in managements_ids
+        work["has_engineering"] = team_map.get(wid, False)
+        work["has_planning"] = plannings_map.get(wid, False)
+        work["has_report"] = managements_map.get(wid, False)
         work["has_control_tower"] = wid in ocs_work_ids
 
     return works_list
@@ -752,6 +797,12 @@ class HighlightsItem(BaseModel):
     observations: str = ""
 
 
+class MarcoItem(BaseModel):
+    descricao: str = ""
+    previsto: str = ""
+    realizado: str = ""
+
+
 class ManagementCreate(BaseModel):
     work_id: str
     owner_works: List[ManagementItem] = []
@@ -769,9 +820,15 @@ class ManagementCreate(BaseModel):
     # Presentation Fields
     presentation_highlights: str = ""
     attention_points: str = ""
+    pp_destaques_executivos: str = ""
+    pp_pontos_atencao: str = ""
     image_1: str = ""
     image_2: str = ""
     map_image: str = ""
+    imovel_contrato_assinado: str = ""
+    imovel_recebimento_contratual: str = ""
+    imovel_entrega_antecipada: str = ""
+    marcos: List[MarcoItem] = []
 
     # Schedules
     macro_schedule: List[ScheduleItem] = []

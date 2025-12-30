@@ -15,6 +15,7 @@ import Residentes from "./pages/Residentes";
 import LPU from "./pages/LPU";
 import DiarioDeObra from "./pages/DiarioDeObra";
 import Report from "./pages/Report";
+import WorksPP from "./pages/WorksPP";
 import Settings from "./pages/Settings";
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
           <Route path="/lpu" element={<LPU />} />
           <Route path="/diario" element={<DiarioDeObra />} />
           <Route path="/report" element={<Report />} />
+          <Route path="/obras-pp" element={<WorksPP />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="/fornecedor/login/:token" element={<SupplierLogin />} />

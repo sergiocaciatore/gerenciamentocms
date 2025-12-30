@@ -42,6 +42,11 @@ export default function ProjectAvoidance() {
     const [works, setWorks] = useState<RegistrationWork[]>([]);
     const [selectedWorkId, setSelectedWorkId] = useState("");
 
+    // Sidebar Filters
+    const [searchText, setSearchText] = useState("");
+    const [filterRegional, setFilterRegional] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+
     // State for cards
     const [displayedWorks, setDisplayedWorks] = useState<RegistrationWork[]>([]);
     const [expandedIds, setExpandedIds] = useState<string[]>([]);
@@ -88,6 +93,36 @@ export default function ProjectAvoidance() {
     // Deletion extension
     const [managementIdToDelete, setManagementIdToDelete] = useState<string | null>(null);
 
+    // Filter Logic
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchText);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchText]);
+
+    useEffect(() => {
+        if (!works.length) return;
+
+        const filtered = works.filter(w => {
+            // Must have PA entry
+            if (!paItemsMap[w.id.trim()]) return false;
+
+            // Search
+            const searchLower = debouncedSearch.toLowerCase();
+            const matchesSearch = !searchLower ||
+                w.id.toLowerCase().includes(searchLower) ||
+                (w.regional || "").toLowerCase().includes(searchLower);
+
+            // Regional
+            const matchesRegional = !filterRegional || w.regional === filterRegional;
+
+            return matchesSearch && matchesRegional;
+        });
+
+        setDisplayedWorks(filtered);
+    }, [works, paItemsMap, debouncedSearch, filterRegional]);
+
     // Initial Data Fetch
     useEffect(() => {
         const loadInv = async () => {
@@ -121,10 +156,8 @@ export default function ProjectAvoidance() {
                     });
                     setPaItemsMap(itemsMap);
 
-                    // Filter works that match the ids in PA items
-                    const paIds = new Set(Object.keys(itemsMap));
-                    const visibleWorks = allWorks.filter(w => paIds.has(w.id.trim()));
-                    setDisplayedWorks(visibleWorks);
+                    // Filter works that match the ids in PA items (initial load)
+                    // Initial display will be handled by the Effect depending on paItemsMap
                 }
             } catch (error) {
                 console.error("Error loading data:", error);
@@ -548,7 +581,63 @@ export default function ProjectAvoidance() {
     return (
         <div className="relative min-h-full w-full">
             <div className="mr-80 px-8 py-8 w-auto mx-0">
-                <h1 className="text-2xl font-bold text-white mb-6">Project Avoidance</h1>
+                {/* Title Removed */}
+
+                {/* Floating Sidebar */}
+                <div className="fixed right-8 top-32 flex flex-col gap-4 w-72 z-20">
+                    {/* Actions Section */}
+                    <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                                    <span className="text-blue-600 text-lg font-bold">+</span>
+                                </div>
+                                <span className="text-[10px] font-medium text-gray-600">Novo</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filters Section */}
+                    <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filtros</h3>
+
+                        {/* Search */}
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Buscar obra..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white/50 border border-white/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 placeholder-gray-500"
+                            />
+                            <svg className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+
+                        {/* Regional Filter */}
+                        <div>
+                            <select
+                                value={filterRegional}
+                                onChange={(e) => setFilterRegional(e.target.value)}
+                                className="w-full px-4 py-2 bg-white/50 border border-white/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 appearance-none cursor-pointer"
+                                style={{ backgroundImage: 'none' }}
+                            >
+                                <option value="">Todas Regionais</option>
+                                <option value="Rimes">Rimes</option>
+                                <option value="Baixada">Baixada</option>
+                                <option value="Litoral">Litoral</option>
+                                <option value="Capital">Capital</option>
+                                <option value="Vale">Vale</option>
+                                <option value="Interior">Interior</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
                 {loading ? (
                     <div className="flex justify-center py-20">
@@ -864,24 +953,7 @@ export default function ProjectAvoidance() {
                 }
             </div>
 
-            {/* Floating Sidebar */}
-            <div className="fixed right-8 top-32 flex flex-col gap-4 w-72 z-20">
-                {/* Actions Section */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                <span className="text-blue-600 text-lg font-bold">+</span>
-                            </div>
-                            <span className="text-[10px] font-medium text-gray-600">Novo</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+
 
             {/* Work Selection Modal */}
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Selecionar Obra">
