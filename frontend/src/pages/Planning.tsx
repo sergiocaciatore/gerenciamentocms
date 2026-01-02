@@ -803,17 +803,19 @@ export default function Planning() {
                                                             <table className="w-full text-sm text-left table-fixed">
                                                                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                                                                     <tr>
-                                                                        <th className="px-4 py-3 w-[25%]">Etapa</th>
-                                                                        <th className="px-2 py-3 w-[20%] text-center">Início</th>
-                                                                        <th className="px-2 py-3 w-[20%] text-center">Término</th>
-                                                                        <th className="px-2 py-3 w-[15%] text-center">Status</th>
+                                                                        <th className="px-4 py-3 w-[20%]">Etapa</th>
+                                                                        <th className="px-2 py-3 w-[12%] text-center">Início Prev.</th>
+                                                                        <th className="px-2 py-3 w-[12%] text-center">Término Prev.</th>
+                                                                        <th className="px-2 py-3 w-[13%] text-center">Início Real</th>
+                                                                        <th className="px-2 py-3 w-[13%] text-center">Término Real</th>
+                                                                        <th className="px-2 py-3 w-[10%] text-center">Status</th>
                                                                         <th className="px-4 py-3 w-[20%]">Resp.</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody className="divide-y divide-gray-100 bg-white text-xs">
                                                                     {(!planning.data?.schedule || planning.data.schedule.length === 0) ? (
                                                                         <tr>
-                                                                            <td colSpan={5} className="py-8 text-center">
+                                                                            <td colSpan={7} className="py-8 text-center">
                                                                                 <button onClick={() => {
                                                                                     const work = works.find(w => w.id === planning.work_id);
                                                                                     if (work?.go_live_date) {
@@ -836,6 +838,12 @@ export default function Planning() {
                                                                                         <div title={item.name} className="truncate">{item.name}</div>
                                                                                         <span className="text-[10px] text-gray-400">{item.sla} dias</span>
                                                                                     </td>
+                                                                                    <td className="px-2 py-2 text-center text-gray-500 border-r border-gray-100 bg-gray-50/50">
+                                                                                        {item.start_planned ? new Date(item.start_planned).toLocaleDateString('pt-BR') : '-'}
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center text-gray-500 border-r border-gray-100 bg-gray-50/50">
+                                                                                        {item.end_planned ? new Date(item.end_planned).toLocaleDateString('pt-BR') : '-'}
+                                                                                    </td>
                                                                                     <td className="px-2 py-2 text-center border-r border-gray-100">
                                                                                         <input type="date" value={item.start_real || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'start_real', e.target.value)} className="w-full text-xs" />
                                                                                     </td>
@@ -851,6 +859,7 @@ export default function Planning() {
                                                                                 </tr>
                                                                             );
                                                                         })
+
                                                                     )}
                                                                 </tbody>
                                                             </table>

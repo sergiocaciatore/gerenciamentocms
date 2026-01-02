@@ -187,8 +187,8 @@ export default function Sidebar() {
 
     return (
         <nav
-            className={`relative flex flex-col h-full transition-all duration-300 ease-in-out ${isCollapsed ? "w-20" : "w-64"
-                } bg-white/20 backdrop-blur-xl border-r border-white/30 shadow-2xl`}
+            className={`relative flex flex-col h-[calc(100vh-2rem)] m-4 rounded-3xl transition-all duration-300 ease-in-out ${isCollapsed ? "w-20" : "w-64"
+                } bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl`}
         >
             {/* Header / Collapse Button */}
             <div className="flex items-center justify-between p-4 h-20 border-b border-white/10">
