@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { Oc, OcEvent } from "../../types/ControlTower";
+import type { Oc, OcEvent, FinancialRecord } from "../../types/ControlTower";
 
 interface OcCardProps {
     oc: Oc;
@@ -13,6 +13,8 @@ interface OcCardProps {
     onAddEvent: (ocId: string) => void;
     onUpdateEvent: (event: OcEvent, field: string, value: string) => void;
     onDeleteEvent: (id: string) => void;
+    onAddFinancialRecord: (ocId: string) => void;
+    onEditFinancialRecord: (record: FinancialRecord, ocId: string) => void;
 }
 
 const OcCard = ({
@@ -25,7 +27,9 @@ const OcCard = ({
     onDelete,
     onAddEvent,
     onUpdateEvent,
-    onDeleteEvent
+    onDeleteEvent,
+    onAddFinancialRecord,
+    onEditFinancialRecord
 }: OcCardProps) => {
     const isExpanded = expandedOcId === oc.id;
     // When grouped, we might not want to rely on global expansion state usually, 
@@ -51,11 +55,11 @@ const OcCard = ({
             <div className="relative z-10 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100/50 text-blue-700 border border-blue-200/50">
+                        <span className="px-3 py-1 rounded-full text-[10px] font-medium bg-blue-100/50 text-blue-700 border border-blue-200/50">
                             {workName}
                         </span>
                         {filteredEvents.length > 0 && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
                                 {filteredEvents.length} Eventos
                             </span>
                         )}
@@ -92,27 +96,62 @@ const OcCard = ({
                         </button>
                     </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">{oc.description}</h3>
-                <p className="text-sm text-gray-600 mb-2">Tipo: {oc.type}</p>
-                {oc.value > 0 && (
-                    <p className="text-sm font-bold text-gray-800 mb-4">
-                        Orçado: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(oc.value)}
-                    </p>
-                )}
+                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                    <div className="flex-1">
+                        <h3 className="text-base font-bold text-gray-900 mb-1">{oc.description}</h3>
+                        <p className="text-xs text-gray-600 mb-2">Tipo: {oc.type}</p>
+                        {oc.value > 0 && (
+                            <p className="text-xs font-bold text-gray-800">
+                                Orçado: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(oc.value)}
+                            </p>
+                        )}
+                    </div>
+                    {/* Financial Records Mini-Cards */}
+                    <div className="flex flex-wrap gap-2 items-start">
+                        {oc.financial_records?.map(record => (
+                            <div
+                                key={record.id}
+                                onClick={() => onEditFinancialRecord(record, oc.id)}
+                                className="w-16 h-16 bg-white/60 rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:scale-105 transition-all cursor-pointer flex flex-col justify-center items-center p-1 group/card"
+                                title={`Nota: ${record.invoiceNumber}\nFornecedor: ${record.supplier || '-'}`}
+                            >
+                                <div className="text-[9px] font-bold text-gray-800 text-center leading-tight">
+                                    {record.value ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: "compact" }).format(record.value) : "R$ -"}
+                                </div>
+                                {(record.issuanceDate || record.paymentDate) && (
+                                    <div className="text-[8px] text-gray-500 mt-1 text-center leading-none">
+                                        {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : new Date(record.issuanceDate!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
                 {isExpanded && (
                     <div className="mt-4 border-t border-gray-200 pt-4">
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Eventos vinculados</h4>
-                            <button
-                                onClick={() => onAddEvent(oc.id)}
-                                className="py-1 px-3 rounded-lg border border-dashed border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-400 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                                Novo Evento
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => onAddFinancialRecord(oc.id)}
+                                    className="py-1 px-3 rounded-lg border border-dashed border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3.228-9.941a.75.75 0 01.75-.75h5.956a.75.75 0 01.75.75v3.5a.75.75 0 01-.75.75H9.522a.75.75 0 01-.75-.75v-3.5zM6.75 12h10.5m-15 4.5h15" />
+                                    </svg>
+                                    Novo Registro Financeiro
+                                </button>
+                                <button
+                                    onClick={() => onAddEvent(oc.id)}
+                                    className="py-1 px-3 rounded-lg border border-dashed border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-400 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    Novo Evento
+                                </button>
+                            </div>
                         </div>
 
                         {filteredEvents.length === 0 ? (

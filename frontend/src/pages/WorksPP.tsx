@@ -5,6 +5,8 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, auth } from "../firebase";
 import mllogo from '../assets/mllogo.png';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Work {
     id: string;
@@ -26,6 +28,21 @@ interface Marco {
     realizado?: string;
 }
 
+interface License {
+    nome?: string;
+    protocolo?: string;
+    previsao?: string;
+    emissao?: string;
+    status?: 'cancelado' | 'andamento' | 'concluido';
+}
+
+interface CurvePoint {
+    id: string; // unique ID for editing/key
+    date: string; // YYYY-MM-DD
+    planned?: number;
+    realized?: number;
+}
+
 interface Management {
     work_id: string;
     capex?: {
@@ -41,11 +58,15 @@ interface Management {
     pp_pontos_atencao?: string;
     image_1?: string;
     image_2?: string;
+    pp_image_1?: string;
+    pp_image_2?: string;
     map_image?: string;
     imovel_contrato_assinado?: string;
     imovel_recebimento_contratual?: string;
     imovel_entrega_antecipada?: string;
     marcos?: Marco[];
+    licenses?: License[];
+    schedule_curve?: CurvePoint[];
     // ...
 }
 
@@ -77,6 +98,7 @@ export default function WorksPP() {
     const [isMapModalOpen, setIsMapModalOpen] = useState(false); // New state for map modal
     const [isUploading, setIsUploading] = useState(false);
     const [isReorderModalOpen, setIsReorderModalOpen] = useState(false); // Reorder Modal
+    const [isCurveModalOpen, setIsCurveModalOpen] = useState(false); // Curve Modal
     const [isEnhancing, setIsEnhancing] = useState<string | null>(null);
 
     // Derived
@@ -97,6 +119,13 @@ export default function WorksPP() {
 
     const currentMgmt = managements.find(m => m.work_id === currentWork?.id);
     const marcosAtuais = currentMgmt?.marcos || [];
+
+    const licencasAtuais = currentMgmt?.licenses || [];
+    // Sort logic for curve points: primarily by date
+
+    const curvePoints = useMemo(() => {
+        return [...(currentMgmt?.schedule_curve || [])].sort((a, b) => (a.date > b.date ? 1 : -1));
+    }, [currentMgmt?.schedule_curve]);
 
     // --- Data Fetching ---
     useEffect(() => {
@@ -276,6 +305,77 @@ export default function WorksPP() {
         await salvarMarcos(novosMarcos);
     };
 
+    // --- Licenses Logic ---
+    const salvarLicencas = async (novasLicencas: License[]) => {
+        if (!currentWork) return;
+        const novoMgmt: Management = currentMgmt
+            ? { ...currentMgmt, licenses: novasLicencas }
+            : { work_id: currentWork.id, licenses: novasLicencas };
+        await saveManagement(novoMgmt);
+    };
+
+    const montarLicencasAtualizadas = (indice: number, campo: keyof License, valor: string) => {
+        return licencasAtuais.map((licenca, idx) =>
+            idx === indice ? { ...licenca, [campo]: valor } : licenca
+        );
+    };
+
+    const atualizarCampoLicenca = (indice: number, campo: keyof License, valor: string) => {
+        const novasLicencas = montarLicencasAtualizadas(indice, campo, valor);
+        handleUpdateManagement('licenses', novasLicencas);
+        return novasLicencas;
+    };
+
+    const adicionarLicenca = async () => {
+        if (!currentWork) return;
+        const novasLicencas = [...licencasAtuais, { nome: '', protocolo: '', previsao: '', emissao: '', status: 'andamento' as const }];
+        handleUpdateManagement('licenses', novasLicencas);
+        await salvarLicencas(novasLicencas);
+    };
+
+    const removerLicenca = async (indice: number) => {
+        if (!currentWork) return;
+        const novasLicencas = licencasAtuais.filter((_, idx) => idx !== indice);
+        handleUpdateManagement('licenses', novasLicencas);
+        await salvarLicencas(novasLicencas);
+    };
+
+    // --- Schedule Curve Logic ---
+    const saveCurveData = async (newPoints: CurvePoint[]) => {
+        if (!currentWork) return;
+        const novoMgmt: Management = currentMgmt
+            ? { ...currentMgmt, schedule_curve: newPoints }
+            : { work_id: currentWork.id, schedule_curve: newPoints };
+        await saveManagement(novoMgmt);
+    };
+
+    const handleAddCurvePoint = async () => {
+        if (!currentWork) return;
+        const newPoint: CurvePoint = {
+            id: Date.now().toString(),
+            date: '',
+            planned: 0,
+            realized: 0
+        };
+        const newPoints = [...curvePoints, newPoint];
+        handleUpdateManagement('schedule_curve', newPoints);
+        await saveCurveData(newPoints);
+    };
+
+    const handleUpdateCurvePoint = (id: string, field: keyof CurvePoint, value: string | number) => {
+        const newPoints = curvePoints.map(p =>
+            p.id === id ? { ...p, [field]: value } : p
+        );
+        handleUpdateManagement('schedule_curve', newPoints);
+        return newPoints;
+    };
+
+    const handleRemoveCurvePoint = async (id: string) => {
+        const newPoints = curvePoints.filter(p => p.id !== id);
+        handleUpdateManagement('schedule_curve', newPoints);
+        await saveCurveData(newPoints);
+    };
+
     const handleSelectMap = (name: string) => {
         if (!currentWork) return;
 
@@ -317,7 +417,7 @@ export default function WorksPP() {
         return val;
     };
 
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'image_1' | 'image_2') => {
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'image_1' | 'image_2' | 'pp_image_1' | 'pp_image_2') => {
         const file = event.target.files?.[0];
         if (!file || !currentWork) return;
         // Logic: if !currentMgmt, we proceed to create
@@ -335,7 +435,7 @@ export default function WorksPP() {
                 ? { ...currentMgmt, [field]: downloadUrl }
                 : { work_id: currentWork.id, [field]: downloadUrl };
 
-            await saveManagement(newMgmt);
+            await saveManagement(newMgmt as Management);
         } catch (error) {
             console.error("Error uploading image:", error);
             alert("Erro ao enviar imagem. Verifique se você tem permissão.");
@@ -388,7 +488,7 @@ export default function WorksPP() {
     };
 
     // --- Render ---
-    if (isLoading) return <div className="p-8 text-center text-gray-500">Carregando relatório...</div>;
+    if (isLoading) return <LoadingSpinner message="Carregando apresentação..." fullScreen />;
 
     return (
         <div className="relative flex flex-col h-full gap-4">
@@ -462,6 +562,119 @@ export default function WorksPP() {
                         </div>
                         <div className="mt-4 pt-4 border-t text-[10px] text-gray-400 text-center uppercase tracking-widest">
                             Alterações salvas automaticamente neste navegador
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Modal for Curve Editing */}
+            {isCurveModalOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md" onClick={() => setIsCurveModalOpen(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-4xl h-[85vh] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <span className="text-2xl">📈</span>
+                                    Curva de Avanço Físico
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-1">Gerencie os pontos do gráfico previsto vs realizado.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsCurveModalOpen(false)}
+                                className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-200 transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+
+                            {/* Table Header */}
+                            <div className="grid grid-cols-[140px_1fr_1fr_40px] gap-4 mb-2 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                <div>Data de Medição</div>
+                                <div>% Previsto Acumulado</div>
+                                <div>% Realizado Acumulado</div>
+                                <div></div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {curvePoints.map((point) => (
+                                    <div key={point.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 grid grid-cols-[140px_1fr_1fr_40px] gap-4 items-center group hover:shadow-md transition-all">
+                                        <input
+                                            type="date"
+                                            value={point.date}
+                                            onChange={(e) => {
+                                                const novos = handleUpdateCurvePoint(point.id, 'date', e.target.value);
+                                                saveCurveData(novos);
+                                            }}
+                                            className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium text-gray-700"
+                                        />
+
+                                        <div className="relative group/input">
+                                            <input
+                                                type="number"
+                                                value={point.planned ?? ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                    const novos = handleUpdateCurvePoint(point.id, 'planned', val as number);
+                                                    saveCurveData(novos);
+                                                }}
+                                                placeholder="0"
+                                                className="w-full bg-blue-50/10 border border-blue-100/50 group-hover/input:border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-semibold text-blue-700 placeholder-blue-300"
+                                            />
+                                            <div className="absolute inset-y-0 right-8 w-px bg-gray-200/50 my-2"></div>
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-300">%</span>
+                                        </div>
+
+                                        <div className="relative group/input">
+                                            <input
+                                                type="number"
+                                                value={point.realized ?? ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                    const novos = handleUpdateCurvePoint(point.id, 'realized', val as number);
+                                                    saveCurveData(novos);
+                                                }}
+                                                placeholder="-"
+                                                className="w-full bg-green-50/10 border border-green-100/50 group-hover/input:border-green-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all font-semibold text-green-700 placeholder-green-300"
+                                            />
+                                            <div className="absolute inset-y-0 right-8 w-px bg-gray-200/50 my-2"></div>
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-green-300">%</span>
+                                        </div>
+
+                                        <button
+                                            onClick={() => handleRemoveCurvePoint(point.id)}
+                                            className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                                            title="Remover ponto"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {curvePoints.length === 0 && (
+                                    <div className="text-center py-16 flex flex-col items-center justify-center text-gray-300 border-2 border-dashed border-gray-100 rounded-2xl bg-white/50">
+                                        <span className="text-4xl mb-3 opacity-50">📊</span>
+                                        <p className="font-medium text-gray-400">Nenhum ponto de medição</p>
+                                        <p className="text-xs mt-1 max-w-xs mx-auto">Adicione datas e percentuais para visualizar a Curva S de avanço físico da obra.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t bg-gray-50/80 backdrop-blur-sm flex justify-center sticky bottom-0 z-10">
+                            <button
+                                onClick={handleAddCurvePoint}
+                                className="bg-gray-900 hover:bg-black text-white font-bold py-2.5 px-6 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 transform active:scale-95 text-sm"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                                Adicionar Novo Ponto
+                            </button>
                         </div>
                     </div>
                 </div>,
@@ -562,13 +775,13 @@ export default function WorksPP() {
                                 type="file"
                                 className="hidden"
                                 accept="image/*"
-                                onChange={(e) => handleImageUpload(e, 'image_1')}
+                                onChange={(e) => handleImageUpload(e, 'pp_image_1')}
                                 disabled={isUploading}
                             />
                             <span className="text-[10px] text-gray-500 absolute top-2 left-3 bg-white/90 px-2 py-1 rounded-md shadow-sm z-10 font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">Foto 1</span>
-                            {currentMgmt?.image_1 ? (
+                            {currentMgmt?.pp_image_1 ? (
                                 <>
-                                    <img src={currentMgmt.image_1} className="absolute inset-0 w-full h-full object-cover" alt="Foto 1 da Obra" title="Foto 1 da Obra" />
+                                    <img src={currentMgmt.pp_image_1} className="absolute inset-0 w-full h-full object-cover" alt="Foto 1 da Obra" title="Foto 1 da Obra" />
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <span className="text-white text-xs font-bold uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm">Alterar Foto</span>
                                     </div>
@@ -588,13 +801,13 @@ export default function WorksPP() {
                                 type="file"
                                 className="hidden"
                                 accept="image/*"
-                                onChange={(e) => handleImageUpload(e, 'image_2')}
+                                onChange={(e) => handleImageUpload(e, 'pp_image_2')}
                                 disabled={isUploading}
                             />
                             <span className="text-[10px] text-gray-500 absolute top-2 left-3 bg-white/90 px-2 py-1 rounded-md shadow-sm z-10 font-bold uppercase tracking-wider backdrop-blur-sm pointer-events-none">Foto 2</span>
-                            {currentMgmt?.image_2 ? (
+                            {currentMgmt?.pp_image_2 ? (
                                 <>
-                                    <img src={currentMgmt.image_2} className="absolute inset-0 w-full h-full object-cover" alt="Foto 2 da Obra" title="Foto 2 da Obra" />
+                                    <img src={currentMgmt.pp_image_2} className="absolute inset-0 w-full h-full object-cover" alt="Foto 2 da Obra" title="Foto 2 da Obra" />
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <span className="text-white text-xs font-bold uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm">Alterar Foto</span>
                                     </div>
@@ -610,8 +823,8 @@ export default function WorksPP() {
                     </div>
                 </div>
 
-                {/* CENTRO: Cronograma (5 colunas) */}
-                <div className="col-span-5 flex flex-col gap-6">
+                {/* CENTRO: Cronograma (6 colunas) */}
+                <div className="col-span-6 flex flex-col gap-6">
                     <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-white/50 relative flex flex-col flex-1 min-h-0">
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -638,7 +851,7 @@ export default function WorksPP() {
                                         />
                                     </div>
                                     <div className="flex flex-col gap-1">
-                                        <label className="text-[9px] font-bold text-gray-400 uppercase">Recebimento contratual do imóvel</label>
+                                        <label className="text-[9px] font-bold text-gray-400 uppercase">Recebimento contratual</label>
                                         <input
                                             type="date"
                                             className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
@@ -740,12 +953,180 @@ export default function WorksPP() {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="bg-white/70 border border-white/60 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Licenças</h4>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void adicionarLicenca(); }}
+                                        disabled={!currentWork}
+                                        className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors font-medium disabled:opacity-50"
+                                        title="Adicionar licença"
+                                        aria-label="Adicionar licença"
+                                    >
+                                        Adicionar licença
+                                    </button>
+                                </div>
+                                {licencasAtuais.length === 0 ? (
+                                    <div className="text-xs text-gray-400">Nenhuma licença adicionado.</div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {licencasAtuais.map((licenca, idx) => (
+                                            <div key={idx} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_100px_100px_60px_32px] gap-2 items-end">
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase">Nome</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        value={licenca.nome || ''}
+                                                        onChange={(e) => atualizarCampoLicenca(idx, 'nome', e.target.value)}
+                                                        onBlur={(e) => { void salvarLicencas(atualizarCampoLicenca(idx, 'nome', e.target.value)); }}
+                                                        placeholder="Nome da licença"
+                                                        aria-label="Nome da licença"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase">Protocolo</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        value={licenca.protocolo || ''}
+                                                        onChange={(e) => atualizarCampoLicenca(idx, 'protocolo', e.target.value)}
+                                                        onBlur={(e) => { void salvarLicencas(atualizarCampoLicenca(idx, 'protocolo', e.target.value)); }}
+                                                        placeholder="Nº Protocolo"
+                                                        aria-label="Número do protocolo"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase">Previsão</label>
+                                                    <input
+                                                        type="date"
+                                                        className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        value={licenca.previsao || ''}
+                                                        onChange={(e) => atualizarCampoLicenca(idx, 'previsao', e.target.value)}
+                                                        onBlur={(e) => { void salvarLicencas(atualizarCampoLicenca(idx, 'previsao', e.target.value)); }}
+                                                        aria-label="Previsão"
+                                                        title="Previsão"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase">Emissão</label>
+                                                    <input
+                                                        type="date"
+                                                        className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        value={licenca.emissao || ''}
+                                                        onChange={(e) => atualizarCampoLicenca(idx, 'emissao', e.target.value)}
+                                                        onBlur={(e) => { void salvarLicencas(atualizarCampoLicenca(idx, 'emissao', e.target.value)); }}
+                                                        aria-label="Emissão"
+                                                        title="Emissão"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase">Status</label>
+                                                    <select
+                                                        className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                                        value={licenca.status || 'andamento'}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value as 'cancelado' | 'andamento' | 'concluido';
+                                                            void salvarLicencas(atualizarCampoLicenca(idx, 'status', val));
+                                                        }}
+                                                        aria-label="Status da licença"
+                                                    >
+                                                        <option value="cancelado">🔴</option>
+                                                        <option value="andamento">🟡</option>
+                                                        <option value="concluido">🟢</option>
+                                                    </select>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { void removerLicenca(idx); }}
+                                                    className="h-8 w-8 flex items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                                    title="Remover licença"
+                                                    aria-label="Remover licença"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Schedule Curve Chart */}
+                    <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 h-56 relative overflow-hidden flex flex-col p-3">
+                        <div className="flex justify-between items-start mb-1">
+                            <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block">Curva de Avanço Físico</span>
+                            <button
+                                onClick={() => setIsCurveModalOpen(true)}
+                                className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+                                title="Editar curva"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 min-h-0 text-xs text-gray-800" style={{ minWidth: 0, minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={curvePoints} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fontSize: 9, fill: '#9ca3af' }}
+                                        tickFormatter={(val) => {
+                                            if (!val) return '';
+                                            const [, m, d] = val.split('-');
+                                            return `${d}/${m}`;
+                                        }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        interval="preserveStartEnd"
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: 9, fill: '#9ca3af' }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        domain={[0, 100]}
+                                        unit="%"
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '11px', padding: '8px' }}
+                                        itemStyle={{ padding: 0 }}
+                                        labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="planned"
+                                        stroke="#3b82f6"
+                                        strokeWidth={2}
+                                        dot={false}
+                                        name="Previsto"
+                                        connectNulls
+                                        animationDuration={1000}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="realized"
+                                        stroke="#10b981"
+                                        strokeWidth={2}
+                                        dot={{ r: 2, fill: '#10b981', strokeWidth: 0 }}
+                                        activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }}
+                                        name="Realizado"
+                                        connectNulls
+                                        animationDuration={1000}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
 
-                {/* DIREITA: Financeiro e Notas (4 colunas) */}
-                <div className="col-span-4 flex flex-col gap-6 overflow-hidden pr-1 pb-1">
+                {/* DIREITA: Financeiro e Notas (3 colunas) */}
+                <div className="col-span-3 flex flex-col gap-6 overflow-hidden pr-1 pb-1">
 
                     {/* Merged Highlights & Attention Card */}
                     <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -757,29 +1138,29 @@ export default function WorksPP() {
                                     Destaques Executivos
                                 </h3>
                                 <button
-                                onClick={() => handleAIEnhance('pp_destaques_executivos')}
-                                disabled={isEnhancing === 'pp_destaques_executivos'}
-                                className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50 font-medium"
-                                title="Melhorar texto com IA"
-                            >
-                                {isEnhancing === 'pp_destaques_executivos' ? 'Gerando...' : 'Melhorar IA'}
-                            </button>
-                        </div>
-                        <div
-                            contentEditable
-                            suppressContentEditableWarning
-                            onBlur={(e) => {
-                                const val = e.currentTarget.innerHTML;
-                                if (val !== currentMgmt?.pp_destaques_executivos) {
-                                    handleUpdateManagement('pp_destaques_executivos', val);
-                                    if (currentMgmt) saveManagement({ ...currentMgmt, pp_destaques_executivos: val });
-                                }
-                            }}
-                            className="w-full flex-1 overflow-y-auto custom-scrollbar text-gray-700 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-blue-100 rounded p-1 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
-                            data-placeholder="Principais avanços da semana..."
-                            dangerouslySetInnerHTML={{ __html: currentMgmt?.pp_destaques_executivos || '' }}
-                        ></div>
-                    </div>
+                                    onClick={() => handleAIEnhance('pp_destaques_executivos')}
+                                    disabled={isEnhancing === 'pp_destaques_executivos'}
+                                    className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50 font-medium"
+                                    title="Melhorar texto com IA"
+                                >
+                                    {isEnhancing === 'pp_destaques_executivos' ? 'Gerando...' : 'Melhorar IA'}
+                                </button>
+                            </div>
+                            <div
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                    const val = e.currentTarget.innerHTML;
+                                    if (val !== currentMgmt?.pp_destaques_executivos) {
+                                        handleUpdateManagement('pp_destaques_executivos', val);
+                                        if (currentMgmt) saveManagement({ ...currentMgmt, pp_destaques_executivos: val });
+                                    }
+                                }}
+                                className="w-full flex-1 overflow-y-auto custom-scrollbar text-gray-700 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-blue-100 rounded p-1 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                                data-placeholder="Principais avanços da semana..."
+                                dangerouslySetInnerHTML={{ __html: currentMgmt?.pp_destaques_executivos || '' }}
+                            ></div>
+                        </div >
 
                         {/* Section 2: Attention Points */}
                         <div className="flex-1 flex flex-col p-4 min-h-0 bg-red-50/10">
@@ -788,29 +1169,29 @@ export default function WorksPP() {
                                     Pontos de Atenção
                                 </h3>
                                 <button
-                                onClick={() => handleAIEnhance('pp_pontos_atencao')}
-                                disabled={isEnhancing === 'pp_pontos_atencao'}
-                                className="text-[10px] text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors disabled:opacity-50 font-medium"
-                                title="Melhorar texto com IA"
-                            >
-                                {isEnhancing === 'pp_pontos_atencao' ? 'Gerando...' : 'Melhorar IA'}
-                            </button>
+                                    onClick={() => handleAIEnhance('pp_pontos_atencao')}
+                                    disabled={isEnhancing === 'pp_pontos_atencao'}
+                                    className="text-[10px] text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors disabled:opacity-50 font-medium"
+                                    title="Melhorar texto com IA"
+                                >
+                                    {isEnhancing === 'pp_pontos_atencao' ? 'Gerando...' : 'Melhorar IA'}
+                                </button>
+                            </div>
+                            <div
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                    const val = e.currentTarget.innerHTML;
+                                    if (val !== currentMgmt?.pp_pontos_atencao) {
+                                        handleUpdateManagement('pp_pontos_atencao', val);
+                                        if (currentMgmt) saveManagement({ ...currentMgmt, pp_pontos_atencao: val });
+                                    }
+                                }}
+                                className="w-full flex-1 overflow-y-auto custom-scrollbar text-gray-700 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-red-100 rounded p-1 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                                data-placeholder="Riscos, impedimentos ou atrasos..."
+                                dangerouslySetInnerHTML={{ __html: currentMgmt?.pp_pontos_atencao || '' }}
+                            ></div>
                         </div>
-                        <div
-                            contentEditable
-                            suppressContentEditableWarning
-                            onBlur={(e) => {
-                                const val = e.currentTarget.innerHTML;
-                                if (val !== currentMgmt?.pp_pontos_atencao) {
-                                    handleUpdateManagement('pp_pontos_atencao', val);
-                                    if (currentMgmt) saveManagement({ ...currentMgmt, pp_pontos_atencao: val });
-                                }
-                            }}
-                            className="w-full flex-1 overflow-y-auto custom-scrollbar text-gray-700 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-red-100 rounded p-1 transition-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
-                            data-placeholder="Riscos, impedimentos ou atrasos..."
-                            dangerouslySetInnerHTML={{ __html: currentMgmt?.pp_pontos_atencao || '' }}
-                        ></div>
-                    </div>
 
                     </div>
                 </div>

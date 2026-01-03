@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import { auth } from "../firebase";
 import Modal from "../components/Modal";
 import Toast from "../components/Toast";
-import type { Oc, OcEvent, Alert, ControlTowerWork, OcEventDefinition } from "../types/ControlTower";
+import type { Oc, OcEvent, Alert, ControlTowerWork, OcEventDefinition, FinancialRecord } from "../types/ControlTower";
 import OcCard from "../components/ControlTower/OcCard";
+import GroupedOcCard from "../components/ControlTower/GroupedOcCard";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 
 
@@ -260,6 +263,7 @@ export default function ControlTower() {
     const [ocs, setOcs] = useState<Oc[]>([]);
     const [existingEvents, setExistingEvents] = useState<OcEventDefinition[]>([]);
     const [ocEvents, setOcEvents] = useState<OcEvent[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Form State (OC)
     const [selectedWorkId, setSelectedWorkId] = useState("");
@@ -296,6 +300,23 @@ export default function ControlTower() {
 
     const [useProtocol, setUseProtocol] = useState(false);
     const [eventProtocol, setEventProtocol] = useState("");
+
+    // Financial Record State
+    const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
+    const [activeOcIdForFinancial, setActiveOcIdForFinancial] = useState<string | null>(null);
+    const [editingFinancialRecord, setEditingFinancialRecord] = useState<FinancialRecord | null>(null);
+
+    // Financial Form State
+    const [finInvoiceNumber, setFinInvoiceNumber] = useState("");
+    const [finValue, setFinValue] = useState("");
+    const [finIssuanceDate, setFinIssuanceDate] = useState("");
+    const [finApprovalDate, setFinApprovalDate] = useState("");
+    const [finBillingDate, setFinBillingDate] = useState("");
+    const [finSupplier, setFinSupplier] = useState("");
+
+    const [finPaymentDate, setFinPaymentDate] = useState("");
+    const [finRetention, setFinRetention] = useState(false);
+    const [finNotes, setFinNotes] = useState("");
 
     // Status Options for Management
     const [customStatusOptions, setCustomStatusOptions] = useState<string[]>([]);
@@ -409,7 +430,7 @@ export default function ControlTower() {
             ));
 
             // API Call (Mocked/Future)
-            console.log(`Moved OC ${draggableId} to ${newStatus}`);
+            console.log(`Moved OC ${draggableId} to ${newStatus} `);
             // await updateOcStatus(draggableId, newStatus);
         }
     };
@@ -499,11 +520,12 @@ export default function ControlTower() {
 
 
     const fetchData = useCallback(async () => {
+        setIsLoading(true);
         try {
             const token = await auth.currentUser?.getIdToken();
             if (!token) return;
 
-            const headers = { Authorization: `Bearer ${token} ` };
+            const headers = { Authorization: `Bearer ${token}` };
 
             const [worksRes, ocsRes, eventsRes, definitionsRes] = await Promise.all([
                 fetch(`${import.meta.env.VITE_API_BASE_URL}/works`, { headers }),
@@ -520,8 +542,108 @@ export default function ControlTower() {
         } catch (error) {
             console.error("Error fetching data:", error);
             setToast({ message: "Erro ao carregar dados.", type: "error" });
+        } finally {
+            setIsLoading(false);
         }
     }, [])
+
+    const handleAddFinancialRecord = (ocId: string) => {
+        setActiveOcIdForFinancial(ocId);
+        setEditingFinancialRecord(null);
+        // Reset form
+        setFinInvoiceNumber("");
+        setFinValue("");
+        setFinIssuanceDate("");
+        setFinApprovalDate("");
+        setFinBillingDate("");
+        setFinSupplier("");
+        setFinPaymentDate("");
+        setFinRetention(false);
+        setFinNotes("");
+        setIsFinancialModalOpen(true);
+    };
+
+    const handleEditFinancialRecord = (record: FinancialRecord, ocId: string) => {
+        setActiveOcIdForFinancial(ocId);
+        setEditingFinancialRecord(record);
+        // Populate form
+        setFinInvoiceNumber(record.invoiceNumber);
+        setFinValue(record.value ? record.value.toString() : "");
+        setFinIssuanceDate(record.issuanceDate || "");
+        setFinApprovalDate(record.approvalDate || "");
+        setFinBillingDate(record.billingDate || "");
+        setFinSupplier(record.supplier || "");
+        setFinPaymentDate(record.paymentDate || "");
+        setFinRetention(!!record.retention);
+        setFinNotes(record.notes || "");
+        setIsFinancialModalOpen(true);
+    };
+
+    const handleSaveFinancialRecord = useCallback(async () => {
+        if (!finInvoiceNumber) {
+            setToast({ message: "Número da nota é obrigatório.", type: "error" });
+            return;
+        }
+
+        if (!activeOcIdForFinancial) return;
+
+        // Temporary local save logic until backend is ready
+        // Find OC and update its financial_records array
+        const updatedOcs = ocs.map(oc => {
+            if (oc.id === activeOcIdForFinancial) {
+                const newRecord: FinancialRecord = {
+                    id: editingFinancialRecord ? editingFinancialRecord.id : Date.now().toString(),
+                    invoiceNumber: finInvoiceNumber,
+                    value: finValue ? parseFloat(finValue) : undefined,
+                    issuanceDate: finIssuanceDate,
+                    approvalDate: finApprovalDate,
+                    billingDate: finBillingDate,
+                    supplier: finSupplier,
+                    paymentDate: finPaymentDate,
+                    retention: finRetention,
+                    notes: finNotes
+                };
+
+                const existingRecords = oc.financial_records || [];
+                const updatedRecords = editingFinancialRecord
+                    ? existingRecords.map(r => r.id === editingFinancialRecord.id ? newRecord : r)
+                    : [...existingRecords, newRecord];
+
+                return { ...oc, financial_records: updatedRecords };
+            }
+            return oc;
+        });
+
+        setOcs(updatedOcs);
+        // Persist to filteredOcs as well if separate? filteredOcs is derived from ocs usually or updated via useEffect.
+        // But here filteredOcs logic is inside render or derived.
+        // If filteredOcs is state: 
+        // In this file, filteredOcs is derived? checking...
+        // lines 320ish: const filteredOcs = useMemo(() => { ... }, [ocs, ...])
+        // So updating `ocs` triggers update. Good.
+
+        // TODO: Backend integration
+        // await fetch(...)
+
+        setToast({ message: "Registro financeiro salvo!", type: "success" });
+        setIsFinancialModalOpen(false);
+    }, [finInvoiceNumber, activeOcIdForFinancial, finValue, finIssuanceDate, finApprovalDate, finBillingDate, finPaymentDate, finSupplier, finRetention, finNotes, editingFinancialRecord, ocs]);
+
+    // Keyboard shortcuts for Financial Modal
+    useEffect(() => {
+        if (!isFinancialModalOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setIsFinancialModalOpen(false);
+            } else if (e.key === 'Enter' && e.ctrlKey) { // Using Ctrl+Enter to prevent accidental submits on date inputs etc.
+                handleSaveFinancialRecord();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFinancialModalOpen, handleSaveFinancialRecord]);
 
     useEffect(() => {
         fetchData();
@@ -869,77 +991,7 @@ export default function ControlTower() {
         }, {}))
         : [];
 
-    const GroupedOcCard = ({ ocs }: { ocs: Oc[] }) => {
-        const [isExpanded, setIsExpanded] = useState(false);
-        const workId = ocs[0]?.work_id;
-        const work = works.find(w => w.id === workId);
 
-        return (
-            <div className={`relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl transition-all ${isExpanded ? 'bg-white/60' : 'hover:bg-white/50'} group`}>
-                <div className="p-6">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4">
-                            <h3 className="text-2xl font-bold text-gray-800">{workId || "Sem Obra"}</h3>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Regional</span>
-                                <span className="text-sm font-medium text-gray-700">{work?.regional || "-"}</span>
-                            </div>
-                            <div className="flex flex-col pl-4 border-l border-gray-300">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ocorrências</span>
-                                <span className="text-sm font-bold text-blue-600">{ocs.length} Card{ocs.length > 1 ? 's' : ''}</span>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            className="p-2 rounded-full bg-white/50 hover:bg-blue-100 text-blue-600 transition-colors"
-                            title={isExpanded ? "Recolher" : "Expandir"}
-                        >
-                            {isExpanded ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                </svg>
-                            )}
-                        </button>
-                    </div>
-                </div>
-
-                {isExpanded && (
-                    <div className="px-6 pb-6 pt-0 space-y-4 border-t border-white/30 mt-2 bg-black/5 rounded-b-2xl">
-                        <div className="pt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cartões da Obra</div>
-                        <div className="grid grid-cols-1 gap-4">
-                            {ocs.map(oc => {
-                                const work = works.find(w => w.id === oc.work_id);
-                                const workName = work ? `${work.id} - ${work.regional}` : (oc.work_id || "Sem Obra");
-
-                                return (
-                                    <OcCard
-                                        key={oc.id}
-                                        oc={oc}
-                                        workName={workName}
-                                        ocEvents={ocEvents}
-                                        expandedOcId={expandedOcId}
-                                        onExpand={setExpandedOcId}
-                                        onEdit={handleEdit}
-                                        onDelete={(id) => handleDeleteClick(id, 'oc')}
-                                        onAddEvent={handleAddEvent}
-                                        onUpdateEvent={handleUpdateEvent}
-                                        onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-                {/* Visual Accent */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${isExpanded ? 'bg-blue-500' : 'bg-transparent group-hover:bg-blue-200'} transition-colors`}></div>
-            </div>
-        );
-    };
 
     return (
         <div className="relative min-h-full w-full">
@@ -968,13 +1020,31 @@ export default function ControlTower() {
                 }} />
 
                 <div className="grid grid-cols-1 gap-6">
-                    {isKanbanView ? (
+                    {isLoading ? (
+                        <div className="flex justify-center items-center py-20">
+                            <LoadingSpinner message="Carregando Control Tower..." />
+                        </div>
+                    ) : isKanbanView ? (
                         <KanbanBoard ocs={filteredOcs} statuses={availableStatuses} onDragEnd={handleDragEnd} />
                     ) : isTimelineView ? (
                         <TimelineView ocs={filteredOcs} events={ocEvents} />
                     ) : isGroupedView ? (
                         groupedOcs.map((group: Oc[], idx: number) => (
-                            <GroupedOcCard key={group[0]?.work_id || idx} ocs={group} />
+                            <GroupedOcCard
+                                key={group[0]?.work_id || idx}
+                                ocs={group}
+                                works={works}
+                                ocEvents={ocEvents}
+                                expandedOcId={expandedOcId}
+                                onExpand={setExpandedOcId}
+                                onEdit={handleEdit}
+                                onDeleteOc={(id) => handleDeleteClick(id, 'oc')}
+                                onAddEvent={handleAddEvent}
+                                onUpdateEvent={handleUpdateEvent}
+                                onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
+                                onAddFinancialRecord={handleAddFinancialRecord}
+                                onEditFinancialRecord={handleEditFinancialRecord}
+                            />
                         ))
                     ) : (
                         filteredOcs.map((oc) => {
@@ -993,13 +1063,15 @@ export default function ControlTower() {
                                     onAddEvent={handleAddEvent}
                                     onUpdateEvent={handleUpdateEvent}
                                     onDeleteEvent={(id) => handleDeleteClick(id, 'event')}
+                                    onAddFinancialRecord={handleAddFinancialRecord}
+                                    onEditFinancialRecord={handleEditFinancialRecord}
                                 />
                             );
                         })
                     )}
                 </div>
 
-                {filteredOcs.length === 0 && (
+                {!isLoading && filteredOcs.length === 0 && (
                     <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1519,6 +1591,140 @@ export default function ControlTower() {
                     </div>
                 </div>
             </Modal>
+
+            {/* Modal for Financial Records */}
+            {isFinancialModalOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-100 p-6 relative animate-fade-in-up">
+                        <button
+                            onClick={() => setIsFinancialModalOpen(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                            <span className="p-2 bg-green-100 text-green-600 rounded-lg">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </span>
+                            {editingFinancialRecord ? "Editar Registro Financeiro" : "Novo Registro Financeiro"}
+                        </h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Número da Nota <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        value={finInvoiceNumber}
+                                        onChange={e => setFinInvoiceNumber(e.target.value)}
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm font-medium"
+                                        placeholder="Ex: 001234"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Fornecedor</label>
+                                    <input
+                                        type="text"
+                                        value={finSupplier}
+                                        onChange={e => setFinSupplier(e.target.value)}
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm"
+                                        placeholder="Nome do fornecedor"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Valor (R$)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={finValue}
+                                        onChange={e => setFinValue(e.target.value)}
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm font-medium"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3 pt-2">
+                                    <div
+                                        onClick={() => setFinRetention(!finRetention)}
+                                        className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${finRetention ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${finRetention ? 'translate-x-6' : ''}`}></div>
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700">Saldo Retido?</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Emissão</label>
+                                        <input
+                                            type="date"
+                                            value={finIssuanceDate}
+                                            onChange={e => setFinIssuanceDate(e.target.value)}
+                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Aprovação</label>
+                                        <input
+                                            type="date"
+                                            value={finApprovalDate}
+                                            onChange={e => setFinApprovalDate(e.target.value)}
+                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Faturamento</label>
+                                        <input
+                                            type="date"
+                                            value={finBillingDate}
+                                            onChange={e => setFinBillingDate(e.target.value)}
+                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Pagamento</label>
+                                        <input
+                                            type="date"
+                                            value={finPaymentDate}
+                                            onChange={e => setFinPaymentDate(e.target.value)}
+                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Observações</label>
+                                    <textarea
+                                        value={finNotes}
+                                        onChange={e => setFinNotes(e.target.value)}
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm h-24 resize-none"
+                                        placeholder="Detalhes adicionais..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                            <button
+                                onClick={() => setIsFinancialModalOpen(false)}
+                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveFinancialRecord}
+                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
+                            >
+                                Salvar Registro
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div >
     );
 }

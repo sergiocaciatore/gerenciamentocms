@@ -11,6 +11,7 @@ import {
     type RegistrationItem
 } from "../types/Registration";
 import RegistrationTable from "../components/RegistrationTable";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function Registration() {
     // UI State
@@ -22,6 +23,7 @@ export default function Registration() {
     const [isSaving, setIsSaving] = useState(false);
     const [isSearchingCep, setIsSearchingCep] = useState(false);
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [isLoading, setIsLoading] = useState(true);
 
     // Validation State
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -74,6 +76,7 @@ export default function Registration() {
     const [teamRole, setTeamRole] = useState("Engenheiro");
 
     const fetchWorks = useCallback(async () => {
+        setIsLoading(true);
         try {
             const token = await getAuthToken();
             const headers = { Authorization: `Bearer ${token}` };
@@ -101,6 +104,8 @@ export default function Registration() {
         } catch (error) {
             console.error("Error fetching data:", error);
             setToast({ message: "Erro ao carregar dados.", type: "error" });
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -541,7 +546,9 @@ export default function Registration() {
                     </button>
                 </div>
 
-                {viewMode === "list" ? (
+                {isLoading ? (
+                    <LoadingSpinner fullScreen={false} />
+                ) : viewMode === "list" ? (
                     <RegistrationTable
                         items={filteredWorks}
                         onEdit={(item) => handleOpenModal(`Cadastrar ${item.itemType}`, item)}

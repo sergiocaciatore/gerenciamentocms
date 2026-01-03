@@ -6,11 +6,13 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-p
 import { getAuthToken } from "../firebase";
 import type { PlanningItem, PlanningStage, PlanningActionPlan } from "../types/Planning";
 import type { EngineeringWork } from "../types/Engineering";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function Planning() {
     // State
     const [works, setWorks] = useState<EngineeringWork[]>([]);
     const [plannings, setPlannings] = useState<PlanningItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedWorkId, setSelectedWorkId] = useState("");
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -98,6 +100,7 @@ export default function Planning() {
     }, []);
 
     const fetchPlannings = useCallback(async () => {
+        setIsLoading(true);
         try {
             const token = await getAuthToken();
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/plannings`, {
@@ -108,12 +111,13 @@ export default function Planning() {
             }
         } catch (error) {
             console.error("Error fetching plannings:", error);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
     // Initial Fetch
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchWorks();
         fetchPlannings();
     }, [fetchWorks, fetchPlannings]);
@@ -478,7 +482,8 @@ export default function Planning() {
             ? (planning.data?.schedule || [])
             : (planning.data?.construction_schedule || []);
 
-        if (schedule.length === 0) return <div className="text-center py-12 text-gray-400">Sem dados de cronograma.</div>;
+        // Check for empty schedule ONLY for calculating dates, not for avoiding render of the whole component
+        const isEmpty = schedule.length === 0;
 
         const dates = schedule.map((s) => [
             s.start_planned ? new Date(s.start_planned) : null,
@@ -488,17 +493,22 @@ export default function Planning() {
         ]).flat().filter((d): d is Date => d !== null);
 
         const validDates = dates.filter((d) => !isNaN(d.getTime()));
-        if (validDates.length === 0) return <div className="text-center py-12 text-gray-400">Datas inválidas ou não definidas.</div>;
+        const hasValidDates = validDates.length > 0;
 
-        const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
-        const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
+        // Default constraints (fallback if no dates)
+        const minDate = hasValidDates ? new Date(Math.min(...validDates.map(d => d.getTime()))) : new Date();
+        const maxDate = hasValidDates ? new Date(Math.max(...validDates.map(d => d.getTime()))) : new Date();
 
+        // Adjust view range
         minDate.setDate(minDate.getDate() - (ganttView === 'month' ? 30 : 7));
         maxDate.setDate(maxDate.getDate() + (ganttView === 'month' ? 60 : 14));
 
+        // Note: If empty, maxDate close to minDate, totalWidth small. 
+        // We will render a placeholder inside the chart area if empty or invalid.
+
         const pxPerDay = ganttView === 'week' ? 10 : ganttView === 'month' ? 4 : 40;
         const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
-        const totalWidth = totalDays * pxPerDay;
+        const totalWidth = totalDays * pxPerDay; // Might be small if 0 days
 
         const headers: Date[] = [];
         const current = new Date(minDate);
@@ -556,9 +566,10 @@ export default function Planning() {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-4">
-                    {ganttType === 'construction' && (
-                        <div className="flex justify-end">
+                {isEmpty ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400 bg-white/50 rounded-xl border border-gray-100 border-dashed">
+                        <p className="mb-4">Sem dados de cronograma.</p>
+                        {ganttType === 'construction' && (
                             <button
                                 onClick={() => {
                                     resetStageForm();
@@ -569,122 +580,141 @@ export default function Planning() {
                             >
                                 <span className="text-sm">+</span> Nova Etapa
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
+                ) : !hasValidDates ? (
+                    <div className="text-center py-12 text-gray-400">Datas inválidas ou não definidas.</div>
+                ) : (
+                    <div className="flex flex-col gap-4">
+                        {ganttType === 'construction' && (
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => {
+                                        resetStageForm();
+                                        setSelectedPlanningId(planning.id);
+                                        setIsStageModalOpen(true);
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-2"
+                                >
+                                    <span className="text-sm">+</span> Nova Etapa
+                                </button>
+                            </div>
+                        )}
 
-                    <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar border rounded-xl bg-slate-50 relative shadow-inner">
-                        <div className="relative min-w-full" style={{ width: Math.max(800, totalWidth + 300) + 'px' }}>
-                            {/* Header */}
-                            <div className="flex border-b border-gray-200 mb-2 sticky top-0 bg-white/95 backdrop-blur-sm z-20 shadow-sm h-12">
-                                <div className="w-64 flex-shrink-0 p-3 text-xs font-bold text-gray-500 uppercase flex items-end sticky left-0 bg-white z-30 border-r border-gray-100 shadow-[1px_0_5px_-2px_rgba(0,0,0,0.1)]">Etapa</div>
-                                <div className="flex-1 relative h-full">
-                                    {headers.map((date, i) => {
-                                        const offset = Math.ceil((date.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
+                        <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar border rounded-xl bg-slate-50 relative shadow-inner">
+                            <div className="relative min-w-full" style={{ width: Math.max(800, totalWidth + 300) + 'px' }}>
+                                {/* Header */}
+                                <div className="flex border-b border-gray-200 mb-2 sticky top-0 bg-white/95 backdrop-blur-sm z-20 shadow-sm h-12">
+                                    <div className="w-64 flex-shrink-0 p-3 text-xs font-bold text-gray-500 uppercase flex items-end sticky left-0 bg-white z-30 border-r border-gray-100 shadow-[1px_0_5px_-2px_rgba(0,0,0,0.1)]">Etapa</div>
+                                    <div className="flex-1 relative h-full">
+                                        {headers.map((date, i) => {
+                                            const offset = Math.ceil((date.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="absolute bottom-0 border-l border-gray-100 h-6 flex items-end pb-1 text-[10px] text-gray-500 font-medium whitespace-nowrap pl-1"
+                                                    style={{ left: `${offset * pxPerDay}px` }}
+                                                >
+                                                    {ganttView === 'month'
+                                                        ? date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+                                                        : date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                                                    }
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Rows */}
+                                <div className="space-y-1 pb-4">
+                                    {schedule.map((item, idx) => {
+                                        const start = item.start_planned ? new Date(item.start_planned) : minDate;
+                                        const end = item.end_planned ? new Date(item.end_planned) : start;
+                                        const hasPlanned = !!item.start_planned;
+                                        const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+                                        const offsetDays = Math.ceil((start.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
+
+                                        const realStart = item.start_real ? new Date(item.start_real) : null;
+                                        const realEnd = item.end_real ? new Date(item.end_real) : null;
+                                        let realDuration = 0;
+                                        let realOffset = 0;
+                                        let barColor = "bg-gray-400";
+
+                                        if (realStart) {
+                                            const effectiveEnd = realEnd || new Date();
+                                            realDuration = Math.ceil((effectiveEnd.getTime() - realStart.getTime()) / (1000 * 3600 * 24)) + 1;
+                                            realOffset = Math.ceil((realStart.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
+
+                                            if (realEnd) {
+                                                if (hasPlanned && realEnd <= end) barColor = "bg-green-500";
+                                                else barColor = "bg-red-500";
+                                            } else {
+                                                barColor = "bg-amber-400";
+                                            }
+                                        }
+
                                         return (
-                                            <div
-                                                key={i}
-                                                className="absolute bottom-0 border-l border-gray-100 h-6 flex items-end pb-1 text-[10px] text-gray-500 font-medium whitespace-nowrap pl-1"
-                                                style={{ left: `${offset * pxPerDay}px` }}
-                                            >
-                                                {ganttView === 'month'
-                                                    ? date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
-                                                    : date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                                                }
+                                            <div key={idx} className="flex items-center hover:bg-blue-50/30 group py-1.5 transition-colors relative">
+                                                <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ marginLeft: '256px' }}>
+                                                    {headers.map((d, hi) => {
+                                                        const offset = Math.ceil((d.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
+                                                        return <div key={hi} className="absolute border-l border-gray-100/50 h-full" style={{ left: `${offset * pxPerDay}px` }}></div>;
+                                                    })}
+                                                </div>
+
+                                                <div className="w-64 flex-shrink-0 px-4 text-xs font-medium text-gray-700 truncate border-r border-gray-100 flex justify-between items-center bg-white/50 sticky left-0 z-10 h-full">
+                                                    <span title={item.name}>{item.name}</span>
+                                                    {ganttType === 'construction' && (
+                                                        <button
+                                                            className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 font-bold px-1"
+                                                            onClick={() => {
+                                                                setNewStageForm({
+                                                                    name: item.name,
+                                                                    showPlanned: !!item.start_planned,
+                                                                    startPlanned: item.start_planned || "",
+                                                                    endPlanned: item.end_planned || "",
+                                                                    showReal: !!item.start_real,
+                                                                    startReal: item.start_real || "",
+                                                                    endReal: item.end_real || "",
+                                                                    showResponsible: !!item.responsible,
+                                                                    responsible: item.responsible || "",
+                                                                    showSLA: !!item.sla_limit,
+                                                                    sla: item.sla_limit?.toString() || "",
+                                                                    showDesc: !!item.description,
+                                                                    description: item.description || "",
+                                                                    isEditingIdx: idx
+                                                                });
+                                                                setSelectedPlanningId(planning.id);
+                                                                setIsStageModalOpen(true);
+                                                            }}
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 relative h-6">
+                                                    {hasPlanned && (
+                                                        <div
+                                                            className="absolute top-0.5 h-2 rounded-full bg-blue-200 opacity-60 group-hover:opacity-100 transition-all border border-blue-300/50"
+                                                            style={{ left: `${offsetDays * pxPerDay}px`, width: `${Math.max(duration * pxPerDay, 4)}px` }}
+                                                        />
+                                                    )}
+                                                    {realStart && (
+                                                        <div
+                                                            className={`absolute top-2 h-3 rounded-full shadow-sm cursor-help transition-all hover:scale-y-110 hover:shadow-md z-1 ${barColor}`}
+                                                            style={{ left: `${realOffset * pxPerDay}px`, width: `${Math.max(realDuration * pxPerDay, 4)}px` }}
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
-
-                            {/* Rows */}
-                            <div className="space-y-1 pb-4">
-                                {schedule.map((item, idx) => {
-                                    const start = item.start_planned ? new Date(item.start_planned) : minDate;
-                                    const end = item.end_planned ? new Date(item.end_planned) : start;
-                                    const hasPlanned = !!item.start_planned;
-                                    const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-                                    const offsetDays = Math.ceil((start.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
-
-                                    const realStart = item.start_real ? new Date(item.start_real) : null;
-                                    const realEnd = item.end_real ? new Date(item.end_real) : null;
-                                    let realDuration = 0;
-                                    let realOffset = 0;
-                                    let barColor = "bg-gray-400";
-
-                                    if (realStart) {
-                                        const effectiveEnd = realEnd || new Date();
-                                        realDuration = Math.ceil((effectiveEnd.getTime() - realStart.getTime()) / (1000 * 3600 * 24)) + 1;
-                                        realOffset = Math.ceil((realStart.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
-
-                                        if (realEnd) {
-                                            if (hasPlanned && realEnd <= end) barColor = "bg-green-500";
-                                            else barColor = "bg-red-500";
-                                        } else {
-                                            barColor = "bg-amber-400";
-                                        }
-                                    }
-
-                                    return (
-                                        <div key={idx} className="flex items-center hover:bg-blue-50/30 group py-1.5 transition-colors relative">
-                                            <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ marginLeft: '256px' }}>
-                                                {headers.map((d, hi) => {
-                                                    const offset = Math.ceil((d.getTime() - minDate.getTime()) / (1000 * 3600 * 24));
-                                                    return <div key={hi} className="absolute border-l border-gray-100/50 h-full" style={{ left: `${offset * pxPerDay}px` }}></div>;
-                                                })}
-                                            </div>
-
-                                            <div className="w-64 flex-shrink-0 px-4 text-xs font-medium text-gray-700 truncate border-r border-gray-100 flex justify-between items-center bg-white/50 sticky left-0 z-10 h-full">
-                                                <span title={item.name}>{item.name}</span>
-                                                {ganttType === 'construction' && (
-                                                    <button
-                                                        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 font-bold px-1"
-                                                        onClick={() => {
-                                                            setNewStageForm({
-                                                                name: item.name,
-                                                                showPlanned: !!item.start_planned,
-                                                                startPlanned: item.start_planned || "",
-                                                                endPlanned: item.end_planned || "",
-                                                                showReal: !!item.start_real,
-                                                                startReal: item.start_real || "",
-                                                                endReal: item.end_real || "",
-                                                                showResponsible: !!item.responsible,
-                                                                responsible: item.responsible || "",
-                                                                showSLA: !!item.sla_limit,
-                                                                sla: item.sla_limit?.toString() || "",
-                                                                showDesc: !!item.description,
-                                                                description: item.description || "",
-                                                                isEditingIdx: idx
-                                                            });
-                                                            setSelectedPlanningId(planning.id);
-                                                            setIsStageModalOpen(true);
-                                                        }}
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <div className="flex-1 relative h-6">
-                                                {hasPlanned && (
-                                                    <div
-                                                        className="absolute top-0.5 h-2 rounded-full bg-blue-200 opacity-60 group-hover:opacity-100 transition-all border border-blue-300/50"
-                                                        style={{ left: `${offsetDays * pxPerDay}px`, width: `${Math.max(duration * pxPerDay, 4)}px` }}
-                                                    />
-                                                )}
-                                                {realStart && (
-                                                    <div
-                                                        className={`absolute top-2 h-3 rounded-full shadow-sm cursor-help transition-all hover:scale-y-110 hover:shadow-md z-1 ${barColor}`}
-                                                        style={{ left: `${realOffset * pxPerDay}px`, width: `${Math.max(realDuration * pxPerDay, 4)}px` }}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         );
     };
@@ -741,7 +771,11 @@ export default function Planning() {
                 </div>
 
                 <div className={viewMode === 'list' || filteredPlannings.length === 0 ? "grid grid-cols-1 gap-6" : "h-full"}>
-                    {filteredPlannings.length === 0 ? (
+                    {isLoading ? (
+                        <div className="flex justify-center items-center py-20">
+                            <LoadingSpinner message="Carregando planejamentos..." />
+                        </div>
+                    ) : filteredPlannings.length === 0 ? (
                         <div className="p-12 text-center text-gray-400">Nenhum planejamento encontrado.</div>
                     ) : viewMode === 'list' ? (
                         filteredPlannings.map((planning) => {
@@ -933,81 +967,153 @@ export default function Planning() {
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Novo Planejamento">
                 <div className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Selecione a Obra</label>
-                        <select value={selectedWorkId} onChange={(e) => setSelectedWorkId(e.target.value)} className="w-full rounded-xl border-gray-300 p-2">
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Selecione a Obra</label>
+                        <select value={selectedWorkId} onChange={(e) => setSelectedWorkId(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all">
                             <option value="">Selecione...</option>
                             {works.map((work) => <option key={work.id} value={work.id}>{work.id} - {work.regional}</option>)}
                         </select>
                     </div>
                     <div className="flex justify-end gap-3 mt-6">
-                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-lg">Cancelar</button>
-                        <button onClick={handleCreatePlanning} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Salvar</button>
+                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                        <button onClick={handleCreatePlanning} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-200">Salvar</button>
                     </div>
                 </div>
             </Modal>
 
             <Modal isOpen={isStageModalOpen} onClose={() => setIsStageModalOpen(false)} title="Etapa de Obra">
                 <div className="space-y-4">
-                    <input type="text" value={newStageForm.name} onChange={e => setNewStageForm({ ...newStageForm, name: e.target.value })} className="w-full border rounded p-2" placeholder="Nome" />
-                    {/* Simplified for brevity in this re-write but functional */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <label>Planejado (Início/Fim): <input type="checkbox" checked={newStageForm.showPlanned} onChange={e => setNewStageForm({ ...newStageForm, showPlanned: e.target.checked })} /></label>
-                        {newStageForm.showPlanned && <><input type="date" value={newStageForm.startPlanned} onChange={e => setNewStageForm({ ...newStageForm, startPlanned: e.target.value })} className="border p-1" /><input type="date" value={newStageForm.endPlanned} onChange={e => setNewStageForm({ ...newStageForm, endPlanned: e.target.value })} className="border p-1" /></>}
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Nome da Etapa</label>
+                        <input type="text" value={newStageForm.name} onChange={e => setNewStageForm({ ...newStageForm, name: e.target.value })} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all" placeholder="Nome" />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <label>Real (Início/Fim): <input type="checkbox" checked={newStageForm.showReal} onChange={e => setNewStageForm({ ...newStageForm, showReal: e.target.checked })} /></label>
-                        {newStageForm.showReal && <><input type="date" value={newStageForm.startReal} onChange={e => setNewStageForm({ ...newStageForm, startReal: e.target.value })} className="border p-1" /><input type="date" value={newStageForm.endReal} onChange={e => setNewStageForm({ ...newStageForm, endReal: e.target.value })} className="border p-1" /></>}
+
+                    <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                        <label className="inline-flex items-center cursor-pointer mb-3">
+                            <input type="checkbox" checked={newStageForm.showPlanned} onChange={e => setNewStageForm({ ...newStageForm, showPlanned: e.target.checked })} className="sr-only peer" />
+                            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span className="ms-3 text-sm font-semibold text-gray-700">Cronograma Planejado</span>
+                        </label>
+                        {newStageForm.showPlanned && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Início Planejado</label>
+                                    <input type="date" value={newStageForm.startPlanned} onChange={e => setNewStageForm({ ...newStageForm, startPlanned: e.target.value })} className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Término Planejado</label>
+                                    <input type="date" value={newStageForm.endPlanned} onChange={e => setNewStageForm({ ...newStageForm, endPlanned: e.target.value })} className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5" />
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <div><input type="text" value={newStageForm.responsible} onChange={e => setNewStageForm({ ...newStageForm, responsible: e.target.value, showResponsible: true })} placeholder="Responsável" className="w-full border p-2" /></div>
-                    <div><textarea value={newStageForm.description} onChange={e => setNewStageForm({ ...newStageForm, description: e.target.value, showDesc: true })} placeholder="Descrição" className="w-full border p-2" /></div>
-                    <div className="flex justify-end gap-2"><button onClick={() => setIsStageModalOpen(false)} className="border px-4 py-2 rounded">Cancelar</button><button onClick={() => { if (selectedPlanningId) { const p = plannings.find(pl => pl.id === selectedPlanningId); if (p) handleSaveConstructionStage(selectedPlanningId, p.data?.construction_schedule || []) } }} className="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button></div>
+
+                    <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                        <label className="inline-flex items-center cursor-pointer mb-3">
+                            <input type="checkbox" checked={newStageForm.showReal} onChange={e => setNewStageForm({ ...newStageForm, showReal: e.target.checked })} className="sr-only peer" />
+                            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span className="ms-3 text-sm font-semibold text-gray-700">Cronograma Real</span>
+                        </label>
+                        {newStageForm.showReal && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Início Real</label>
+                                    <input type="date" value={newStageForm.startReal} onChange={e => setNewStageForm({ ...newStageForm, startReal: e.target.value })} className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Término Real</label>
+                                    <input type="date" value={newStageForm.endReal} onChange={e => setNewStageForm({ ...newStageForm, endReal: e.target.value })} className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Responsável</label>
+                        <input type="text" value={newStageForm.responsible} onChange={e => setNewStageForm({ ...newStageForm, responsible: e.target.value, showResponsible: true })} placeholder="Nome do responsável" className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all" />
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Descrição</label>
+                        <textarea value={newStageForm.description} onChange={e => setNewStageForm({ ...newStageForm, description: e.target.value, showDesc: true })} placeholder="Descrição detalhada" className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all" rows={3} />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                        <button onClick={() => setIsStageModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                        <button onClick={() => { if (selectedPlanningId) { const p = plannings.find(pl => pl.id === selectedPlanningId); if (p) handleSaveConstructionStage(selectedPlanningId, p.data?.construction_schedule || []) } }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-200">Salvar</button>
+                    </div>
                 </div>
             </Modal>
 
             <Modal isOpen={isActionModalOpen} onClose={() => setIsActionModalOpen(false)} title="Novo Plano de Ação">
                 <div className="space-y-4">
-                    <select value={actionPlanForm.stageId} onChange={e => setActionPlanForm({ ...actionPlanForm, stageId: e.target.value, stageName: e.target.options[e.target.selectedIndex].text })} className="w-full border p-2">
-                        <option value="">Selecione Etapa...</option>
-                        {(() => {
-                            const p = plannings.find(pl => pl.id === selectedPlanningId);
-                            const source = actionModalType === 'planning' ? (p?.data?.schedule || []) : (p?.data?.construction_schedule || []);
-                            return source.map((s, i) => <option key={s.id || i} value={s.id || s.name}>{s.name}</option>);
-                        })()}
-                    </select>
-                    <input type="date" value={actionPlanForm.startDate} onChange={e => setActionPlanForm({ ...actionPlanForm, startDate: e.target.value })} className="w-full border p-2" />
-                    <input type="number" placeholder="SLA" value={actionPlanForm.sla} onChange={e => {
-                        const sla = parseInt(e.target.value);
-                        const end = actionPlanForm.startDate ? new Date(new Date(actionPlanForm.startDate).setDate(new Date(actionPlanForm.startDate).getDate() + sla)).toISOString().split('T')[0] : "";
-                        setActionPlanForm({ ...actionPlanForm, sla: e.target.value, endDate: end });
-                    }} className="w-full border p-2" />
-                    <input type="date" value={actionPlanForm.endDate} disabled className="w-full border p-2 bg-gray-50" />
-                    <textarea value={actionPlanForm.description} onChange={e => setActionPlanForm({ ...actionPlanForm, description: e.target.value })} className="w-full border p-2" placeholder="Descrição" />
-                    <div className="flex justify-end gap-2"><button onClick={() => setIsActionModalOpen(false)} className="border px-4 py-2 rounded">Cancelar</button><button onClick={handleSaveActionPlan} className="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button></div>
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Etapa</label>
+                        <select value={actionPlanForm.stageId} onChange={e => setActionPlanForm({ ...actionPlanForm, stageId: e.target.value, stageName: e.target.options[e.target.selectedIndex].text })} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all">
+                            <option value="">Selecione Etapa...</option>
+                            {(() => {
+                                const p = plannings.find(pl => pl.id === selectedPlanningId);
+                                const source = actionModalType === 'planning' ? (p?.data?.schedule || []) : (p?.data?.construction_schedule || []);
+                                return source.map((s, i) => <option key={s.id || i} value={s.id || s.name}>{s.name}</option>);
+                            })()}
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Data de Início</label>
+                            <input type="date" value={actionPlanForm.startDate} onChange={e => setActionPlanForm({ ...actionPlanForm, startDate: e.target.value })} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">SLA (dias)</label>
+                            <input type="number" placeholder="Ex: 5" value={actionPlanForm.sla} onChange={e => {
+                                const sla = parseInt(e.target.value);
+                                const end = actionPlanForm.startDate ? new Date(new Date(actionPlanForm.startDate).setDate(new Date(actionPlanForm.startDate).getDate() + sla)).toISOString().split('T')[0] : "";
+                                setActionPlanForm({ ...actionPlanForm, sla: e.target.value, endDate: end });
+                            }} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Data Final (Calculada)</label>
+                        <input type="date" value={actionPlanForm.endDate} disabled className="w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-xl block p-2.5 cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Descrição</label>
+                        <textarea value={actionPlanForm.description} onChange={e => setActionPlanForm({ ...actionPlanForm, description: e.target.value })} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all" placeholder="Descrição detalhada do plano" rows={3} />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 mt-2 border-t border-gray-100">
+                        <button onClick={() => setIsActionModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                        <button onClick={handleSaveActionPlan} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-200">Salvar</button>
+                    </div>
                 </div>
             </Modal>
 
             <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Excluir Planejamento">
                 <div>
-                    <p>Tem certeza que deseja excluir?</p>
-                    <div className="flex justify-end gap-3 mt-4">
-                        <button onClick={() => setIsDeleteModalOpen(false)} className="border px-4 py-2 rounded">Cancelar</button>
-                        <button onClick={handleDeletePlanning} className="bg-red-600 text-white px-4 py-2 rounded">Excluir</button>
+                    <p className="text-gray-600 mb-6">Tem certeza que deseja excluir este planejamento? Esta ação não pode ser desfeita.</p>
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                        <button onClick={handleDeletePlanning} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-red-200">Excluir</button>
                     </div>
                 </div>
             </Modal>
 
             <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Planejamento">
                 <div>
-                    <label className="block mb-2">Status</label>
-                    <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full border p-2 rounded">
-                        <option value="Rascunho">Rascunho</option>
-                        <option value="Ativo">Ativo</option>
-                        <option value="Concluído">Concluído</option>
-                        <option value="Arquivado">Arquivado</option>
-                    </select>
-                    <div className="flex justify-end gap-3 mt-4">
-                        <button onClick={() => setIsEditModalOpen(false)} className="border px-4 py-2 rounded">Cancelar</button>
-                        <button onClick={() => { if (planningToEdit) handleUpdatePlanning(planningToEdit.id, { ...planningToEdit, status: editForm.status } as PlanningItem).then(() => setIsEditModalOpen(false)) }} className="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button>
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1 block">Status</label>
+                        <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 transition-all">
+                            <option value="Rascunho">Rascunho</option>
+                            <option value="Ativo">Ativo</option>
+                            <option value="Concluído">Concluído</option>
+                            <option value="Arquivado">Arquivado</option>
+                        </select>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                        <button onClick={() => { if (planningToEdit) handleUpdatePlanning(planningToEdit.id, { ...planningToEdit, status: editForm.status } as PlanningItem).then(() => setIsEditModalOpen(false)) }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-200">Salvar</button>
                     </div>
                 </div>
             </Modal>

@@ -3,6 +3,7 @@ import Toast from "../components/Toast";
 import Modal from "../components/Modal";
 import { getAuthToken } from "../firebase";
 import LPUCard from "./LPUCard";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 interface Work {
     id: string;
@@ -75,6 +76,7 @@ interface LPU {
 export default function LPU() {
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [filterText, setFilterText] = useState("");
+    const [isLoading, setIsLoading] = useState(true);
 
     const [works, setWorks] = useState<Work[]>([]);
     const [lpus, setLpus] = useState<LPU[]>([]);
@@ -93,6 +95,7 @@ export default function LPU() {
     const [lpuToDelete, setLpuToDelete] = useState<LPU | null>(null);
 
     const fetchData = useCallback(async () => {
+        setIsLoading(true);
         try {
             const token = await getAuthToken();
             if (!token) return;
@@ -111,11 +114,13 @@ export default function LPU() {
         } catch (error) {
             console.error("Error fetching data:", error);
             setToast({ message: "Erro ao carregar dados", type: "error" });
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+
         fetchData();
     }, [fetchData]);
 
@@ -261,7 +266,9 @@ export default function LPU() {
             {/* Main Content Area - Center if focused or no sidebar */}
             <div className={`transition-all duration-300 px-8 py-8 ${focusedLpuId ? 'w-[95%] mx-auto' : 'mr-80 w-auto ml-0'}`}>
 
-                {filteredLpus.length === 0 ? (
+                {isLoading ? (
+                    <LoadingSpinner message="Carregando LPUs..." />
+                ) : filteredLpus.length === 0 ? (
                     <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

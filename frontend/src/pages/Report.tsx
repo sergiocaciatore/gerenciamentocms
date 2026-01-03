@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import LoadingSpinner from "../components/LoadingSpinner";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -347,7 +348,7 @@ export default function Report() {
         }
     };
 
-    const saveManagement = async (mgmt: Management) => {
+    const saveManagement = useCallback(async (mgmt: Management) => {
         try {
             const token = await auth.currentUser?.getIdToken();
             await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
@@ -361,7 +362,7 @@ export default function Report() {
         } catch (error) {
             console.error("Error saving management", error);
         }
-    };
+    }, []);
 
     const handleTeamEditClick = () => {
         if (!currentWork) return;
@@ -381,7 +382,7 @@ export default function Report() {
         setIsTeamModalOpen(true);
     };
 
-    const handleSaveTeam = async () => {
+    const handleSaveTeam = useCallback(async () => {
         if (!currentWork) return;
 
         const newMgmtData: Management = {
@@ -408,7 +409,7 @@ export default function Report() {
 
         setIsTeamModalOpen(false);
         await saveManagement(newMgmtData);
-    };
+    }, [currentWork, currentMgmt, teamForm, saveManagement]);
 
     const handleSelectMap = (name: string) => {
         if (!currentWork) return;
@@ -814,21 +815,34 @@ export default function Report() {
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!isSubTaskModalOpen) return;
-            if (e.key === 'Escape') {
-                setIsSubTaskModalOpen(false);
+            if (isSubTaskModalOpen) {
+                if (e.key === 'Escape') setIsSubTaskModalOpen(false);
+                if (e.key === 'Enter') handleSaveSubTasks();
+                return;
             }
-            if (e.key === 'Enter') {
-                handleSaveSubTasks();
+            if (isTeamModalOpen) {
+                if (e.key === 'Escape') setIsTeamModalOpen(false);
+                if (e.key === 'Enter') handleSaveTeam();
+                return;
+            }
+            if (isFilterModalOpen) {
+                if (e.key === 'Escape') setIsFilterModalOpen(false);
+                if (e.key === 'Enter') setIsFilterModalOpen(false); // Filter applies instantly, Enter just closes/confirms
+                return;
+            }
+            if (isReorderModalOpen) {
+                if (e.key === 'Escape') setIsReorderModalOpen(false);
+                if (e.key === 'Enter') setIsReorderModalOpen(false); // Reorder applies instantly, Enter just closes/confirms
+                return;
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isSubTaskModalOpen, handleSaveSubTasks]); // Dependencies for closure stability
+    }, [isSubTaskModalOpen, isTeamModalOpen, isFilterModalOpen, isReorderModalOpen, handleSaveSubTasks, handleSaveTeam]);
 
     // --- Render ---
-    if (isLoading) return <div className="p-8 text-center text-gray-500">Carregando relatório...</div>;
+    if (isLoading) return <LoadingSpinner message="Carregando relatório..." subMessage="Aguarde enquanto preparamos o relatório para você." />;
 
     return (
         <div className="relative flex flex-col h-full gap-4">
@@ -1525,9 +1539,9 @@ export default function Report() {
                     document.body
                 )}
 
-                {isTeamModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000080] backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                {isTeamModalOpen && createPortal(
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000080] backdrop-blur-sm" onClick={() => setIsTeamModalOpen(false)}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-[#f9fafb80]">
                                 <h3 className="text-lg font-bold text-gray-800">Editar Equipe do Projeto</h3>
                                 <button onClick={() => setIsTeamModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -1620,7 +1634,8 @@ export default function Report() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* Filter Modal */}

@@ -290,13 +290,20 @@ export default function Engineering() {
             if (m.work_id !== workId) return m;
             const updated = { ...m };
 
-            // Handle Array Updates (Schedule, Log)
-            if ((section === 'macro_schedule' || section === 'supply_schedule' || section === 'daily_log') && Array.isArray(updated[section]) && typeof indexOrField === 'number') {
+            // Handle Array Updates (Schedule, Log, OwnerWorks, Licenses, Thermometer, Info)
+            const arrayFields = ['macro_schedule', 'supply_schedule', 'daily_log', 'owner_works', 'licenses', 'thermometer', 'complementary_info'];
+
+            if (arrayFields.includes(section) && Array.isArray(updated[section]) && typeof indexOrField === 'number') {
                 const list = [...(updated[section] as unknown as unknown[])];
                 if (list[indexOrField] && typeof list[indexOrField] === 'object') {
                     // Assert list item as Record to update key
                     const item = { ...(list[indexOrField] as Record<string, unknown>) };
-                    if (subField) item[subField] = value;
+                    if (subField) {
+                        item[subField] = value;
+                    } else {
+                        // Fallback or specific logic if needed, though for these types usually subField is required
+                    }
+
                     list[indexOrField] = item;
                     (updated as unknown as Record<string, unknown>)[section] = list;
                 }
@@ -634,61 +641,7 @@ export default function Engineering() {
                                         <p className="text-sm text-gray-500 mb-4">{m.operator || "-"}</p>
 
                                         {/* Simplified CAPEX Section */}
-                                        {(oc || (work?.business_case && parseFloat(work.business_case.replace(/[R$\s.]/g, '').replace(',', '.')) > 0) || (m.business_case && parseFloat(m.business_case.replace(/[R$\s.]/g, '').replace(',', '.')) > 0) || (m.capex?.approved && parseFloat(m.capex.approved) > 0) || (ocs.filter(o => o.work_id === m.work_id).length > 0)) && (() => {
-                                            const parseCurrency = (val: string | undefined): number => {
-                                                if (!val) return 0;
-                                                const clean = val.replace(/[R$\s.]/g, '').replace(',', '.');
-                                                const num = parseFloat(clean);
-                                                return isNaN(num) ? 0 : num;
-                                            };
 
-                                            const totalApproved = parseCurrency(work?.business_case || m.business_case || m.capex?.approved);
-                                            const workOcs = ocs.filter(o => o.work_id === m.work_id);
-                                            const totalContracted = workOcs.reduce((acc, o) => acc + (o.value || 0), 0);
-
-                                            const available = Math.max(0, totalApproved - totalContracted);
-
-                                            let progress = 0;
-                                            if (totalApproved > 0) {
-                                                progress = (totalContracted / totalApproved) * 100;
-                                            } else if (totalContracted > 0) {
-                                                progress = 100; // Unbudgeted spend
-                                            }
-                                            const cappedProgress = Math.min(progress, 100);
-
-                                            let barColor = 'bg-primary-500';
-                                            if (progress >= 75 && progress < 90) barColor = 'bg-yellow-500';
-                                            if (progress >= 90) barColor = 'bg-red-500';
-
-                                            return (
-                                                <div className="mb-4 bg-white/30 p-2 rounded-xl border border-white/40">
-                                                    <div className="flex justify-between items-end mb-2">
-                                                        {/* Available */}
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Disponível</span>
-                                                            <span className="text-sm font-bold text-green-600">
-                                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(available)}
-                                                            </span>
-                                                        </div>
-                                                        {/* Committed */}
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Comprometido</span>
-                                                            <span className="text-sm font-bold text-gray-800">
-                                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(totalContracted)}
-                                                            </span>
-                                                            {totalApproved > 0 && <span className="text-[9px] text-gray-400 font-medium">de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(totalApproved)}</span>}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="relative w-full h-2.5 bg-gray-200/50 rounded-full overflow-hidden border border-white/50">
-                                                        <div
-                                                            className={`${barColor} h-full rounded-full transition-all duration-1000 shadow-sm`}
-                                                            style={{ width: `${cappedProgress}%` }}
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
                                         {m.size_m2 && (
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-500">Área</span>

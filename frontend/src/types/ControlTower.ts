@@ -9,6 +9,19 @@ export interface OcEvent {
     status_options?: string[];
 }
 
+export interface FinancialRecord {
+    id: string;
+    invoiceNumber: string; // Obrigatório
+    value?: number;
+    issuanceDate?: string;
+    approvalDate?: string;
+    billingDate?: string;
+    supplier?: string;
+    paymentDate?: string;
+    retention?: boolean; // Saldo retido: Sim/Não
+    notes?: string;
+}
+
 export interface Oc {
     id: string;
     work_id: string;
@@ -18,6 +31,7 @@ export interface Oc {
     value: number;
     status?: string;
     events?: OcEvent[];
+    financial_records?: FinancialRecord[];
 }
 
 export interface ControlTowerWork {
