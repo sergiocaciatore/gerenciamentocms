@@ -5,7 +5,6 @@ from fastapi import (
     File,
     Body,
     Depends,
-    Depends,
     HTTPException,
 )
 from fastapi.responses import FileResponse
@@ -31,7 +30,11 @@ app = FastAPI()
 
 @app.on_event("startup")
 def startup_event():
-    initialize_firebase()
+    try:
+        initialize_firebase()
+    except Exception as e:
+        # Log error but don't crash, allowing the app to start so we can see logs
+        print(f"ERROR: Failed to initialize Firebase: {e}")
 
 
 # Default origins for development and production
@@ -43,7 +46,6 @@ DEFAULT_ORIGINS = [
     "https://www.gerenciamentocms.app.br",
 ]
 
-# Read from env or use defaults
 # Read from env or use defaults
 # Parsing robusto: split por virgula, strip de espacos, remove vazios
 cors_origins_str = os.getenv("CORS_ORIGINS", "")
@@ -61,12 +63,18 @@ print(f"CORS Origins Configured: {origins}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.run\.app",  # Allow all Cloud Run subdomains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Backend is running", "status": "ok"}
 
 
 @app.get("/health")
@@ -776,7 +784,7 @@ class GeneralDocItem(BaseModel):
     dias_pendentes: str = ""
 
 
-class CapexItem(BaseModel):
+class EngineeringCapexItem(BaseModel):
     planned: str = ""
     approved: str = ""
     contracted: str = ""
@@ -836,7 +844,7 @@ class ManagementCreate(BaseModel):
     # Advanced Info
     complementary_info: List[ComplementaryInfoItem] = []
     general_docs: GeneralDocItem = GeneralDocItem()
-    capex: CapexItem = CapexItem()
+    capex: EngineeringCapexItem = EngineeringCapexItem()
     daily_log: List[DailyLogItem] = []
     highlights: HighlightsItem = HighlightsItem()
 
@@ -975,7 +983,7 @@ async def upload_file(
 ):
     try:
         file_id = str(uuid.uuid4())
-        file_ext = os.path.splitext(file.filename)[1]
+        file_ext = os.path.splitext(file.filename or "")[1]
         stored_filename = f"{file_id}{file_ext}"
         file_path = os.path.join(TEMP_DIR, stored_filename)
 
@@ -1128,15 +1136,6 @@ async def update_backlog_item(item_id: str, item: BacklogItem):
     doc_ref = db.collection("backlog_items").document(item_id)
     doc_ref.set(item.dict())
     return item
-
-
-class Evaluation(BaseModel):
-    technical: int
-    management: int
-    leadership: int
-    organization: int
-    commitment: int
-    communication: int
 
 
 class Metrics(BaseModel):

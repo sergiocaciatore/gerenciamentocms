@@ -1,10 +1,11 @@
 import os
 import json
+from typing import Optional, List, Dict, Any
 
 try:
     from openai import OpenAI
 except ImportError:
-    OpenAI = None
+    OpenAI = None  # type: ignore
 from dotenv import load_dotenv
 from pathlib import Path
 from app.services.ai_tools import AVAILABLE_TOOLS, TOOL_DEFINITIONS
@@ -71,7 +72,10 @@ TONE_PROMPTS = {
 
 
 def chat_with_data(
-    message: str, history: list = None, config: dict = None, user_name: str = "Usuário"
+    message: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+    config: Optional[Dict[str, Any]] = None,
+    user_name: str = "Usuário",
 ):
     """
     Main function to handle chat with the AI.

@@ -1,8 +1,10 @@
+from typing import Optional
 from firebase_admin import firestore
 import json
 
 
 def get_all_works():
+    # ... (same)
     """
     Fetches a list of all works from the database.
     Returns basic info: ID, regional, city, state.
@@ -74,9 +76,9 @@ def get_file_content(file_id: str):
     # Locate file
     found_file = None
     if os.path.exists(TEMP_DIR):
-        for f in os.listdir(TEMP_DIR):
-            if f.startswith(file_id):
-                found_file = f
+        for filename in os.listdir(TEMP_DIR):
+            if filename.startswith(file_id):
+                found_file = filename
                 break
 
     if not found_file:
@@ -85,8 +87,8 @@ def get_file_content(file_id: str):
     try:
         with open(
             os.path.join(TEMP_DIR, found_file), "r", encoding="utf-8", errors="ignore"
-        ) as f:
-            content = f.read()
+        ) as file_obj:
+            content = file_obj.read()
         return json.dumps({"filename": found_file, "content": content})
     except Exception as e:
         return json.dumps({"error": f"Error reading file: {str(e)}"})
@@ -128,7 +130,7 @@ def create_report_file(filename: str, content: str):
         return json.dumps({"error": f"Error writing file: {str(e)}"})
 
 
-def get_lpu_data(work_id: str = None):
+def get_lpu_data(work_id: Optional[str] = None):
     """
     Fetches LPU (Lista de Preços Unitários) data.
     """
@@ -166,7 +168,7 @@ def get_team_members():
     return json.dumps(data, default=str)
 
 
-def get_managements(work_id: str = None):
+def get_managements(work_id: Optional[str] = None):
     """
     Fetches Management/Report data.
     """
@@ -180,7 +182,7 @@ def get_managements(work_id: str = None):
     return json.dumps(data, default=str)
 
 
-def get_daily_logs(work_id: str, date: str = None):
+def get_daily_logs(work_id: str, date: Optional[str] = None):
     """
     Fetches Daily Logs (Diário de Obra).
     """
