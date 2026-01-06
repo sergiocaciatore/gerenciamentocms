@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -10,15 +10,44 @@ export default function Login() {
     const handleGoogleLogin = async () => {
         setIsLoading(true);
         const provider = new GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+
         try {
             const result = await signInWithPopup(auth, provider);
+
+            // Check Google Drive Permissions
+            const credential = GoogleAuthProvider.credentialFromResult(result);
+            const accessToken = credential?.accessToken;
+
+            if (!accessToken) {
+                throw new Error("Não foi possível obter o token de acesso do Google.");
+            }
+
+            // Verify Folder Access
+            const FOLDER_ID = "1LyOz9KiGDABVtP3rDuNszaSp_LaY79N7";
+            const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${FOLDER_ID}?fields=id,name`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+
+            if (!driveResponse.ok) {
+                // If 403 or 404, user doesn't have access
+                await signOut(auth);
+                alert("ACESSO NEGADO: Você não tem permissão para acessar a pasta do sistema no Google Drive.");
+                setIsLoading(false);
+                return;
+            }
+
+            // If success, proceed
             const user = result.user;
             const token = await user.getIdToken();
             localStorage.setItem("idToken", token);
             navigate("/");
         } catch (error) {
             console.error("Login failed:", error);
-            alert("Login failed. Check console for details.");
+            alert("Falha no login. Verifique se você concedeu as permissões necessárias.");
+            await signOut(auth); // Ensure we don't leave a half-logged session
         } finally {
             setIsLoading(false);
         }

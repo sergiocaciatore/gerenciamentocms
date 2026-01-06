@@ -9,6 +9,7 @@ import type { Oc, OcEvent, Alert, ControlTowerWork, OcEventDefinition, Financial
 import OcCard from "../components/ControlTower/OcCard";
 import GroupedOcCard from "../components/ControlTower/GroupedOcCard";
 import LoadingSpinner from "../components/LoadingSpinner";
+import Pagination from "../components/Pagination";
 
 
 
@@ -415,6 +416,11 @@ export default function ControlTower() {
     const [isKanbanView, setIsKanbanView] = useState(false);   // Existing
     const [isTimelineView, setIsTimelineView] = useState(false); // New
 
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(20);
+
     const handleDragEnd = async (result: DropResult) => {
         if (!result.destination) return;
 
@@ -515,7 +521,20 @@ export default function ControlTower() {
         }
 
         return true;
+        return true;
     }), [ocs, works, ocEvents, filterText, filterOverdue, filterNearDeadline, filterStatus]);
+
+    const paginatedOcs = filteredOcs.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    const totalPages = Math.ceil(filteredOcs.length / itemsPerPage);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterText, filterOverdue, filterNearDeadline, filterStatus, isGroupedView, isKanbanView, isTimelineView]);
 
 
 
@@ -1047,7 +1066,7 @@ export default function ControlTower() {
                             />
                         ))
                     ) : (
-                        filteredOcs.map((oc) => {
+                        paginatedOcs.map((oc) => {
                             const work = works.find(w => w.id === oc.work_id);
                             const workName = work ? `${work.id} - ${work.regional}` : (oc.work_id || "Sem Obra");
                             return (
@@ -1071,18 +1090,29 @@ export default function ControlTower() {
                     )}
                 </div>
 
-                {!isLoading && filteredOcs.length === 0 && (
-                    <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-sm font-bold text-gray-900 mb-1">Nenhum resultado encontrado</h3>
-                        <p className="text-xs text-gray-500">Tente ajustar seus filtros de busca.</p>
-                    </div>
+                {!isGroupedView && !isKanbanView && !isTimelineView && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredOcs.length}
+                        itemsPerPage={itemsPerPage}
+                    />
                 )}
             </div>
+
+            {!isLoading && filteredOcs.length === 0 && (
+                <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-1">Nenhum resultado encontrado</h3>
+                    <p className="text-xs text-gray-500">Tente ajustar seus filtros de busca.</p>
+                </div>
+            )}
+
 
             {/* Floating Sidebar */}
             <div className="fixed right-8 top-32 flex flex-col gap-4 w-72 z-20">
@@ -1593,138 +1623,140 @@ export default function ControlTower() {
             </Modal>
 
             {/* Modal for Financial Records */}
-            {isFinancialModalOpen && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-100 p-6 relative animate-fade-in-up">
-                        <button
-                            onClick={() => setIsFinancialModalOpen(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-
-                        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <span className="p-2 bg-green-100 text-green-600 rounded-lg">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </span>
-                            {editingFinancialRecord ? "Editar Registro Financeiro" : "Novo Registro Financeiro"}
-                        </h2>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Número da Nota <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        value={finInvoiceNumber}
-                                        onChange={e => setFinInvoiceNumber(e.target.value)}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm font-medium"
-                                        placeholder="Ex: 001234"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Fornecedor</label>
-                                    <input
-                                        type="text"
-                                        value={finSupplier}
-                                        onChange={e => setFinSupplier(e.target.value)}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm"
-                                        placeholder="Nome do fornecedor"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Valor (R$)</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={finValue}
-                                        onChange={e => setFinValue(e.target.value)}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm font-medium"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-3 pt-2">
-                                    <div
-                                        onClick={() => setFinRetention(!finRetention)}
-                                        className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${finRetention ? 'bg-blue-600' : 'bg-gray-300'}`}
-                                    >
-                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${finRetention ? 'translate-x-6' : ''}`}></div>
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-700">Saldo Retido?</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Emissão</label>
-                                        <input
-                                            type="date"
-                                            value={finIssuanceDate}
-                                            onChange={e => setFinIssuanceDate(e.target.value)}
-                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Aprovação</label>
-                                        <input
-                                            type="date"
-                                            value={finApprovalDate}
-                                            onChange={e => setFinApprovalDate(e.target.value)}
-                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Faturamento</label>
-                                        <input
-                                            type="date"
-                                            value={finBillingDate}
-                                            onChange={e => setFinBillingDate(e.target.value)}
-                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Pagamento</label>
-                                        <input
-                                            type="date"
-                                            value={finPaymentDate}
-                                            onChange={e => setFinPaymentDate(e.target.value)}
-                                            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Observações</label>
-                                    <textarea
-                                        value={finNotes}
-                                        onChange={e => setFinNotes(e.target.value)}
-                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm h-24 resize-none"
-                                        placeholder="Detalhes adicionais..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
+            {
+                isFinancialModalOpen && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-100 p-6 relative animate-fade-in-up">
                             <button
                                 onClick={() => setIsFinancialModalOpen(false)}
-                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                             >
-                                Cancelar
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
-                            <button
-                                onClick={handleSaveFinancialRecord}
-                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
-                            >
-                                Salvar Registro
-                            </button>
+
+                            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                                <span className="p-2 bg-green-100 text-green-600 rounded-lg">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </span>
+                                {editingFinancialRecord ? "Editar Registro Financeiro" : "Novo Registro Financeiro"}
+                            </h2>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Número da Nota <span className="text-red-500">*</span></label>
+                                        <input
+                                            type="text"
+                                            value={finInvoiceNumber}
+                                            onChange={e => setFinInvoiceNumber(e.target.value)}
+                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm font-medium"
+                                            placeholder="Ex: 001234"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Fornecedor</label>
+                                        <input
+                                            type="text"
+                                            value={finSupplier}
+                                            onChange={e => setFinSupplier(e.target.value)}
+                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm"
+                                            placeholder="Nome do fornecedor"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Valor (R$)</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={finValue}
+                                            onChange={e => setFinValue(e.target.value)}
+                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm font-medium"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <div
+                                            onClick={() => setFinRetention(!finRetention)}
+                                            className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${finRetention ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                        >
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${finRetention ? 'translate-x-6' : ''}`}></div>
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700">Saldo Retido?</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Emissão</label>
+                                            <input
+                                                type="date"
+                                                value={finIssuanceDate}
+                                                onChange={e => setFinIssuanceDate(e.target.value)}
+                                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Aprovação</label>
+                                            <input
+                                                type="date"
+                                                value={finApprovalDate}
+                                                onChange={e => setFinApprovalDate(e.target.value)}
+                                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Faturamento</label>
+                                            <input
+                                                type="date"
+                                                value={finBillingDate}
+                                                onChange={e => setFinBillingDate(e.target.value)}
+                                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Pagamento</label>
+                                            <input
+                                                type="date"
+                                                value={finPaymentDate}
+                                                onChange={e => setFinPaymentDate(e.target.value)}
+                                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:blue-500 outline-none text-sm text-gray-600"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Observações</label>
+                                        <textarea
+                                            value={finNotes}
+                                            onChange={e => setFinNotes(e.target.value)}
+                                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-sm h-24 resize-none"
+                                            placeholder="Detalhes adicionais..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                <button
+                                    onClick={() => setIsFinancialModalOpen(false)}
+                                    className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSaveFinancialRecord}
+                                    className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5"
+                                >
+                                    Salvar Registro
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-        </div >
+                    </div>,
+                    document.body
+                )
+            }
+        </div>
     );
 }

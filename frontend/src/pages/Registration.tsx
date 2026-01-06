@@ -12,6 +12,7 @@ import {
 } from "../types/Registration";
 import RegistrationTable from "../components/RegistrationTable";
 import LoadingSpinner from "../components/LoadingSpinner";
+import Pagination from "../components/Pagination";
 
 export default function Registration() {
     // UI State
@@ -32,6 +33,12 @@ export default function Registration() {
     const [works, setWorks] = useState<RegistrationItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterType, setFilterType] = useState<"Obra" | "Evento" | "Fornecedor" | "Equipe" | null>(null);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+
+
 
     // Form Stats - General
     const [workId, setWorkId] = useState("");
@@ -506,6 +513,11 @@ export default function Registration() {
         return matchesSearch && matchesType;
     });
 
+    const paginatedWorks = filteredWorks.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     const exportToCSV = () => {
         const headers = ["ID", "Tipo", "Detalhe", "Status"];
         const rows = filteredWorks.map(item => [
@@ -583,52 +595,70 @@ export default function Registration() {
                 {isLoading ? (
                     <LoadingSpinner fullScreen={false} />
                 ) : viewMode === "list" ? (
-                    <RegistrationTable
-                        items={filteredWorks}
-                        onEdit={(item) => handleOpenModal(`Cadastrar ${item.itemType}`, item)}
-                        onDelete={handleDeleteClick}
-                        onInlineUpdate={handleInlineUpdate}
-                    />
+                    <div className="flex flex-col gap-6">
+                        <RegistrationTable
+                            items={paginatedWorks}
+                            onEdit={(item) => handleOpenModal(`Cadastrar ${item.itemType}`, item)}
+                            onDelete={handleDeleteClick}
+                            onInlineUpdate={handleInlineUpdate}
+                        />
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={Math.ceil(filteredWorks.length / itemsPerPage)}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredWorks.length}
+                            itemsPerPage={itemsPerPage}
+                        />
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4 pb-20">
-                        {filteredWorks.map((item, index) => (
-                            <div key={`${item.id}-${index}`} className="relative overflow-hidden rounded-xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm p-4 transition-all hover:bg-white/50 group">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${item.itemType === 'Obra' ? 'bg-blue-100 text-blue-700' :
-                                            item.itemType === 'Evento' ? 'bg-purple-100 text-purple-700' :
-                                                item.itemType === 'Fornecedor' ? 'bg-green-100 text-green-700' :
-                                                    'bg-orange-100 text-orange-700'
-                                            }`}>
-                                            {item.itemType}
-                                        </span>
-                                        <div>
-                                            <h3 className="text-sm font-bold text-gray-900">{item.id}</h3>
-                                            <p className="text-xs text-gray-500">
-                                                {item.itemType === 'Obra' && (item.regional || item.address?.city)}
-                                                {item.itemType === 'Evento' && item.description}
-                                                {item.itemType === 'Fornecedor' && item.social_reason}
-                                                {item.itemType === 'Equipe' && item.role}
-                                            </p>
+                    <div className="flex flex-col gap-6 pb-20">
+                        <div className="grid grid-cols-1 gap-4">
+                            {paginatedWorks.map((item, index) => (
+                                <div key={`${item.id}-${index}`} className="relative overflow-hidden rounded-xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm p-4 transition-all hover:bg-white/50 group">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-4">
+                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${item.itemType === 'Obra' ? 'bg-blue-100 text-blue-700' :
+                                                item.itemType === 'Evento' ? 'bg-purple-100 text-purple-700' :
+                                                    item.itemType === 'Fornecedor' ? 'bg-green-100 text-green-700' :
+                                                        'bg-orange-100 text-orange-700'
+                                                }`}>
+                                                {item.itemType}
+                                            </span>
+                                            <div>
+                                                <h3 className="text-sm font-bold text-gray-900">{item.id}</h3>
+                                                <p className="text-xs text-gray-500">
+                                                    {item.itemType === 'Obra' && (item.regional || item.address?.city)}
+                                                    {item.itemType === 'Evento' && item.description}
+                                                    {item.itemType === 'Fornecedor' && item.social_reason}
+                                                    {item.itemType === 'Equipe' && item.role}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => handleOpenModal(`Cadastrar ${item.itemType}`, item)}
+                                                className="p-1.5 rounded-lg bg-white/50 hover:bg-blue-50 text-blue-600 transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteClick(item)}
+                                                className="p-1.5 rounded-lg bg-white/50 hover:bg-red-50 text-red-600 transition-colors"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => handleOpenModal(`Cadastrar ${item.itemType}`, item)}
-                                            className="p-1.5 rounded-lg bg-white/50 hover:bg-blue-50 text-blue-600 transition-colors"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteClick(item)}
-                                            className="p-1.5 rounded-lg bg-white/50 hover:bg-red-50 text-red-600 transition-colors"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                                        </button>
-                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={Math.ceil(filteredWorks.length / itemsPerPage)}
+                            onPageChange={setCurrentPage}
+                            totalItems={filteredWorks.length}
+                            itemsPerPage={itemsPerPage}
+                        />
                         {filteredWorks.length === 0 && (
                             <div className="text-center py-12 text-gray-500">
                                 Nenhum item encontrado.
@@ -1023,6 +1053,6 @@ export default function Registration() {
                     </div>
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 }

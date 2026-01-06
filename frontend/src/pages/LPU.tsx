@@ -4,6 +4,7 @@ import Modal from "../components/Modal";
 import { getAuthToken } from "../firebase";
 import LPUCard from "./LPUCard";
 import LoadingSpinner from "../components/LoadingSpinner";
+import Pagination from "../components/Pagination";
 
 interface Work {
     id: string;
@@ -77,6 +78,10 @@ export default function LPU() {
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [filterText, setFilterText] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(20);
 
     const [works, setWorks] = useState<Work[]>([]);
     const [lpus, setLpus] = useState<LPU[]>([]);
@@ -253,6 +258,18 @@ export default function LPU() {
         return !filterText || searchString.includes(filterText.toLowerCase());
     });
 
+    const paginatedLpus = filteredLpus.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    const totalPages = Math.ceil(filteredLpus.length / itemsPerPage);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterText]);
+
     return (
         <div className="relative min-h-full w-full font-sans text-gray-900">
             {toast && (
@@ -279,8 +296,9 @@ export default function LPU() {
                         <p className="text-xs text-gray-500">Utilize o menu lateral para cadastrar uma nova.</p>
                     </div>
                 ) : (
+
                     <div className="grid grid-cols-1 gap-6">
-                        {filteredLpus.map(lpu => (
+                        {paginatedLpus.map(lpu => (
                             <LPUCard
                                 key={lpu.id}
                                 lpu={lpu}
@@ -295,6 +313,16 @@ export default function LPU() {
                         ))}
                     </div>
                 )}
+
+                <div className="mt-8">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredLpus.length}
+                        itemsPerPage={itemsPerPage}
+                    />
+                </div>
             </div>
 
             {/* Floating Sidebar - Hide when focused */}
@@ -413,6 +441,6 @@ export default function LPU() {
                     </div>
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 }

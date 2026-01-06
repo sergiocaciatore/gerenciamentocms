@@ -7,6 +7,7 @@ import { getAuthToken } from "../firebase";
 import type { PlanningItem, PlanningStage, PlanningActionPlan } from "../types/Planning";
 import type { EngineeringWork } from "../types/Engineering";
 import LoadingSpinner from "../components/LoadingSpinner";
+import Pagination from "../components/Pagination";
 
 export default function Planning() {
     // State
@@ -21,8 +22,12 @@ export default function Planning() {
     const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
     // Gantt State
-    const [ganttView, setGanttView] = useState<'day' | 'week' | 'month'>('day');
+    const [ganttView, setGanttView] = useState<'day' | 'week' | 'month'>('month');
     const [ganttType, setGanttType] = useState<'planning' | 'construction'>('planning');
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(20);
 
     // Action Plan States
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -444,19 +449,30 @@ export default function Planning() {
             const matchesText = workSearchString.includes(searchText);
 
             let matchesDate = true;
-            if (filterDateRange.start && filterDateRange.end) {
-                const startDate = new Date(filterDateRange.start);
-                const endDate = new Date(filterDateRange.end);
-                const targetDate = work.go_live_date ? new Date(work.go_live_date) : null;
-                if (targetDate) {
-                    matchesDate = targetDate >= startDate && targetDate <= endDate;
-                } else {
-                    matchesDate = false;
-                }
+            if (filterDateRange.start) {
+                const workDate = work.go_live_date ? new Date(work.go_live_date) : null;
+                matchesDate = matchesDate && (!!workDate && workDate >= new Date(filterDateRange.start));
             }
+            if (filterDateRange.end) {
+                const workDate = work.go_live_date ? new Date(work.go_live_date) : null;
+                matchesDate = matchesDate && (!!workDate && workDate <= new Date(filterDateRange.end));
+            }
+
             return matchesText && matchesDate;
         });
     }, [plannings, works, filterText, filterDateRange]);
+
+    const paginatedPlannings = filteredPlannings.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterText, filterDateRange]);
 
     const toggleExpand = (id: string, planningData: PlanningItem) => {
         if (expandedId === id) {
@@ -503,7 +519,7 @@ export default function Planning() {
         minDate.setDate(minDate.getDate() - (ganttView === 'month' ? 30 : 7));
         maxDate.setDate(maxDate.getDate() + (ganttView === 'month' ? 60 : 14));
 
-        // Note: If empty, maxDate close to minDate, totalWidth small. 
+        // Note: If empty, maxDate close to minDate, totalWidth small.
         // We will render a placeholder inside the chart area if empty or invalid.
 
         const pxPerDay = ganttView === 'week' ? 10 : ganttView === 'month' ? 4 : 40;
@@ -778,89 +794,78 @@ export default function Planning() {
                     ) : filteredPlannings.length === 0 ? (
                         <div className="p-12 text-center text-gray-400">Nenhum planejamento encontrado.</div>
                     ) : viewMode === 'list' ? (
-                        filteredPlannings.map((planning) => {
-                            const metrics = calculateMetrics(planning.data?.schedule || []);
-                            return (
-                                <div key={planning.id} className={`rounded-2xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-lg overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
-                                    <div className="p-6 cursor-pointer flex items-center justify-between" onClick={() => toggleExpand(planning.id, planning)}>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-gray-900">{getWorkName(planning.work_id)}</h3>
-                                            <p className="text-sm text-gray-500">Status: {planning.status || 'Rascunho'}</p>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                className="p-1.5 rounded-lg bg-white/50 hover:bg-blue-50 text-blue-600 transition-colors"
-                                                onClick={(e) => { e.stopPropagation(); setPlanningToEdit(planning); setEditForm({ status: planning.status || 'Rascunho' }); setIsEditModalOpen(true); }}
-                                                title="Editar"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                className="p-1.5 rounded-lg bg-white/50 hover:bg-red-50 text-red-600 transition-colors"
-                                                onClick={(e) => { e.stopPropagation(); setPlanningToDelete(planning.id); setIsDeleteModalOpen(true); }}
-                                                title="Excluir"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                    {expandedId === planning.id && (
-                                        <div className="border-t border-gray-100 bg-white/40">
-                                            <div className="flex border-b border-gray-200">
-                                                {['planning', 'gantt', 'action_plan'].map(tab => (
-                                                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-4 text-sm font-medium ${activeTab === tab ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>
-                                                        {tab === 'planning' ? 'Planejamento' : tab === 'gantt' ? 'Gantt' : 'Plano de Ação'}
-                                                    </button>
-                                                ))}
+                        <div className="flex flex-col gap-6">
+                            {paginatedPlannings.map((planning: PlanningItem) => {
+                                const metrics = calculateMetrics(planning.data?.schedule || []);
+                                return (
+                                    <div key={planning.id} className={`rounded-2xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-lg overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
+                                        <div className="p-6 cursor-pointer flex items-center justify-between" onClick={() => toggleExpand(planning.id, planning)}>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900">{getWorkName(planning.work_id)}</h3>
+                                                <p className="text-sm text-gray-500">Status: {planning.status || 'Rascunho'}</p>
                                             </div>
-                                            <div className="p-6">
-                                                {activeTab === 'planning' && (
-                                                    <div>
-                                                        {metrics && (
-                                                            <div className="grid grid-cols-4 gap-4 mb-6">
-                                                                <div className="p-4 bg-white/50 rounded-xl border border-blue-100/50">
-                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Última</p>
-                                                                    <p className="text-sm font-semibold">{metrics.lastCompleted}</p>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    className="p-1.5 rounded-lg bg-white/50 hover:bg-blue-50 text-blue-600 transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); setPlanningToEdit(planning); setEditForm({ status: planning.status || 'Rascunho' }); setIsEditModalOpen(true); }}
+                                                    title="Editar"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    className="p-1.5 rounded-lg bg-white/50 hover:bg-red-50 text-red-600 transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); setPlanningToDelete(planning.id); setIsDeleteModalOpen(true); }}
+                                                    title="Excluir"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {expandedId === planning.id && (
+                                            <div className="border-t border-gray-100 bg-white/40">
+                                                <div className="flex border-b border-gray-200">
+                                                    {['planning', 'gantt', 'action_plan'].map(tab => (
+                                                        <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-4 text-sm font-medium ${activeTab === tab ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}>
+                                                            {tab === 'planning' ? 'Planejamento' : tab === 'gantt' ? 'Gantt' : 'Plano de Ação'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="p-6">
+                                                    {activeTab === 'planning' && (
+                                                        <div>
+                                                            {metrics && (
+                                                                <div className="grid grid-cols-4 gap-4 mb-6">
+                                                                    <div className="p-4 bg-white/50 rounded-xl border border-blue-100/50">
+                                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Última</p>
+                                                                        <p className="text-sm font-semibold">{metrics.lastCompleted}</p>
+                                                                    </div>
+                                                                    <div className="p-4 bg-white/50 rounded-xl border border-blue-100/50">
+                                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Em Andamento</p>
+                                                                        <p className="text-sm font-semibold text-blue-600">{metrics.inProgress}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="p-4 bg-white/50 rounded-xl border border-blue-100/50">
-                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Em Andamento</p>
-                                                                    <p className="text-sm font-semibold text-blue-600">{metrics.inProgress}</p>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        <div className="rounded-xl border border-gray-200 overflow-hidden">
-                                                            <table className="w-full text-sm text-left table-fixed">
-                                                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                                                                    <tr>
-                                                                        <th className="px-4 py-3 w-[20%]">Etapa</th>
-                                                                        <th className="px-2 py-3 w-[12%] text-center">Início Prev.</th>
-                                                                        <th className="px-2 py-3 w-[12%] text-center">Término Prev.</th>
-                                                                        <th className="px-2 py-3 w-[13%] text-center">Início Real</th>
-                                                                        <th className="px-2 py-3 w-[13%] text-center">Término Real</th>
-                                                                        <th className="px-2 py-3 w-[10%] text-center">Status</th>
-                                                                        <th className="px-4 py-3 w-[20%]">Resp.</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="divide-y divide-gray-100 bg-white text-xs">
-                                                                    {(!planning.data?.schedule || planning.data.schedule.length === 0) ? (
+                                                            )}
+                                                            <div className="rounded-xl border border-gray-200 overflow-hidden">
+                                                                <table className="w-full text-sm text-left table-fixed">
+                                                                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                                                                         <tr>
-                                                                            <td colSpan={7} className="py-8 text-center">
-                                                                                <button onClick={() => {
-                                                                                    const work = works.find(w => w.id === planning.work_id);
-                                                                                    if (work?.go_live_date) {
-                                                                                        const newSchedule = calculateSchedule(work.go_live_date);
-                                                                                        handleUpdatePlanning(planning.id, { ...planning, data: { ...planning.data, schedule: newSchedule } });
-                                                                                    }
-                                                                                }} className="text-blue-600 hover:underline">Gerar Cronograma</button>
-                                                                            </td>
+                                                                            <th className="px-4 py-3 w-[20%]">Etapa</th>
+                                                                            <th className="px-2 py-3 w-[12%] text-center">Início Prev.</th>
+                                                                            <th className="px-2 py-3 w-[12%] text-center">Término Prev.</th>
+                                                                            <th className="px-2 py-3 w-[13%] text-center">Início Real</th>
+                                                                            <th className="px-2 py-3 w-[13%] text-center">Término Real</th>
+                                                                            <th className="px-2 py-3 w-[10%] text-center">Status</th>
+                                                                            <th className="px-4 py-3 w-[20%]">Resp.</th>
                                                                         </tr>
-                                                                    ) : (
-                                                                        planning.data.schedule.map((item, idx) => {
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-gray-100 bg-white text-xs">
+                                                                        {planning.data.schedule.map((item, idx) => {
                                                                             let startStatus = null;
                                                                             if (item.start_real && item.start_planned) {
                                                                                 const diff = (new Date(item.start_real).getTime() - new Date(item.start_planned).getTime()) / (1000 * 3600 * 24);
@@ -879,60 +884,66 @@ export default function Planning() {
                                                                                         {item.end_planned ? new Date(item.end_planned).toLocaleDateString('pt-BR') : '-'}
                                                                                     </td>
                                                                                     <td className="px-2 py-2 text-center border-r border-gray-100">
-                                                                                        <input type="date" value={item.start_real || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'start_real', e.target.value)} className="w-full text-xs" />
+                                                                                        <input type="date" value={item.start_real || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'start_real', e.target.value)} className="w-full text-xs border-transparent bg-transparent hover:bg-white hover:border-gray-200 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-center" />
                                                                                     </td>
                                                                                     <td className="px-2 py-2 text-center border-r border-gray-100">
-                                                                                        <input type="date" value={item.end_real || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'end_real', e.target.value)} className="w-full text-xs" />
+                                                                                        <input type="date" value={item.end_real || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'end_real', e.target.value)} className="w-full text-xs border-transparent bg-transparent hover:bg-white hover:border-gray-200 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-center" />
                                                                                     </td>
                                                                                     <td className="px-2 py-2 text-center border-r border-gray-100">
-                                                                                        {startStatus && <span className={`text-[10px] px-1 rounded ${startStatus.color}`}>{startStatus.text}</span>}
+                                                                                        {startStatus && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${startStatus.color}`}>{startStatus.text}</span>}
                                                                                     </td>
                                                                                     <td className="px-4 py-2">
-                                                                                        <input type="text" value={item.responsible || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'responsible', e.target.value)} className="w-full text-xs rounded border-gray-200" />
+                                                                                        <input type="text" value={item.responsible || ""} onChange={e => handleScheduleChange(planning.id, item.name, 'responsible', e.target.value)} className="w-full text-xs border-transparent bg-transparent hover:bg-white hover:border-gray-200 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="Nome..." />
                                                                                     </td>
                                                                                 </tr>
                                                                             );
-                                                                        })
-
-                                                                    )}
-                                                                </tbody>
-                                                            </table>
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
-                                                {activeTab === 'gantt' && renderGantt(planning)}
-                                                {activeTab === 'action_plan' && (
-                                                    <div className="flex flex-col gap-6">
-                                                        <div className="flex gap-3">
-                                                            <button onClick={() => { setSelectedPlanningId(planning.id); setActionModalType('planning'); setIsActionModalOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Criar plano em planejamento</button>
-                                                            <button onClick={() => { setSelectedPlanningId(planning.id); setActionModalType('construction'); setIsActionModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Criar plano em Obra</button>
-                                                        </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                            {(!planning.data?.action_plans || planning.data.action_plans.length === 0) ? (
-                                                                <div className="col-span-full py-12 text-center text-gray-400">Nenhum plano de ação.</div>
-                                                            ) : (
-                                                                planning.data.action_plans.map((plan, idx) => (
-                                                                    <div key={plan.id || idx} className="bg-white rounded-xl border border-gray-200 p-5 relative overflow-hidden">
-                                                                        <div className={`absolute top-0 left-0 w-1 h-full ${plan.type === 'planning' ? 'bg-blue-500' : 'bg-green-500'}`} />
-                                                                        <h4 className="font-bold text-gray-900 text-sm mb-2">{plan.stage_name}</h4>
-                                                                        <p className="text-gray-600 text-xs mb-4 line-clamp-2">{plan.description}</p>
-                                                                        <div className="flex items-center gap-2 text-[10px] text-gray-500 border-t border-gray-100 pt-3">
-                                                                            <span>{new Date(plan.start_date).toLocaleDateString()}</span>
-                                                                            <span>SLA: {plan.sla}d</span>
-                                                                            <span>{new Date(plan.end_date).toLocaleDateString()}</span>
+                                                    )}
+                                                    {activeTab === 'gantt' && renderGantt(planning)}
+                                                    {activeTab === 'action_plan' && (
+                                                        <div className="flex flex-col gap-6">
+                                                            <div className="flex gap-3">
+                                                                <button onClick={() => { setSelectedPlanningId(planning.id); setActionModalType('planning'); setIsActionModalOpen(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Criar plano em planejamento</button>
+                                                                <button onClick={() => { setSelectedPlanningId(planning.id); setActionModalType('construction'); setIsActionModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">Criar plano em Obra</button>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                                {(!planning.data?.action_plans || planning.data.action_plans.length === 0) ? (
+                                                                    <div className="col-span-full py-12 text-center text-gray-400">Nenhum plano de ação.</div>
+                                                                ) : (
+                                                                    planning.data.action_plans.map((plan, idx) => (
+                                                                        <div key={plan.id || idx} className="bg-white rounded-xl border border-gray-200 p-5 relative overflow-hidden">
+                                                                            <div className={`absolute top-0 left-0 w-1 h-full ${plan.type === 'planning' ? 'bg-blue-500' : 'bg-green-500'}`} />
+                                                                            <h4 className="font-bold text-gray-900 text-sm mb-2">{plan.stage_name}</h4>
+                                                                            <p className="text-gray-600 text-xs mb-4 line-clamp-2">{plan.description}</p>
+                                                                            <div className="flex items-center gap-2 text-[10px] text-gray-500 border-t border-gray-100 pt-3">
+                                                                                <span>{new Date(plan.start_date).toLocaleDateString()}</span>
+                                                                                <span>SLA: {plan.sla}d</span>
+                                                                                <span>{new Date(plan.end_date).toLocaleDateString()}</span>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                ))
-                                                            )}
+                                                                    ))
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={Math.ceil(filteredPlannings.length / itemsPerPage)}
+                                onPageChange={setCurrentPage}
+                                totalItems={filteredPlannings.length}
+                                itemsPerPage={itemsPerPage}
+                            />
+                        </div>
                     ) : (
                         <DragDropContext onDragEnd={onDragEnd}>
                             <div className="flex gap-6 overflow-x-auto pb-4 h-full px-2">
@@ -1117,6 +1128,6 @@ export default function Planning() {
                     </div>
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 }
