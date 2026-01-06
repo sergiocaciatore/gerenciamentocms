@@ -87,7 +87,7 @@ export default function Planning() {
     const fetchWorks = useCallback(async () => {
         try {
             const token = await getAuthToken();
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/works`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/works?limit=1000`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (response.ok) {

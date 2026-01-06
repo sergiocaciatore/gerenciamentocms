@@ -160,7 +160,7 @@ export default function Engineering() {
         setIsLoading(true);
         try {
             const token = await getAuthToken();
-            const limit = 20;
+            const limit = 1000;
             const offset = pageToFetch * limit;
 
             const params = new URLSearchParams({
@@ -250,12 +250,13 @@ export default function Engineering() {
     }, []);
 
     // Initial Fetch & Filter Change
+    // Initial Fetch (No auto-refetch on search/filter change because we filter client-side now)
     useEffect(() => {
-        fetchWorks(0, true, debouncedSearch, filterRegional);
+        fetchWorks(0, true, "", "");
         fetchManagements();
         fetchOccurrences();
         fetchControlTowerData();
-    }, [debouncedSearch, filterRegional, fetchWorks, fetchManagements, fetchOccurrences, fetchControlTowerData]);
+    }, [fetchWorks, fetchManagements, fetchOccurrences, fetchControlTowerData]);
 
     // Form Population Effect (Replaces fetchManagementData)
     useEffect(() => {
@@ -385,7 +386,18 @@ export default function Engineering() {
 
     // MERGE Logic: Works (Driver) + Managements (Data)
     const filteredManagements = useMemo(() => {
-        return works.map(w => {
+        return works.filter(w => {
+            const searchLower = searchText.toLowerCase();
+            const matchesSearch = !searchLower || (
+                w.id.toLowerCase().includes(searchLower) ||
+                w.regional.toLowerCase().includes(searchLower) ||
+                (w.work_type || "").toLowerCase().includes(searchLower) ||
+                (w.address?.city || "").toLowerCase().includes(searchLower) ||
+                (w.address?.street || "").toLowerCase().includes(searchLower)
+            );
+            const matchesRegional = !filterRegional || w.regional === filterRegional;
+            return matchesSearch && matchesRegional;
+        }).map(w => {
             const m = managements.find(mg => mg.work_id === w.id);
             // Default Structure if m is missing
             const defaultM: EngineeringManagement = {
@@ -411,7 +423,7 @@ export default function Engineering() {
             }
             return defaultM;
         });
-    }, [works, managements]);
+    }, [works, managements, searchText, filterRegional]);
 
     const handleCardClick = (workId: string) => {
         setModalType("Editar Gestão");

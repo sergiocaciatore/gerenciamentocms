@@ -82,7 +82,7 @@ export default function Registration() {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [worksRes, eventsRes, suppliersRes, teamRes] = await Promise.all([
-                fetch(`${import.meta.env.VITE_API_BASE_URL}/works`, { headers }),
+                fetch(`${import.meta.env.VITE_API_BASE_URL}/works?limit=1000`, { headers }),
                 fetch(`${import.meta.env.VITE_API_BASE_URL}/events`, { headers }),
                 fetch(`${import.meta.env.VITE_API_BASE_URL}/suppliers`, { headers }),
                 fetch(`${import.meta.env.VITE_API_BASE_URL}/team`, { headers })
@@ -394,6 +394,40 @@ export default function Registration() {
             });
 
             if (response.ok) {
+                // Feature: Automate creation of Management and Planning for new Works
+                if (modalType === "Cadastrar Obra" && !editingWorkId) {
+                    try {
+                        const managementPayload = {
+                            work_id: workId,
+                            operator: "",
+                            engineer: "",
+                            coordinator: "",
+                            control_tower: ""
+                        };
+                        const planningPayload = {
+                            work_id: workId,
+                            status: "Draft",
+                            data: {}
+                        };
+
+                        await Promise.all([
+                            fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify(managementPayload)
+                            }),
+                            fetch(`${import.meta.env.VITE_API_BASE_URL}/plannings`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify(planningPayload)
+                            })
+                        ]);
+                        console.log("Auto-created Management and Planning for:", workId);
+                    } catch (autoCreateError) {
+                        console.error("Error auto-creating related items:", autoCreateError);
+                    }
+                }
+
                 setToast({ message: "Salvo com sucesso!", type: "success" });
                 setIsModalOpen(false);
                 fetchWorks();
