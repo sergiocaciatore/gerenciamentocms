@@ -25,7 +25,7 @@ export default function Login() {
 
             // Verify Folder Access
             const FOLDER_ID = "1LyOz9KiGDABVtP3rDuNszaSp_LaY79N7";
-            const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${FOLDER_ID}?fields=id,name`, {
+            const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${FOLDER_ID}?fields=id,name&supportsAllDrives=true`, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`
                 }
