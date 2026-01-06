@@ -99,7 +99,12 @@ export default function Login() {
                 </div>
 
                 {/* Right Side: Button */}
-                <div className="flex-1 flex justify-center p-8">
+                <div className="flex-1 flex flex-col justify-center items-center p-8 gap-6">
+                    <div className="text-center">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gerenciamento CMS</h1>
+                        <p className="text-sm text-gray-600">Sistema de Gestão de Obras</p>
+                    </div>
+
                     <button
                         onClick={handleGoogleLogin}
                         disabled={isLoading}
@@ -150,6 +155,13 @@ export default function Login() {
                             </>
                         )}
                     </button>
+
+                    <a
+                        href="/politica-privacidade"
+                        className="text-xs text-gray-600 hover:text-gray-900 underline transition-colors"
+                    >
+                        Política de Privacidade
+                    </a>
                 </div>
             </div>
         </div>
