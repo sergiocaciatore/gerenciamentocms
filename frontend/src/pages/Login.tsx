@@ -23,18 +23,24 @@ export default function Login() {
                 throw new Error("Não foi possível obter o token de acesso do Google.");
             }
 
-            // Verify Folder Access
+            // Verify Folder Access (with support for Shared Drives)
             const FOLDER_ID = "1LyOz9KiGDABVtP3rDuNszaSp_LaY79N7";
-            const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${FOLDER_ID}?fields=id,name&supportsAllDrives=true`, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`
+            const driveResponse = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${FOLDER_ID}?fields=id,name&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    }
                 }
-            });
+            );
 
             if (!driveResponse.ok) {
-                // If 403 or 404, user doesn't have access
+                // Log the error details for debugging
+                const errorData = await driveResponse.json().catch(() => ({}));
+                console.error("Drive API Error:", driveResponse.status, errorData);
+
                 await signOut(auth);
-                alert("ACESSO NEGADO: Você não tem permissão para acessar a pasta do sistema no Google Drive.");
+                alert(`ACESSO NEGADO: Você não tem permissão para acessar a pasta do sistema no Google Drive.\n\nDetalhes: ${errorData.error?.message || driveResponse.status}`);
                 setIsLoading(false);
                 return;
             }
