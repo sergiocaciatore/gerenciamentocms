@@ -119,6 +119,7 @@ export default function Report() {
     const [isMapModalOpen, setIsMapModalOpen] = useState(false); // New state for map modal
     const [isUploading, setIsUploading] = useState(false);
     const [isReorderModalOpen, setIsReorderModalOpen] = useState(false); // Reorder Modal
+    const [organizeMode, setOrganizeMode] = useState<'works' | 'regional'>('works');
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false); // Timeline Modal
     const [isSubTaskModalOpen, setIsSubTaskModalOpen] = useState(false); // Sub-Task Edit Modal
     const [selectedPhaseName, setSelectedPhaseName] = useState("");
@@ -570,17 +571,50 @@ export default function Report() {
 
         if (sourceIndex === destinationIndex) return;
 
-        const newWorks = Array.from(works);
-        const [movedWork] = newWorks.splice(sourceIndex, 1);
-        newWorks.splice(destinationIndex, 0, movedWork);
+        if (organizeMode === 'works') {
+            const newWorks = Array.from(works);
+            const [movedWork] = newWorks.splice(sourceIndex, 1);
+            newWorks.splice(destinationIndex, 0, movedWork);
 
-        setWorks(newWorks);
-        localStorage.setItem('worksOrder', JSON.stringify(newWorks.map(w => w.id)));
+            setWorks(newWorks);
+            localStorage.setItem('worksOrder', JSON.stringify(newWorks.map(w => w.id)));
 
-        // Keep current work selected correctly
-        const currentId = works[currentIndex].id;
-        const newIndex = newWorks.findIndex(w => w.id === currentId);
-        if (newIndex !== -1) setCurrentIndex(newIndex);
+            // Keep current work selected correctly
+            const currentId = works[currentIndex].id;
+            const newIndex = newWorks.findIndex(w => w.id === currentId);
+            if (newIndex !== -1) setCurrentIndex(newIndex);
+        } else {
+            // Regional Reordering
+            const uniqueRegionals = Array.from(new Set(works.map(w => w.regional))).filter(Boolean);
+            const newRegionals = Array.from(uniqueRegionals);
+            const [movedRegional] = newRegionals.splice(sourceIndex, 1);
+            newRegionals.splice(destinationIndex, 0, movedRegional);
+
+            // Reconstruct Works Array based on new Regional Order
+            const groupedWorks: Record<string, Work[]> = {};
+            works.forEach(w => {
+                if (!groupedWorks[w.regional]) groupedWorks[w.regional] = [];
+                groupedWorks[w.regional].push(w);
+            });
+
+            const newWorks: Work[] = [];
+            newRegionals.forEach(reg => {
+                if (groupedWorks[reg]) {
+                    newWorks.push(...groupedWorks[reg]);
+                    delete groupedWorks[reg];
+                }
+            });
+            // Append any remaining (shouldn't happen if logic is correct, but safe fallback)
+            Object.values(groupedWorks).forEach(group => newWorks.push(...group));
+
+            setWorks(newWorks);
+            localStorage.setItem('worksOrder', JSON.stringify(newWorks.map(w => w.id)));
+
+            // Keep current work selected correctly
+            const currentId = works[currentIndex].id;
+            const newIndex = newWorks.findIndex(w => w.id === currentId);
+            if (newIndex !== -1) setCurrentIndex(newIndex);
+        }
     };
     const handleSaveTimeline = async () => {
         if (!currentPlanning || !tempSchedule.length) return;
@@ -853,65 +887,124 @@ export default function Report() {
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#00000080] backdrop-blur-sm" onClick={() => setIsReorderModalOpen(false)}>
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="text-xl font-bold text-gray-800">Organizar Obras</h3>
+                            <h3 className="text-xl font-bold text-gray-800">Organizar</h3>
                             <button onClick={() => setIsReorderModalOpen(false)} className="text-gray-400 hover:text-gray-600" title="Fechar modal" aria-label="Fechar modal">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
+
+                        {/* Mode Switcher */}
+                        <div className="bg-gray-100 p-1 rounded-lg flex gap-1 mb-4 shrink-0">
+                            <button
+                                onClick={() => setOrganizeMode('works')}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${organizeMode === 'works' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Por Obra
+                            </button>
+                            <button
+                                onClick={() => setOrganizeMode('regional')}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${organizeMode === 'regional' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Por Regional
+                            </button>
+                        </div>
+
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <DragDropContext onDragEnd={onDragEnd}>
-                                <Droppable droppableId="works-list">
-                                    {(provided) => (
-                                        <div
-                                            {...provided.droppableProps}
-                                            ref={provided.innerRef}
-                                            className="space-y-2"
-                                        >
-                                            {works.map((work, idx) => (
-                                                <Draggable key={work.id} draggableId={work.id} index={idx}>
-                                                    {(provided, snapshot) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            className={`flex items-center justify-between p-3 rounded-xl transition-all border group ${snapshot.isDragging ? 'bg-white shadow-xl border-blue-400 z-50 scale-105' : 'bg-gray-50 hover:bg-gray-100 border-transparent hover:border-gray-200'} ${hiddenWorkIds.has(work.id) ? 'opacity-50 grayscale' : ''}`}
-                                                            style={provided.draggableProps.style}
-                                                        >
-                                                            <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                {organizeMode === 'works' ? (
+                                    <Droppable droppableId="works-list">
+                                        {(provided) => (
+                                            <div
+                                                {...provided.droppableProps}
+                                                ref={provided.innerRef}
+                                                className="space-y-2"
+                                            >
+                                                {works.map((work, idx) => (
+                                                    <Draggable key={work.id} draggableId={work.id} index={idx}>
+                                                        {(provided, snapshot) => (
+                                                            <div
+                                                                ref={provided.innerRef}
+                                                                {...provided.draggableProps}
+                                                                className={`flex items-center justify-between p-3 rounded-xl transition-all border group ${snapshot.isDragging ? 'bg-white shadow-xl border-blue-400 z-50 scale-105' : 'bg-gray-50 hover:bg-gray-100 border-transparent hover:border-gray-200'} ${hiddenWorkIds.has(work.id) ? 'opacity-50 grayscale' : ''}`}
+                                                                style={provided.draggableProps.style}
+                                                            >
+                                                                <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                                                    <div
+                                                                        {...provided.dragHandleProps}
+                                                                        className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded transition-colors"
+                                                                        title="Arraste para mover"
+                                                                    >
+                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
+                                                                    </div>
+                                                                    <div className="flex flex-col truncate">
+                                                                        <span className="font-bold text-gray-800 text-sm truncate">{work.id}</span>
+                                                                        <span className="text-xs text-gray-500 truncate">{work.regional}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex gap-1">
+                                                                    <button onClick={() => moveWork(idx, 'up')} disabled={idx === 0} className="p-1.5 hover:bg-white rounded shadow-sm disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 hover:text-blue-600 transition-colors" title="Mover para Cima">
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                                                    </button>
+                                                                    <button onClick={() => moveWork(idx, 'down')} disabled={idx === works.length - 1} className="p-1.5 hover:bg-white rounded shadow-sm disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 hover:text-blue-600 transition-colors" title="Mover para Baixo">
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                    </button>
+                                                                    <button onClick={() => toggleVisibility(work.id)} className={`p-1.5 hover:bg-white rounded shadow-sm text-gray-600 transition-colors ${hiddenWorkIds.has(work.id) ? 'text-gray-400 hover:text-gray-600' : 'hover:text-blue-600'}`} title={hiddenWorkIds.has(work.id) ? "Mostrar na apresentação" : "Ocultar da apresentação"}>
+                                                                        {hiddenWorkIds.has(work.id) ? (
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                                                        ) : (
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </div>
+                                        )}
+                                    </Droppable>
+                                ) : (
+                                    <Droppable droppableId="regional-list">
+                                        {(provided) => {
+                                            const uniqueRegionals = Array.from(new Set(works.map(w => w.regional))).filter(Boolean);
+                                            return (
+                                                <div
+                                                    {...provided.droppableProps}
+                                                    ref={provided.innerRef}
+                                                    className="space-y-2"
+                                                >
+                                                    {uniqueRegionals.map((reg, idx) => (
+                                                        <Draggable key={reg} draggableId={reg} index={idx}>
+                                                            {(provided, snapshot) => (
                                                                 <div
-                                                                    {...provided.dragHandleProps}
-                                                                    className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded transition-colors"
-                                                                    title="Arraste para mover"
+                                                                    ref={provided.innerRef}
+                                                                    {...provided.draggableProps}
+                                                                    className={`flex items-center justify-between p-3 rounded-xl transition-all border group ${snapshot.isDragging ? 'bg-white shadow-xl border-blue-400 z-50 scale-105' : 'bg-gray-50 hover:bg-gray-100 border-transparent hover:border-gray-200'}`}
+                                                                    style={provided.draggableProps.style}
                                                                 >
-                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
+                                                                    <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                                                        <div
+                                                                            {...provided.dragHandleProps}
+                                                                            className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing p-1 hover:bg-gray-200 rounded transition-colors"
+                                                                            title="Arraste para mover"
+                                                                        >
+                                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
+                                                                        </div>
+                                                                        <div className="flex flex-col truncate">
+                                                                            <span className="font-bold text-gray-800 text-sm truncate">{reg}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex flex-col truncate">
-                                                                    <span className="font-bold text-gray-800 text-sm truncate">{work.id}</span>
-                                                                    <span className="text-xs text-gray-500 truncate">{work.regional}</span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex gap-1">
-                                                                <button onClick={() => moveWork(idx, 'up')} disabled={idx === 0} className="p-1.5 hover:bg-white rounded shadow-sm disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 hover:text-blue-600 transition-colors" title="Mover para Cima">
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                                                                </button>
-                                                                <button onClick={() => moveWork(idx, 'down')} disabled={idx === works.length - 1} className="p-1.5 hover:bg-white rounded shadow-sm disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 hover:text-blue-600 transition-colors" title="Mover para Baixo">
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                                                </button>
-                                                                <button onClick={() => toggleVisibility(work.id)} className={`p-1.5 hover:bg-white rounded shadow-sm text-gray-600 transition-colors ${hiddenWorkIds.has(work.id) ? 'text-gray-400 hover:text-gray-600' : 'hover:text-blue-600'}`} title={hiddenWorkIds.has(work.id) ? "Mostrar na apresentação" : "Ocultar da apresentação"}>
-                                                                    {hiddenWorkIds.has(work.id) ? (
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                                                                    ) : (
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                                                    )}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
-                                        </div>
-                                    )}
-                                </Droppable>
+                                                            )}
+                                                        </Draggable>
+                                                    ))}
+                                                    {provided.placeholder}
+                                                </div>
+                                            );
+                                        }}
+                                    </Droppable>
+                                )}
                             </DragDropContext>
                         </div>
                         <div className="mt-4 pt-4 border-t text-[10px] text-gray-400 text-center uppercase tracking-widest">
