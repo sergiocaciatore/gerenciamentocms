@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
+import RDLogin from "./pages/RDLogin";
+import RDDashboard from "./pages/RDDashboard";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Dashboard from "./pages/Dashboard";
 import SupplierLogin from "./pages/SupplierLogin";
@@ -24,6 +26,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/rd" element={<RDLogin />} />
+        <Route path="/rd/:userId" element={<RDDashboard />} />
         <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
