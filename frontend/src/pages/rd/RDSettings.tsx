@@ -15,6 +15,11 @@ interface SettingsData {
         cnd?: string;
         cndt?: string;
     };
+    // Banking Info
+    bankName?: string;
+    bankAgency?: string;
+    bankAccount?: string;
+    pixKey?: string;
 }
 
 const DOCUMENTS = [
@@ -31,7 +36,11 @@ export default function RDSettings() {
         cpf: "",
         rg: "",
         birthDate: "",
-        documents: {}
+        documents: {},
+        bankName: "",
+        bankAgency: "",
+        bankAccount: "",
+        pixKey: ""
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -200,7 +209,11 @@ export default function RDSettings() {
                     cpf: "",
                     rg: "",
                     birthDate: "",
-                    documents: {}
+                    documents: {},
+                    bankName: "",
+                    bankAgency: "",
+                    bankAccount: "",
+                    pixKey: ""
                 });
             }
         });
@@ -216,7 +229,11 @@ export default function RDSettings() {
                 cpf: "",
                 rg: "",
                 birthDate: "",
-                documents: {}
+                documents: {},
+                bankName: "",
+                bankAgency: "",
+                bankAccount: "",
+                pixKey: ""
             });
         }
     };
@@ -305,6 +322,8 @@ export default function RDSettings() {
                     </div>
                 </section>
 
+
+
                 {/* Documentações */}
                 <section className="flex flex-col">
                     <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Documentações</h3>
@@ -366,6 +385,59 @@ export default function RDSettings() {
             </div>
 
 
+            {/* Dados Bancários */}
+            <section className="mb-8 mt-8">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Dados Bancários</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Banco</label>
+                        <input
+                            type="text"
+                            value={formData.bankName || ""}
+                            onChange={(e) => handleChange("bankName", e.target.value)}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-gray-800"
+                            placeholder="Nome do Banco"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Agência</label>
+                        <input
+                            type="text"
+                            value={formData.bankAgency || ""}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "");
+                                handleChange("bankAgency", val);
+                            }}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-gray-800"
+                            placeholder="Apenas números"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Conta</label>
+                        <input
+                            type="text"
+                            value={formData.bankAccount || ""}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "");
+                                handleChange("bankAccount", val);
+                            }}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-gray-800"
+                            placeholder="Apenas números"
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Chave Pix</label>
+                        <input
+                            type="text"
+                            value={formData.pixKey || ""}
+                            onChange={(e) => handleChange("pixKey", e.target.value)}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-gray-800"
+                            placeholder="CPF/CNPJ, Email, Tel ou Aleatória"
+                        />
+                    </div>
+                </div>
+            </section>
+
             {/* Actions Footer */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-auto">
                 <button
@@ -406,6 +478,6 @@ export default function RDSettings() {
                 isAlert={modalConfig.isAlert}
                 confirmText={modalConfig.confirmText}
             />
-        </div>
+        </div >
     );
 }

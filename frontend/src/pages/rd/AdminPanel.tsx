@@ -4,6 +4,8 @@ import { db, auth } from '../../firebase';
 import ConfirmationModal from "../../components/ConfirmationModal";
 import Timesheet from './Timesheet';
 import Refunds from './Refunds';
+import UserDetailsModal from './UserDetailsModal';
+import UserConfigModal from './UserConfigModal';
 import type { RDData } from './MyRDs';
 import { formatCurrency } from './utils';
 
@@ -40,6 +42,7 @@ export default function AdminPanel() {
     const [loadingRds, setLoadingRds] = useState<Record<string, boolean>>({});
     const [viewingRD, setViewingRD] = useState<RDData | null>(null);
     const [viewingRefunds, setViewingRefunds] = useState<{ rd: RDData, userName: string } | null>(null);
+    const [viewingUserDetail, setViewingUserDetail] = useState<UserData | null>(null);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
 
     // Dynamic Operations State
@@ -476,96 +479,29 @@ export default function AdminPanel() {
                 onBack={() => setViewingRD(null)}
             />
         );
+
     }
 
     return (
         <div className="flex flex-col h-full gap-6">
+            <UserDetailsModal
+                isOpen={!!viewingUserDetail}
+                onClose={() => setViewingUserDetail(null)}
+                userId={viewingUserDetail?.id || ""}
+                userName={viewingUserDetail?.fullName || viewingUserDetail?.razaoSocial || ""}
+            />
+
+            {/* Modal for User Config */}
             {/* Modal for User Config */}
             {editingUser && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-gray-800">
-                                Configurar Usuário
-                            </h3>
-                            <button
-                                onClick={() => setEditingUser(null)}
-                                className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <span className="material-symbols-rounded">close</span>
-                            </button>
-                        </div>
-
-                        <div className="flex flex-col gap-6">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-semibold text-gray-700">Tipo de Contratação</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {['PJ', 'CLT'].map((type) => (
-                                        <button
-                                            key={type}
-                                            onClick={() => setEditingUser({ ...editingUser, contractType: type })}
-                                            className={`
-                                                p-2 rounded-xl border text-sm font-medium transition-all
-                                                ${editingUser.contractType === type
-                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                }
-                                            `}
-                                        >
-                                            {type}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-sm font-semibold text-gray-700">Permissão de Acesso</label>
-                                <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold text-gray-800">Administrador</span>
-                                        <span className="text-xs text-gray-500">Acesso total ao sistema</span>
-                                    </div>
-                                    <button
-                                        onClick={() => setEditingUser({
-                                            ...editingUser,
-                                            role: editingUser.role === 'admin' ? 'user' : 'admin'
-                                        })}
-                                        className={`
-                                            relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                                            ${editingUser.role === 'admin' ? 'bg-blue-600' : 'bg-gray-300'}
-                                        `}
-                                    >
-                                        <span
-                                            className={`
-                                                inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm
-                                                ${editingUser.role === 'admin' ? 'translate-x-6' : 'translate-x-1'}
-                                            `}
-                                        />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                                <button
-                                    onClick={() => setEditingUser(null)}
-                                    className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors text-sm"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={() => handleSaveUserConfig(editingUser.id, {
-                                        contractType: editingUser.contractType || 'PJ',
-                                        role: editingUser.role || 'user'
-                                    })}
-                                    className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-200 transition-colors flex items-center justify-center gap-2 text-sm"
-                                >
-                                    <span className="material-symbols-rounded text-lg">save</span>
-                                    Salvar Alterações
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <UserConfigModal
+                    user={editingUser}
+                    onClose={() => setEditingUser(null)}
+                    onSave={async (userId, data) => {
+                        await handleSaveUserConfig(userId, data);
+                        setEditingUser(null);
+                    }}
+                />
             )}
 
             {/* ... Header ... */}
@@ -790,7 +726,15 @@ export default function AdminPanel() {
                                     <React.Fragment key={user.id}>
                                         <tr className={`transition-colors ${expandedUserId === user.id ? 'bg-blue-50/30' : 'hover:bg-gray-50'}`}>
                                             <td className="p-4 pl-6 font-medium text-gray-800">
-                                                {user.fullName || user.razaoSocial || "Não informado"}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setViewingUserDetail(user);
+                                                    }}
+                                                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                                                >
+                                                    {user.fullName || user.razaoSocial || "Não informado"}
+                                                </button>
                                             </td>
                                             <td className="p-4 text-gray-600">
                                                 {user.email}
