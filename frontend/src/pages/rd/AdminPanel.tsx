@@ -39,7 +39,9 @@ export default function AdminPanel() {
     const [selectedMonth, setSelectedMonth] = useState<number>(-1);
     const [selectedYear, setSelectedYear] = useState(2026);
     const [userRds, setUserRds] = useState<Record<string, RDData[]>>({});
+    const [userAssignments, setUserAssignments] = useState<Record<string, Record<string, string>>>({}); // userId -> { "year-month": "OpName" }
     const [loadingRds, setLoadingRds] = useState<Record<string, boolean>>({});
+    const [editingOp, setEditingOp] = useState<{ userId: string, month: number } | null>(null);
     const [viewingRD, setViewingRD] = useState<RDData | null>(null);
     const [viewingRefunds, setViewingRefunds] = useState<{ rd: RDData, userName: string } | null>(null);
     const [viewingUserDetail, setViewingUserDetail] = useState<UserData | null>(null);
@@ -169,21 +171,19 @@ export default function AdminPanel() {
 
     const handleSetOperation = async (userId: string, year: number, month: number, newOperation: string) => {
         const rdId = `${year}-${month}`;
+        const assignmentKey = `${year}-${month}`;
+
         try {
+            // 1. Save to Assignments Map (Source of Truth for Assignments)
+            const assignRef = doc(db, "users", userId, "settings", "rd_assignments");
+            await setDoc(assignRef, { [assignmentKey]: newOperation }, { merge: true });
+
+            // 2. If RD exists, update it to keep sync. NEVER create RD here.
             const ref = doc(db, "users", userId, "rds", rdId);
             const docSnap = await getDoc(ref);
 
             if (docSnap.exists()) {
                 await updateDoc(ref, { operation: newOperation });
-            } else {
-                await setDoc(ref, {
-                    id: rdId,
-                    year,
-                    month,
-                    operation: newOperation,
-                    status: 'assigned', // Explicitly set status to avoid "undefined" leaking into lists
-                    updatedAt: new Date().toISOString()
-                });
             }
 
             // Refresh
@@ -444,6 +444,15 @@ export default function AdminPanel() {
             console.log(`[FetchRDs] User: ${userId}`, snapshot.docs.map(d => d.data()));
             const rds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RDData));
             setUserRds(prev => ({ ...prev, [userId]: rds }));
+
+            // Fetch Assignments
+            const assignRef = doc(db, "users", userId, "settings", "rd_assignments");
+            const assignSnap = await getDoc(assignRef);
+            if (assignSnap.exists()) {
+                setUserAssignments(prev => ({ ...prev, [userId]: assignSnap.data() as Record<string, string> }));
+            } else {
+                setUserAssignments(prev => ({ ...prev, [userId]: {} }));
+            }
         } catch (error) {
             console.error("Error fetching RDs:", error);
         } finally {
@@ -811,6 +820,8 @@ export default function AdminPanel() {
                                                             // 1. Prepare data
                                                             const rowsData = monthsToShow.map(monthIndex => {
                                                                 const rd = rds.find(r => r.month === monthIndex && r.year === selectedYear);
+                                                                const assignedOp = userAssignments[user.id]?.[`${selectedYear}-${monthIndex}`];
+                                                                const displayOp = rd?.operation || assignedOp;
 
                                                                 // Calculate date string
                                                                 const dateStr = (() => {
@@ -822,7 +833,7 @@ export default function AdminPanel() {
                                                                     return new Date(timestamp as unknown as string).toLocaleDateString('pt-BR');
                                                                 })();
 
-                                                                return { monthIndex, rd, dateStr };
+                                                                return { monthIndex, rd, dateStr, displayOp };
                                                             });
 
                                                             if (loadingRds[user.id]) {
@@ -855,7 +866,7 @@ export default function AdminPanel() {
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                        {rowsData.map(({ monthIndex, rd, dateStr }) => {
+                                                                        {rowsData.map(({ monthIndex, rd, dateStr, displayOp }) => {
                                                                             // Calculate refunds for this row
                                                                             const caixaRefunds = rd?.refunds?.filter(r => r.type === 'CAIXA') || [];
                                                                             const combustivelRefunds = rd?.refunds?.filter(r => r.type === 'COMBUSTIVEL') || [];
@@ -921,26 +932,33 @@ export default function AdminPanel() {
                                                                                         )}
                                                                                     </td>
                                                                                     <td className="p-3">
-                                                                                        <div className="flex items-center gap-1">
+                                                                                        {editingOp?.userId === user.id && editingOp.month === monthIndex ? (
                                                                                             <select
-                                                                                                value={(rd && rd.operation) || ""}
-                                                                                                onChange={(e) => handleSetOperation(user.id, selectedYear, monthIndex, e.target.value)}
-                                                                                                className="px-2 py-1 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-100 bg-white text-gray-700 w-32"
+                                                                                                value={displayOp || ""}
+                                                                                                onChange={(e) => {
+                                                                                                    handleSetOperation(user.id, selectedYear, monthIndex, e.target.value);
+                                                                                                    setEditingOp(null);
+                                                                                                }}
+                                                                                                onBlur={() => setEditingOp(null)}
+                                                                                                autoFocus
+                                                                                                className="w-full p-1 bg-white border border-blue-500 rounded text-xs outline-none"
                                                                                             >
                                                                                                 <option value="">Selecione...</option>
                                                                                                 {operationsList.map(op => (
                                                                                                     <option key={op} value={op}>{op}</option>
                                                                                                 ))}
                                                                                             </select>
-                                                                                            <button
-                                                                                                onClick={() => handleOpenBatch(user, monthIndex, (rd && rd.operation) || "")}
-                                                                                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                                                                                                title="Aplicar nos próximos meses"
-                                                                                                disabled={!((rd && rd.operation))}
+                                                                                        ) : (
+                                                                                            <div
+                                                                                                onClick={() => setEditingOp({ userId: user.id, month: monthIndex })}
+                                                                                                className="cursor-pointer hover:bg-gray-100 p-1 rounded group flex items-center justify-between"
                                                                                             >
-                                                                                                <span className="material-symbols-rounded text-base">fast_forward</span>
-                                                                                            </button>
-                                                                                        </div>
+                                                                                                <span className={displayOp ? "text-gray-700 font-medium" : "text-gray-400 italic"}>
+                                                                                                    {displayOp || "Atribuir"}
+                                                                                                </span>
+                                                                                                <span className="material-symbols-rounded text-[14px] text-gray-400 opacity-0 group-hover:opacity-100">edit</span>
+                                                                                            </div>
+                                                                                        )}
                                                                                     </td>
 
                                                                                     {/* CAIXA COLUMN */}

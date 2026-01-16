@@ -158,6 +158,18 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                     const docRef = doc(db, "users", auth.currentUser.uid, "rds", docId);
                     const docSnap = await getDoc(docRef);
 
+                    // 2a. Fetch Assignment for fallback/default (Decoupled Logic)
+                    let assignedOpName = "";
+                    try {
+                        const assignRef = doc(db, "users", auth.currentUser.uid, "settings", "rd_assignments");
+                        const assignSnap = await getDoc(assignRef);
+                        if (assignSnap.exists()) {
+                            assignedOpName = assignSnap.data()[`${selectedYear}-${selectedMonth}`] || "";
+                        }
+                    } catch (e) {
+                        console.error("Error fetching assignments:", e);
+                    }
+
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         setTimesheetData(data.data || {});
@@ -165,8 +177,8 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                         setInvoiceData(data.invoiceData || null);
                         setInvoiceRejected(data.invoiceRejected || false);
 
-                        // Load Operation Info
-                        const opName = data.operation || "";
+                        // Load Operation Info (Prioritize RD data, fallback to assignment)
+                        const opName = data.operation || assignedOpName || "";
                         setAssignedOperation(opName);
                         setSelectedSubOp(data.subOperation || null);
 
@@ -186,9 +198,24 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                         setInvoiceUrl(null);
                         setInvoiceData(null);
                         setInvoiceRejected(false);
-                        setAssignedOperation("");
+                        setAssignedOperation(assignedOpName || ""); // Use assignment if no RD exists
                         setSelectedSubOp(null);
-                        setSubOpsList([]);
+
+                        // Load subops if assigned
+                        if (assignedOpName) {
+                            try {
+                                const opRef = doc(db, "operations", assignedOpName);
+                                const opSnap = await getDoc(opRef);
+                                if (opSnap.exists()) {
+                                    setSubOpsList(opSnap.data().subOperations || []);
+                                }
+                            } catch (e) {
+                                console.error("Error loading sub-operations for new RD:", e);
+                                setSubOpsList([]);
+                            }
+                        } else {
+                            setSubOpsList([]);
+                        }
                     }
                 }
             } catch (err) {
