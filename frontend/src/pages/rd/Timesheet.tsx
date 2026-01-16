@@ -440,6 +440,19 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
     };
 
     const confirmSend = () => {
+        // Validation: SubOperation is STRICTLY REQUIRED
+        if (!selectedSubOp) {
+            setModalConfig({
+                isOpen: true,
+                title: "Atenção",
+                message: "Selecione uma suboperação para enviar.",
+                type: "warning",
+                isAlert: true,
+                confirmText: "Voltar"
+            });
+            return;
+        }
+
         // Validation: Invoice required only if NOT CLT
         if (!invoiceUrl && userContractType !== 'CLT') {
             setModalConfig({

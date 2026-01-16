@@ -66,7 +66,20 @@ export default function HistoryList() {
         try {
             const q = query(collection(db, "users", userId, "rds"));
             const snapshot = await getDocs(q);
-            const rds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RDData));
+            const rds = snapshot.docs.map(doc => {
+                const data = doc.data();
+                let year = data.year;
+                let month = data.month;
+                // Polyfill if missing
+                if (year === undefined || month === undefined) {
+                    const parts = doc.id.split('-');
+                    if (parts.length === 2) {
+                        year = Number(parts[0]);
+                        month = Number(parts[1]);
+                    }
+                }
+                return { id: doc.id, ...data, year, month } as RDData;
+            });
             setUserRds(prev => ({ ...prev, [userId]: rds }));
         } catch (error) {
             console.error("Error fetching RDs:", error);

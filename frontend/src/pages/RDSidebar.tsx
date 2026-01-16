@@ -52,7 +52,8 @@ export default function RDSidebar({ activePage, setActivePage }: RDSidebarProps)
         ...(userRole === 'admin' ? [
             { id: "admin", label: "Administrativo", icon: "admin_panel_settings" },
             { id: "operations", label: "Operações", icon: "business_center" },
-            { id: "history", label: "Históricos", icon: "history" }
+            { id: "history", label: "Históricos", icon: "history" },
+            { id: "compiled-report", label: "Relatório Compilado", icon: "summarize" }
         ] : [])
     ];
 

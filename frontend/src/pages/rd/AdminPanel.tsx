@@ -7,7 +7,7 @@ import Refunds from './Refunds';
 import UserDetailsModal from './UserDetailsModal';
 import UserConfigModal from './UserConfigModal';
 import type { RDData } from './MyRDs';
-import { formatCurrency } from './utils';
+
 
 interface UserData {
     id: string;
@@ -84,8 +84,16 @@ export default function AdminPanel() {
         title: string;
         message: string;
         onConfirm: () => void;
-    }>({ isOpen: false, title: "", message: "", onConfirm: () => { } });
-
+        type?: "danger" | "success" | "warning" | "info";
+        confirmText?: string;
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => { },
+        type: "danger",
+        confirmText: "Confirmar Exclusão"
+    });
 
 
     // Batch Operation Modal
@@ -191,6 +199,93 @@ export default function AdminPanel() {
         } catch (err) {
             console.error("Error setting operation:", err);
             setError("Erro ao atualizar operação.");
+        }
+    };
+
+    const handleBatchReplicate = (userId: string, year: number, sourceMonth: number, operation: string) => {
+        if (!operation) return;
+
+        setConfirmModal({
+            isOpen: true,
+            title: "Replicar Operação",
+            message: `Deseja replicar a operação "${operation}" de ${MONTHS[sourceMonth]} para todos os meses seguintes de ${year}?`,
+            type: "info",
+            confirmText: "Replicar",
+            onConfirm: async () => {
+                try {
+                    // 1. Prepare updates for assignment map
+                    const updates: Record<string, string> = {};
+                    for (let m = sourceMonth + 1; m < 12; m++) {
+                        updates[`${year}-${m}`] = operation;
+                    }
+
+                    const assignRef = doc(db, "users", userId, "settings", "rd_assignments");
+                    await setDoc(assignRef, updates, { merge: true });
+
+                    // 2. Update existing RDs in the range
+                    // Efficiently iterate client-side cache to find matches instead of 12 reads
+                    const existingRds = userRds[userId] || [];
+                    const rdsToUpdate = existingRds.filter(rd => {
+                        let rYear = rd.year;
+                        let rMonth = rd.month;
+                        // Polyfill if missing (same logic as fetch)
+                        if (rYear === undefined || rMonth === undefined) {
+                            const parts = rd.id.split('-');
+                            if (parts.length === 2) {
+                                rYear = Number(parts[0]);
+                                rMonth = Number(parts[1]);
+                            }
+                        }
+                        return rYear === year && rMonth !== undefined && rMonth > sourceMonth;
+                    });
+
+                    const updatePromises = rdsToUpdate.map(rd => {
+                        const ref = doc(db, "users", userId, "rds", rd.id);
+                        return updateDoc(ref, { operation });
+                    });
+
+                    await Promise.all(updatePromises);
+
+                    // Refresh local state to show changes immediately
+                    fetchUserRds(userId);
+                } catch (err) {
+                    console.error("Error replicating operation:", err);
+                    setError("Erro ao replicar operação.");
+                } finally {
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                }
+            }
+        });
+    };
+
+    const handleDeleteRefunds = async (userId: string, year: number, month: number, type: 'CAIXA' | 'COMBUSTIVEL') => {
+        if (!window.confirm(`Tem certeza que deseja excluir todos os reembolsos de ${type}?`)) return;
+        const rdId = `${year}-${month}`;
+        const ref = doc(db, "users", userId, "rds", rdId);
+        try {
+            const docSnap = await getDoc(ref);
+            if (docSnap.exists()) {
+                const data = docSnap.data() as RDData;
+                const newRefunds = data.refunds?.filter(r => r.type !== type) || [];
+                await updateDoc(ref, { refunds: newRefunds });
+                fetchUserRds(userId);
+            }
+        } catch (e) {
+            console.error(e);
+            setError("Erro ao excluir reembolsos.");
+        }
+    };
+
+    const handleReopenRD = async (userId: string, year: number, month: number) => {
+        if (!window.confirm("Reabrir esta RD para edição pelo usuário?")) return;
+        const rdId = `${year}-${month}`;
+        const ref = doc(db, "users", userId, "rds", rdId);
+        try {
+            await updateDoc(ref, { status: 'draft' });
+            fetchUserRds(userId);
+        } catch (e) {
+            console.error(e);
+            setError("Erro ao reabrir RD.");
         }
     };
 
@@ -430,7 +525,20 @@ export default function AdminPanel() {
             const q = query(collection(db, "users", userId, "rds"));
             const snapshot = await getDocs(q);
             console.log(`[FetchRDs] User: ${userId}`, snapshot.docs.map(d => d.data()));
-            const rds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RDData));
+            const rds = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Polyfill year/month from ID if missing
+                let year = data.year;
+                let month = data.month;
+                if (year === undefined || month === undefined) {
+                    const parts = doc.id.split('-');
+                    if (parts.length === 2) {
+                        year = Number(parts[0]);
+                        month = Number(parts[1]);
+                    }
+                }
+                return { id: doc.id, ...data, year, month } as RDData;
+            });
             setUserRds(prev => ({ ...prev, [userId]: rds }));
 
             // Fetch Assignments
@@ -939,67 +1047,120 @@ export default function AdminPanel() {
                                                                                                 ))}
                                                                                             </select>
                                                                                         ) : (
-                                                                                            <div
-                                                                                                onClick={() => setEditingOp({ userId: user.id, month: monthIndex })}
-                                                                                                className="cursor-pointer hover:bg-gray-100 p-1 rounded group flex items-center justify-between"
-                                                                                            >
-                                                                                                <span className={displayOp ? "text-gray-700 font-medium" : "text-gray-400 italic"}>
-                                                                                                    {displayOp || "Atribuir"}
-                                                                                                </span>
-                                                                                                <span className="material-symbols-rounded text-[14px] text-gray-400 opacity-0 group-hover:opacity-100">edit</span>
+                                                                                            <div className="flex items-center justify-between group p-1 rounded hover:bg-gray-50/80 transition-colors">
+                                                                                                <div
+                                                                                                    onClick={() => setEditingOp({ userId: user.id, month: monthIndex })}
+                                                                                                    className="cursor-pointer flex-1"
+                                                                                                >
+                                                                                                    <span className={displayOp ? "text-gray-700 font-medium" : "text-gray-400 italic"}>
+                                                                                                        {displayOp || "Atribuir"}
+                                                                                                    </span>
+                                                                                                </div>
+
+                                                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                                    {displayOp && monthIndex < 11 && (
+                                                                                                        <button
+                                                                                                            onClick={(e) => {
+                                                                                                                e.stopPropagation();
+                                                                                                                handleBatchReplicate(user.id, selectedYear, monthIndex, displayOp);
+                                                                                                            }}
+                                                                                                            className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded"
+                                                                                                            title="Replicar para meses seguintes"
+                                                                                                        >
+                                                                                                            <span className="material-symbols-rounded text-[18px]">double_arrow</span>
+                                                                                                        </button>
+                                                                                                    )}
+                                                                                                    <button
+                                                                                                        onClick={() => setEditingOp({ userId: user.id, month: monthIndex })}
+                                                                                                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                                                                                        title="Editar"
+                                                                                                    >
+                                                                                                        <span className="material-symbols-rounded text-[18px]">edit</span>
+                                                                                                    </button>
+                                                                                                </div>
                                                                                             </div>
                                                                                         )}
                                                                                     </td>
 
                                                                                     {/* CAIXA COLUMN */}
                                                                                     {showCaixa && (
-                                                                                        <td className="p-3">
-                                                                                            {caixaRefunds.length > 0 ? (
-                                                                                                <div className="flex flex-col">
-                                                                                                    <button
-                                                                                                        onClick={() => rd && setViewingRefunds({ rd, userName: user.fullName || "Usuário" })}
-                                                                                                        className="text-blue-600 hover:underline font-bold text-left text-xs mb-0.5"
-                                                                                                    >
-                                                                                                        Caixa
-                                                                                                    </button>
-                                                                                                    <span className="font-semibold text-gray-700 text-xs text-[11px]">
-                                                                                                        {formatCurrency(totalCaixa)}
-                                                                                                    </span>
-                                                                                                    <div className="flex flex-col gap-0.5 mt-0.5">
-                                                                                                        {caixaCtes.map(cte => (
-                                                                                                            <span key={cte} className="text-[9px] text-gray-500 leading-tight truncate max-w-[100px]" title={cte}>
-                                                                                                                {cte}
-                                                                                                            </span>
-                                                                                                        ))}
+                                                                                        <td className="p-3 text-xs">
+                                                                                            {totalCaixa > 0 ? (
+                                                                                                <div className="flex items-center justify-between group">
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <button
+                                                                                                            onClick={() => rd && setViewingRefunds({ rd, userName: user.fullName || "" })}
+                                                                                                            className="font-medium text-blue-600 hover:underline text-left whitespace-nowrap"
+                                                                                                        >
+                                                                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCaixa)}
+                                                                                                        </button>
+                                                                                                        <span className="text-[10px] text-gray-500 truncate max-w-[100px]" title={caixaCtes.join(", ")}>
+                                                                                                            {caixaCtes.join(", ") || "Sem obra"}
+                                                                                                        </span>
                                                                                                     </div>
+
+                                                                                                    {rd && rd.status === 'submitted' && (
+                                                                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 bg-white shadow-sm border border-gray-100 rounded p-0.5">
+                                                                                                            <button
+                                                                                                                onClick={() => handleReopenRD(user.id, selectedYear, monthIndex)}
+                                                                                                                className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                                                                                                title="Reabrir para edição"
+                                                                                                            >
+                                                                                                                <span className="material-symbols-rounded text-[16px]">edit</span>
+                                                                                                            </button>
+                                                                                                            <div className="w-px h-3 bg-gray-200"></div>
+                                                                                                            <button
+                                                                                                                onClick={() => handleDeleteRefunds(user.id, selectedYear, monthIndex, 'CAIXA')}
+                                                                                                                className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                                                                                title="Excluir reembolso de Caixa"
+                                                                                                            >
+                                                                                                                <span className="material-symbols-rounded text-[16px]">delete</span>
+                                                                                                            </button>
+                                                                                                        </div>
+                                                                                                    )}
                                                                                                 </div>
-                                                                                            ) : <span className="text-gray-300">-</span>}
+                                                                                            ) : '-'}
                                                                                         </td>
                                                                                     )}
 
                                                                                     {/* COMBUSTIVEL COLUMN */}
                                                                                     {showCombustivel && (
-                                                                                        <td className="p-3">
-                                                                                            {combustivelRefunds.length > 0 ? (
-                                                                                                <div className="flex flex-col">
-                                                                                                    <button
-                                                                                                        onClick={() => rd && setViewingRefunds({ rd, userName: user.fullName || "Usuário" })}
-                                                                                                        className="text-blue-600 hover:underline font-bold text-left text-xs mb-0.5"
-                                                                                                    >
-                                                                                                        Combustível
-                                                                                                    </button>
-                                                                                                    <span className="font-semibold text-gray-700 text-xs text-[11px]">
-                                                                                                        {formatCurrency(totalCombustivel)}
-                                                                                                    </span>
-                                                                                                    <div className="flex flex-col gap-0.5 mt-0.5">
-                                                                                                        {combCtes.map(cte => (
-                                                                                                            <span key={cte} className="text-[9px] text-gray-500 leading-tight truncate max-w-[100px]" title={cte}>
-                                                                                                                {cte}
-                                                                                                            </span>
-                                                                                                        ))}
+                                                                                        <td className="p-3 text-xs">
+                                                                                            {totalCombustivel > 0 ? (
+                                                                                                <div className="flex items-center justify-between group">
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <button
+                                                                                                            onClick={() => rd && setViewingRefunds({ rd, userName: user.fullName || "" })}
+                                                                                                            className="font-medium text-blue-600 hover:underline text-left whitespace-nowrap"
+                                                                                                        >
+                                                                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCombustivel)}
+                                                                                                        </button>
+                                                                                                        <span className="text-[10px] text-gray-500 truncate max-w-[100px]" title={combCtes.join(", ")}>
+                                                                                                            {combCtes.join(", ") || "Sem obra"}
+                                                                                                        </span>
                                                                                                     </div>
+
+                                                                                                    {rd && rd.status === 'submitted' && (
+                                                                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 bg-white shadow-sm border border-gray-100 rounded p-0.5">
+                                                                                                            <button
+                                                                                                                onClick={() => handleReopenRD(user.id, selectedYear, monthIndex)}
+                                                                                                                className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                                                                                                title="Reabrir para edição"
+                                                                                                            >
+                                                                                                                <span className="material-symbols-rounded text-[16px]">edit</span>
+                                                                                                            </button>
+                                                                                                            <div className="w-px h-3 bg-gray-200"></div>
+                                                                                                            <button
+                                                                                                                onClick={() => handleDeleteRefunds(user.id, selectedYear, monthIndex, 'COMBUSTIVEL')}
+                                                                                                                className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                                                                                title="Excluir reembolso de Combustível"
+                                                                                                            >
+                                                                                                                <span className="material-symbols-rounded text-[16px]">delete</span>
+                                                                                                            </button>
+                                                                                                        </div>
+                                                                                                    )}
                                                                                                 </div>
-                                                                                            ) : <span className="text-gray-300">-</span>}
+                                                                                            ) : '-'}
                                                                                         </td>
                                                                                     )}
 
@@ -1053,8 +1214,8 @@ export default function AdminPanel() {
                 onConfirm={confirmModal.onConfirm}
                 title={confirmModal.title}
                 message={confirmModal.message}
-                type="danger"
-                confirmText="Confirmar Exclusão"
+                type={confirmModal.type || "danger"}
+                confirmText={confirmModal.confirmText || "Confirmar"}
             />
 
             {/* Batch Confirmation Modal */}

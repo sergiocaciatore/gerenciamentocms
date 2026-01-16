@@ -8,6 +8,7 @@ import RDSettings from "./rd/RDSettings";
 import AdminPanel from "./rd/AdminPanel";
 import OperationsList from "./rd/OperationsList";
 import HistoryList from "./rd/HistoryList";
+import CompiledReport from "./rd/CompiledReport";
 
 export default function RDDashboard() {
     const [activePage, setActivePage] = useState("available");
@@ -52,6 +53,8 @@ export default function RDDashboard() {
                         <OperationsList />
                     ) : activePage === "history" ? (
                         <HistoryList />
+                    ) : activePage === "compiled-report" ? (
+                        <CompiledReport />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-gray-500">
                             Em desenvolvimento...

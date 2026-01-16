@@ -49,6 +49,7 @@ export interface RefundItem {
     expenseType: string;
     value: number;
     createdAt: string;
+    submitted?: boolean; // New field for item-level locking
 
     // Caixa-specific
     city?: string;
@@ -211,7 +212,7 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
         setModalConfig({
             isOpen: true,
             title: "Enviar Reembolso?",
-            message: "Esta ação enviará o reembolso para aprovação. Deseja continuar?",
+            message: "Esta ação enviará os itens lançados para aprovação e eles não poderão mais ser editados. Deseja continuar?",
             type: "info",
             onConfirm: async () => {
                 setModalConfig(prev => ({ ...prev, isOpen: false }));
@@ -222,12 +223,23 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
                     const docId = `${selectedYear}-${selectedMonth}`;
                     const docRef = doc(db, "users", auth.currentUser.uid, "rds", docId);
 
+                    // Mark all current items as submitted
+                    const updatedList = refundList.map(item => ({ ...item, submitted: true }));
+
                     await setDoc(docRef, {
-                        status: 'submitted',
-                        updatedAt: new Date().toISOString()
+                        refunds: updatedList,
+                        refundsStatus: 'submitted', // Mark refunds as submitted, keeping global status independent if needed
+                        updatedAt: new Date().toISOString(),
+                        month: selectedMonth,
+                        year: selectedYear,
+                        userId: auth.currentUser.uid
                     }, { merge: true });
 
-                    setRdStatus('submitted');
+                    setRefundList(updatedList);
+                    // note: we do NOT set RdStatus to 'submitted' here to allow Timesheet to remain open/draft if needed.
+                    // Unless the requirement implies sending everything? 
+                    // Point 2 "se o usuário enviar reembolso, mas não enviar RD" strongly suggests separation.
+                    // So we only lock the refund items.
 
                 } catch (error) {
                     console.error("Error submitting refund:", error);
@@ -261,6 +273,10 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
     };
 
     const handleEditRefund = (refund: RefundItem) => {
+        if (refund.submitted && !isAdmin) {
+            alert("Este item já foi enviado e não pode ser editado.");
+            return;
+        }
         // Populate form with refund data
         setSelectedType(refund.type);
         setNewRefund({
@@ -286,6 +302,12 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
     };
 
     const handleDeleteRefund = async (refundId: string, skipConfirmation = false) => {
+        const itemToDelete = refundList.find(r => r.id === refundId);
+        if (itemToDelete?.submitted && !isAdmin) {
+            alert("Este item já foi enviado e não pode ser excluído.");
+            return;
+        }
+
         const executeDelete = async () => {
             if (!auth.currentUser) return;
             try {
@@ -381,7 +403,10 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
 
             // We update the whole list to ensure consistency, rather than arrayUnion which only adds
             await setDoc(docRef, {
-                refunds: updatedList
+                refunds: updatedList,
+                month: selectedMonth,
+                year: selectedYear,
+                userId: auth.currentUser.uid
             }, { merge: true });
 
             setRefundList(updatedList);
@@ -479,7 +504,7 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
                         </div>
 
                         <div className="mt-2">
-                            {(!viewMode && rdStatus !== 'submitted' && rdStatus !== 'approved') && (
+                            {!viewMode && (
                                 <button
                                     className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 border border-blue-100 active:scale-95"
                                     onClick={() => setIsRefundModalOpen(true)}
@@ -542,7 +567,7 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
                         <>
                             <button
                                 onClick={handleSubmit}
-                                disabled={isSaving}
+                                disabled={isSaving || refundList.every(r => r.submitted)}
                                 className="flex-1 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-blue-300 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 whitespace-nowrap"
                             >
                                 {isSaving ? (
@@ -583,11 +608,11 @@ export default function Refunds({ viewMode = false, isAdmin = false, initialData
                         {refundList.map((item) => (
                             <div
                                 key={item.id}
-                                className={`bg-white p-5 rounded-2xl shadow-sm border hover:shadow-md transition-shadow flex flex-col gap-3 group border-l-4 relative ${item.type === 'COMBUSTIVEL' ? 'border-l-orange-500 border-gray-100' : 'border-l-blue-500 border-gray-100'
+                                className={`bg-white p-5 rounded-2xl shadow-sm border hover:shadow-md transition-shadow flex flex-col gap-3 group border-l-4 relative ${item.submitted ? 'opacity-80' : ''} ${item.type === 'COMBUSTIVEL' ? 'border-l-orange-500 border-gray-100' : 'border-l-blue-500 border-gray-100'
                                     }`}
                             >
-                                {/* Action Buttons */}
-                                {(isAdmin || (!viewMode && rdStatus !== 'submitted' && rdStatus !== 'approved')) && (
+                                {/* Action Buttons - Hide if submitted */}
+                                {(isAdmin || (!viewMode && !item.submitted && rdStatus !== 'approved')) && (
                                     <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => handleEditRefund(item)}
