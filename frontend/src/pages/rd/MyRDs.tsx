@@ -61,13 +61,16 @@ export default function MyRDs({ onSelect }: MyRDsProps) {
                     loadedRDs.push({ id: doc.id, ...doc.data() } as RDData);
                 });
 
+                // Filter strictly for submitted RDs (client-side double check)
+                const submittedRDs = loadedRDs.filter(rd => rd.status === 'submitted');
+
                 // Sort by year desc, month desc
-                loadedRDs.sort((a, b) => {
+                submittedRDs.sort((a, b) => {
                     if (a.year !== b.year) return b.year - a.year;
                     return b.month - a.month;
                 });
 
-                setRds(loadedRDs);
+                setRds(submittedRDs);
             } catch (error) {
                 console.error("Error fetching RDs:", error);
             } finally {
@@ -124,13 +127,20 @@ export default function MyRDs({ onSelect }: MyRDsProps) {
 
                     <div className="flex gap-4 mb-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
                         <div className="flex items-center gap-1">
-                            <span className="font-bold text-gray-800 text-lg">{rd.daysWorked}</span>
+                            <span className="font-bold text-gray-800 text-lg">
+                                {Number(rd.daysWorked) || 0}
+                            </span>
                             <span>Dias</span>
                         </div>
                         <div className="w-px bg-gray-200"></div>
                         <div className="flex items-center gap-1">
                             <span className="font-bold text-gray-800 text-lg">
-                                {Math.floor(rd.totalMinutes / 60)}h {rd.totalMinutes % 60}m
+                                {(() => {
+                                    const total = Number(rd.totalMinutes) || 0;
+                                    const h = Math.floor(total / 60);
+                                    const m = total % 60;
+                                    return `${h}h ${m}m`;
+                                })()}
                             </span>
                             <span>Horas</span>
                         </div>

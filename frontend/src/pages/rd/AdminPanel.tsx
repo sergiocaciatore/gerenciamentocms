@@ -181,6 +181,7 @@ export default function AdminPanel() {
                     year,
                     month,
                     operation: newOperation,
+                    status: 'assigned', // Explicitly set status to avoid "undefined" leaking into lists
                     updatedAt: new Date().toISOString()
                 });
             }
