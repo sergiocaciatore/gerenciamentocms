@@ -1,8 +1,33 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import GoLiveWidget from "./GoLiveWidget";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase";
 
 export default function Layout() {
+    const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                navigate("/login");
+            }
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [navigate]);
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-transparent">
             <Sidebar />
