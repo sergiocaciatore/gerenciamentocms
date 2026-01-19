@@ -276,6 +276,7 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                 status: status,
                 invoiceUrl: urlToSave,
                 invoiceData: dataInfoToSave,
+                operation: assignedOperation, // Persist Operation
                 totalMinutes: summary.totalMinutesMonth,
                 daysWorked: summary.daysWorked,
                 updatedAt: serverTimestamp(),

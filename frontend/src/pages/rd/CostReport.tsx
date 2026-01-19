@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { collection, getDocs, getDoc, doc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface CostReportProps {
     className?: string;
@@ -19,10 +21,19 @@ const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6
 export default function CostReport({ className = "" }: CostReportProps) {
     const [operations, setOperations] = useState<string[]>([]);
     const [selectedOperation, setSelectedOperation] = useState("");
-    const [selectedDate, setSelectedDate] = useState(() => {
+    // Date Range State
+    const [startDate, setStartDate] = useState(() => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), 0, 1); // Jan 1st of current year
+        return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [endDate, setEndDate] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
+
+    // Top N State
+    const [topN, setTopN] = useState(5);
 
     // Data States
     const [aggregatedCosts, setAggregatedCosts] = useState<Record<string, CostItem>>({});
@@ -48,21 +59,31 @@ export default function CostReport({ className = "" }: CostReportProps) {
         loadOperations();
     }, []);
 
-    // Load Cost Data when Date changes
+    // Load Cost Data when Date Range changes
     useEffect(() => {
         const loadCostData = async () => {
             setLoadingData(true);
-            const [yearStr, monthStr] = selectedDate.split('-');
-            const year = parseInt(yearStr);
-            const month = parseInt(monthStr) - 1; // JS Month 0-11, Input is 1-12
 
-            console.log(`[CostReport] Loading data for ${month + 1}/${year}`);
+            // Generate list of [year, month] pairs from startDate to endDate
+            const [startYear, startMonth] = startDate.split('-').map(Number);
+            const [endYear, endMonth] = endDate.split('-').map(Number);
+
+            const monthsToFetch: { year: number, month: number }[] = [];
+
+            const start = new Date(startYear, startMonth - 1, 1);
+            const end = new Date(endYear, endMonth - 1, 1);
+
+            const current = new Date(start);
+            while (current <= end) {
+                monthsToFetch.push({ year: current.getFullYear(), month: current.getMonth() }); // month is 0-indexed for Firestore logic
+                current.setMonth(current.getMonth() + 1);
+            }
+
+            console.log(`[CostReport] Loading data for range:`, monthsToFetch);
 
             try {
                 // 1. Get all active users
-                // Reverting to fetch ALL users to ensure historical data (like terminated employees) is included.
                 const allUsersQuery = await getDocs(collection(db, "users"));
-
                 const costMap: Record<string, CostItem> = {};
 
                 // Helper to add cost
@@ -81,39 +102,53 @@ export default function CostReport({ className = "" }: CostReportProps) {
                     costMap[opKey].subItems![subKey] += value;
                 };
 
-                // 2. Fetch RDs for each user in parallel
+                // 2. Fetch RDs for each user and each month in the range
                 await Promise.all(allUsersQuery.docs.map(async (userDoc) => {
-                    const rdsRef = doc(db, "users", userDoc.id, "rds", `${year}-${month}`);
-                    const rdSnap = await getDoc(rdsRef);
+                    for (const { year, month } of monthsToFetch) {
+                        const rdsRef = doc(db, "users", userDoc.id, "rds", `${year}-${month}`);
+                        const rdSnap = await getDoc(rdsRef);
 
-                    if (rdSnap.exists()) {
-                        const data = rdSnap.data();
+                        if (rdSnap.exists()) {
+                            const data = rdSnap.data();
 
-                        // Process Main Invoice Value
-                        if (data.invoiceData && data.invoiceData.value && !data.invoiceRejected) {
-                            const valStr = data.invoiceData.value.replace("R$", "").replace(/\./g, "").replace(",", ".").trim();
-                            const val = parseFloat(valStr) || 0;
+                            // Process Main Invoice Value
+                            if (data.invoiceData && data.invoiceData.value && !data.invoiceRejected) {
+                                const valStr = data.invoiceData.value.replace("R$", "").replace(/\./g, "").replace(",", ".").trim();
+                                const val = parseFloat(valStr) || 0;
 
-                            if (val > 0) {
-                                // Use RD's main operation/subOperation
-                                const op = data.operation;
-                                const sub = data.subOperation?.obra || "Mão de Obra";
-                                addCost(op, sub, val);
-                            }
-                        }
+                                if (val > 0) {
+                                    // Use RD's main operation, fallback to assignments if missing
+                                    let op = data.operation;
 
-                        // Process Refunds
-                        if (data.refunds && Array.isArray(data.refunds)) {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            data.refunds.forEach((refund: any) => {
-                                const rVal = parseFloat(refund.value) || 0;
-                                if (rVal > 0) {
-                                    // Refund has its own operation/subOperation usually, or falls back to RD's
-                                    const rOp = refund.operation || data.operation;
-                                    const rSub = refund.subOperation?.obra || refund.expenseType || "Reembolso";
-                                    addCost(rOp, rSub, rVal);
+                                    if (!op) {
+                                        try {
+                                            const assignRef = doc(db, "users", userDoc.id, "settings", "rd_assignments");
+                                            const assignSnap = await getDoc(assignRef);
+                                            if (assignSnap.exists()) {
+                                                op = assignSnap.data()[`${year}-${month}`];
+                                            }
+                                        } catch (e) {
+                                            console.error("Error fetching assignment fallback:", e);
+                                        }
+                                    }
+
+                                    const sub = data.subOperation?.obra || "Mão de Obra";
+                                    addCost(op, sub, val);
                                 }
-                            });
+                            }
+
+                            // Process Refunds
+                            if (data.refunds && Array.isArray(data.refunds)) {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                data.refunds.forEach((refund: any) => {
+                                    const rVal = parseFloat(refund.value) || 0;
+                                    if (rVal > 0) {
+                                        const rOp = refund.operation || data.operation;
+                                        const rSub = refund.subOperation?.obra || refund.expenseType || "Reembolso";
+                                        addCost(rOp, rSub, rVal);
+                                    }
+                                });
+                            }
                         }
                     }
                 }));
@@ -127,49 +162,96 @@ export default function CostReport({ className = "" }: CostReportProps) {
             }
         };
 
-        loadCostData();
-    }, [selectedDate]);
+        if (startDate && endDate) {
+            loadCostData();
+        }
+    }, [startDate, endDate]);
 
     // Derived Data for Visualization
     const { chartData, listData, totalPeriodCost } = useMemo(() => {
         const items = Object.values(aggregatedCosts);
-        const total = items.reduce((acc, item) => acc + item.value, 0);
 
-        // Chart Data (Top 5 Global)
-        const sortedForChart = [...items].sort((a, b) => b.value - a.value).slice(0, 5);
-
-        // List Data
-        let listItems: { name: string, value: number, percentage: number }[] = [];
+        let total = 0;
+        let chartItems: { name: string, value: number }[] = [];
+        let listItems: { name: string, value: number, percentage: number, subItems?: Record<string, number> }[] = [];
 
         if (selectedOperation && aggregatedCosts[selectedOperation]) {
             // Detailed View: Sub-operations of selected
-            const subItems = aggregatedCosts[selectedOperation].subItems || {};
-            const opTotal = aggregatedCosts[selectedOperation].value;
+            const opData = aggregatedCosts[selectedOperation];
+            const subItems = opData.subItems || {};
+            const opTotal = opData.value;
+            total = opTotal; // Total for the context is the operation total
 
-            listItems = Object.entries(subItems).map(([subName, val]) => ({
+            const breakdown = Object.entries(subItems).map(([subName, val]) => ({
                 name: subName,
                 value: val,
                 percentage: (val / opTotal) * 100
             })).sort((a, b) => b.value - a.value);
 
+            chartItems = breakdown.slice(0, topN); // Top N based on user input
+            listItems = breakdown;
+
         } else {
             // Global View: All Operations
+            total = items.reduce((acc, item) => acc + item.value, 0);
+
+            // Top N Global for Chart
+            chartItems = [...items].sort((a, b) => b.value - a.value).slice(0, topN);
+
+            // All Operations for List
             listItems = items.map(item => ({
                 name: item.name,
                 value: item.value,
-                percentage: (item.value / total) * 100
+                percentage: total > 0 ? (item.value / total) * 100 : 0,
+                subItems: item.subItems
             })).sort((a, b) => b.value - a.value);
         }
 
-        return { chartData: sortedForChart, listData: listItems, totalPeriodCost: total };
-    }, [aggregatedCosts, selectedOperation]);
+        return { chartData: chartItems, listData: listItems, totalPeriodCost: total };
+    }, [aggregatedCosts, selectedOperation, topN]);
+
+
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     };
 
+    const exportToPDF = async () => {
+        const input = document.getElementById('cost-report-container');
+        if (!input) return;
+
+        try {
+            const canvas = await html2canvas(input, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+            const imgX = (pdfWidth - imgWidth * ratio) / 2;
+            const imgY = 10;
+
+            pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+            pdf.save(`Relatorio_Custos_${startDate}_${endDate}.pdf`);
+        } catch (error) {
+            console.error("Error exporting PDF:", error);
+        }
+    };
+
     return (
-        <div className={`w-full h-full flex flex-col gap-6 ${className}`}>
+        <div id="cost-report-container" className={`w-full h-full flex flex-col gap-6 ${className}`}>
             {/* Header / Filters Bar */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col xl:flex-row items-center justify-between gap-6 transition-all">
 
@@ -189,6 +271,16 @@ export default function CostReport({ className = "" }: CostReportProps) {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+
+                    {/* Export PDF Button */}
+                    <button
+                        onClick={exportToPDF}
+                        className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-gray-600 hover:text-red-500 transition-all flex items-center justify-center group"
+                        title="Exportar PDF"
+                    >
+                        <span className="material-symbols-rounded">picture_as_pdf</span>
+                    </button>
+
                     {/* Operation Selector */}
                     <div className="relative w-full sm:w-64 group">
                         <span className="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors pointer-events-none">
@@ -210,17 +302,27 @@ export default function CostReport({ className = "" }: CostReportProps) {
                         </span>
                     </div>
 
-                    {/* Date Selector */}
-                    <div className="relative w-full sm:w-48 group">
-                        <span className="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-500 transition-colors pointer-events-none">
-                            calendar_month
-                        </span>
-                        <input
-                            type="month"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-gray-50 hover:bg-white border border-gray-200 hover:border-blue-300 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-gray-700 font-medium cursor-pointer shadow-sm"
-                        />
+                    {/* Date Range Selectors */}
+                    <div className="flex items-center gap-2">
+                        <div className="relative w-auto group">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none bg-white px-1">De</span>
+                            <input
+                                type="month"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full pl-8 pr-2 py-2.5 bg-gray-50 hover:bg-white border border-gray-200 hover:border-blue-300 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-gray-700 font-medium cursor-pointer shadow-sm text-sm"
+                            />
+                        </div>
+                        <span className="text-gray-400">-</span>
+                        <div className="relative w-auto group">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none bg-white px-1">Até</span>
+                            <input
+                                type="month"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full pl-8 pr-2 py-2.5 bg-gray-50 hover:bg-white border border-gray-200 hover:border-blue-300 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-gray-700 font-medium cursor-pointer shadow-sm text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -229,12 +331,26 @@ export default function CostReport({ className = "" }: CostReportProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
 
                 {/* Left: Bar Chart (Top Operations) */}
+                {/* Left: Bar Chart (Top Operations) */}
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <span className="material-symbols-rounded text-blue-500">leaderboard</span>
-                        Ranking Global
-                        <span className="text-xs font-normal text-gray-400 ml-auto bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">Top 5 Operações</span>
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <span className="material-symbols-rounded text-blue-500">leaderboard</span>
+                            {selectedOperation ? `Ranking: ${selectedOperation}` : "Ranking Global"}
+                        </h3>
+                        {/* Top N Input */}
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-500">Top:</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={topN}
+                                onChange={(e) => setTopN(Math.max(1, parseInt(e.target.value) || 5))}
+                                className="w-16 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-center outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-gray-700"
+                            />
+                        </div>
+                    </div>
 
                     <div className="flex-1 w-full min-h-[300px]">
                         {loadingData ? (
@@ -259,7 +375,7 @@ export default function CostReport({ className = "" }: CostReportProps) {
                                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                         formatter={(value: number | undefined) => [formatCurrency(value || 0), 'Custo Total']}
                                     />
-                                    <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={32}>
+                                    <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={24}>
                                         {chartData.map((_entry, index) => (
                                             <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                                         ))}
@@ -302,9 +418,25 @@ export default function CostReport({ className = "" }: CostReportProps) {
                                     {listData.map((item, idx) => (
                                         <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors group">
                                             <td className="px-4 py-3 font-medium text-gray-700">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${selectedOperation ? 'bg-emerald-400' : 'bg-blue-400'}`}></div>
-                                                    {item.name}
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-2 h-2 rounded-full ${selectedOperation ? 'bg-emerald-400' : 'bg-blue-400'}`}></div>
+                                                        <span className="text-gray-900">{item.name}</span>
+                                                    </div>
+                                                    {/* Sub-items breakdown (Only in Global View or if subItems exists) */}
+                                                    {!selectedOperation && item.subItems && (
+                                                        <div className="pl-4 text-xs text-gray-500 space-y-0.5">
+                                                            {Object.entries(item.subItems)
+                                                                .sort(([, a], [, b]) => b - a)
+                                                                .map(([subKey, subVal]) => (
+                                                                    <div key={subKey} className="flex items-center gap-1">
+                                                                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                                        <span>{subKey}:</span>
+                                                                        <span className="font-mono text-gray-400">{formatCurrency(subVal)}</span>
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-right font-mono text-gray-600 group-hover:text-gray-900">
@@ -325,7 +457,7 @@ export default function CostReport({ className = "" }: CostReportProps) {
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
