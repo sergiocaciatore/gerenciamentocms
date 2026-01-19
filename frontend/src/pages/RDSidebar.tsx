@@ -53,7 +53,8 @@ export default function RDSidebar({ activePage, setActivePage }: RDSidebarProps)
             { id: "admin", label: "Administrativo", icon: "admin_panel_settings" },
             { id: "operations", label: "Operações", icon: "business_center" },
             { id: "history", label: "Históricos", icon: "history" },
-            { id: "compiled-report", label: "Relatório Compilado", icon: "summarize" }
+            { id: "compiled-report", label: "Relatório Compilado", icon: "summarize" },
+            { id: "cost-report", label: "Relatório de Custos", icon: "request_quote" }
         ] : [])
     ];
 

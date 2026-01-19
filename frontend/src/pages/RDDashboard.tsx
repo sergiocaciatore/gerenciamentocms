@@ -9,6 +9,7 @@ import AdminPanel from "./rd/AdminPanel";
 import OperationsList from "./rd/OperationsList";
 import HistoryList from "./rd/HistoryList";
 import CompiledReport from "./rd/CompiledReport";
+import CostReport from "./rd/CostReport";
 
 export default function RDDashboard() {
     const [activePage, setActivePage] = useState("available");
@@ -55,6 +56,8 @@ export default function RDDashboard() {
                         <HistoryList />
                     ) : activePage === "compiled-report" ? (
                         <CompiledReport />
+                    ) : activePage === "cost-report" ? (
+                        <CostReport />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-gray-500">
                             Em desenvolvimento...
