@@ -20,21 +20,19 @@ from datetime import datetime
 import os
 import uuid
 import shutil
+import smtplib
+import poplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import asyncio
+import pytz
 
 # Temp storage for AI files
 TEMP_DIR = "/tmp/cms_ai_files"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 app = FastAPI()
-
-
-@app.on_event("startup")
-def startup_event():
-    try:
-        initialize_firebase()
-    except Exception as e:
-        # Log error but don't crash, allowing the app to start so we can see logs
-        print(f"ERROR: Failed to initialize Firebase: {e}")
 
 
 # Default origins for development and production
@@ -1644,3 +1642,327 @@ def approve_lpu(lpu_id: str, req: ApproveRequest = Body(default=None)):
 
     doc_ref.update(updates)
     return {"message": "LPU approved", "restored_revision": req.revision_number}
+
+
+# --- Email Verification ---
+
+
+class EmailConfig(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/verify-email")
+def verify_email(config: EmailConfig, current_user: dict = Depends(get_current_user)):
+    """
+    Verifies email credentials against postmail.cmseng.com.br
+    SMTP: 465 (SSL)
+    POP3: 995 (SSL)
+    """
+    SERVER = "postmail.cmseng.com.br"
+    SMTP_PORT = 465
+    POP_PORT = 995
+    email = config.email
+    password = config.password
+
+    # 1. Verify SMTP (Send)
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SERVER, SMTP_PORT, context=context) as server:
+            server.login(email, password)
+            # Just login is enough to verify credentials
+    except Exception as e:
+        print(f"SMTP Verification Failed: {e}")
+        raise HTTPException(
+            status_code=400, detail=f"Falha na autenticação SMTP (Envio): {str(e)}"
+        )
+
+    # 2. Verify POP3 (Receive)
+    try:
+        # POP3_SSL defaults to port 995
+        server = poplib.POP3_SSL(SERVER, POP_PORT)
+        server.user(email)
+        server.pass_(password)
+        server.quit()
+    except Exception as e:
+        print(f"POP3 Verification Failed: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Falha na autenticação POP3 (Recebimento): {str(e)}",
+        )
+
+    # If both pass, save to Firestore for this user/tenant context
+    # Usually this is a global setting or per-user. Assuming global for now or user-specific?
+    # Requirement: "o usuário insira só o email e a senha".
+    # We will just verify here. Saving can be done by the frontend to a specific doc,
+    # or we can verify AND save here.
+    # Let's just return success for verification, frontend saves to Firestore Settings.
+
+    return {"message": "Credenciais verificadas com sucesso!", "valid": True}
+
+
+@app.on_event("startup")
+async def startup_event():
+    print("STARTUP EVENT TRIGGERED", flush=True)  # DEBUG
+    try:
+        initialize_firebase()
+        # Start Scheduler in Background
+        print("Starting scheduler task...", flush=True)  # DEBUG
+        asyncio.create_task(scheduler_loop())
+    except Exception as e:
+        print(f"ERROR: Failed to initialize Firebase or Scheduler: {e}", flush=True)
+
+
+async def scheduler_loop():
+    """
+    Background Task: Checks every 60s for scheduled emails.
+    """
+    # BRT Timezone
+    tz = pytz.timezone("America/Sao_Paulo")
+
+    print("[SCHEDULER] Started email scheduler loop.", flush=True)
+
+    while True:
+        try:
+            now = datetime.now(tz)
+            current_date_str = now.strftime("%Y-%m-%d")
+            current_time_str = now.strftime("%H:%M")
+
+            # Basic query: Get all Scheduled Emails that are NOT 'sent'
+            # Optimization: In a real app, we would index by date/status.
+            # Here assuming volume is low enough to filter in memory or simple query.
+            # Firestore query: where('status', '!=', 'sent') requires an index if mixed with other fields.
+            # Let's try to get all and filter.
+
+            db = firestore.client()
+            # Note: collection name must match frontend: "scheduled_emails"
+            docs = db.collection("scheduled_emails").stream()
+
+            for doc in docs:
+                data = doc.to_dict()
+                email_id = doc.id
+
+                # Check Status
+                status = data.get("status", "pending")  # Default to pending if missing
+                print(
+                    f"[SCHEDULER] Checking {email_id}: Date={data.get('date')} Time={data.get('time')} Status={status}",
+                    flush=True,
+                )
+
+                if status == "sent":
+                    continue
+
+                # Check Date & Time
+                DATE = data.get("date")  # "YYYY-MM-DD"
+                TIME = data.get("time", "08:00")  # "HH:mm"
+
+                if not DATE:
+                    continue
+
+                # Compare:
+                # If Date < Today: Overdue, send it.
+                # If Date == Today: Check Time.
+                # If Date > Today: Wait.
+
+                should_send = False
+                if DATE < current_date_str:
+                    should_send = True
+                elif DATE == current_date_str:
+                    if TIME <= current_time_str:
+                        should_send = True
+
+                if should_send:
+                    print(
+                        f"[SCHEDULER] Sending email {email_id} - Scheduled: {DATE} {TIME}"
+                    )
+                    try:
+                        # Send Email
+                        await send_email_internal(data)
+
+                        # Check for recurrence
+                        recurrence = data.get("recurrence", "none")
+
+                        if recurrence and recurrence != "none":
+                            # Calculate next send date
+                            from datetime import timedelta
+                            from dateutil.relativedelta import relativedelta
+
+                            current_scheduled = datetime.strptime(DATE, "%Y-%m-%d")
+
+                            if recurrence == "weekly":
+                                next_date = current_scheduled + timedelta(days=7)
+                            elif recurrence == "biweekly":
+                                next_date = current_scheduled + timedelta(days=14)
+                            elif recurrence == "monthly":
+                                next_date = current_scheduled + relativedelta(months=1)
+                            else:
+                                next_date = current_scheduled
+
+                            # Update for next occurrence
+                            db.collection("scheduled_emails").document(email_id).update(
+                                {
+                                    "date": next_date.strftime("%Y-%m-%d"),
+                                    "lastSentAt": now.isoformat(),
+                                    "status": "pending",  # Keep pending for next run
+                                }
+                            )
+                            print(
+                                f"[SCHEDULER] Email {email_id} sent. Next occurrence: {next_date.strftime('%Y-%m-%d')}"
+                            )
+                        else:
+                            # One-time email: mark as sent
+                            db.collection("scheduled_emails").document(email_id).update(
+                                {"status": "sent", "sentAt": now.isoformat()}
+                            )
+                            print(f"[SCHEDULER] Email {email_id} sent and marked.")
+
+                    except Exception as e:
+                        print(f"[SCHEDULER] Failed to send email {email_id}: {e}")
+                        # Optional: increment retry count or mark as error
+
+        except Exception as e:
+            print(f"[SCHEDULER] Error in loop: {e}")
+
+        await asyncio.sleep(60)
+
+
+async def send_email_internal(data: dict):
+    """
+    Reusable logic to send email.
+    Supports 'recipients' list or legacy 'recipientEmail'.
+    """
+    recipients = data.get("recipients", [])  # List of {email, name}
+    recipient_email_legacy = data.get("recipientEmail")
+
+    # Normalize recipients list
+    final_recipients = []
+
+    if recipients and isinstance(recipients, list) and len(recipients) > 0:
+        for r in recipients:
+            if isinstance(r, dict) and "email" in r:
+                final_recipients.append(r["email"])
+
+    if not final_recipients and recipient_email_legacy:
+        final_recipients.append(recipient_email_legacy)
+
+    if not final_recipients:
+        print("[SCHEDULER] No recipients found for email.")
+        return  # Nothing to do
+
+    subject = data.get("title")
+    body = data.get("body")
+    sender_email = data.get("senderEmail")
+    sender_password = data.get("senderPassword")
+
+    # Reuse the logic of determining credentials
+    SERVER = "postmail.cmseng.com.br"
+    PORT = 465
+
+    # Determine credentials logic same as endpoint
+    if not sender_email or not sender_password:
+        try:
+            db = firestore.client()
+            settings_doc = db.collection("settings").document("email_config").get()
+            if settings_doc.exists:
+                g_data = settings_doc.to_dict()
+                if not sender_email:
+                    sender_email = g_data.get("email")
+                if not sender_password:
+                    sender_password = g_data.get("password")
+        except Exception as e:
+            print(f"Error fetching global email settings: {e}")
+
+    if not sender_email or not sender_password:
+        raise Exception("Missing credentials")
+
+    # Run sync SMTP
+    loop = asyncio.get_event_loop()
+
+    print(
+        f"[SCHEDULER] Sending email '{subject}' to {len(final_recipients)} recipients.",
+        flush=True,
+    )
+
+    for to_email in final_recipients:
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = sender_email
+            msg["To"] = to_email
+            msg["Subject"] = subject
+
+            content = body.replace("\n", "<br>")
+            html_body = f"""
+            <html>
+                <body>
+                    <p>{content}</p>
+                    <br>
+                    <hr>
+                    <p style="font-size: 10px; color: gray;">Enviado via Portal CMS (Automático)</p>
+                </body>
+            </html>
+            """
+            msg.attach(MIMEText(html_body, "html"))
+
+            await loop.run_in_executor(
+                None,
+                _send_smtp_sync,
+                SERVER,
+                PORT,
+                sender_email,
+                sender_password,
+                to_email,
+                msg.as_string(),
+            )
+            print(f"[SCHEDULER] Sent to {to_email}", flush=True)
+
+        except Exception as e:
+            print(f"[SCHEDULER] Failed to send to {to_email}: {e}", flush=True)
+
+
+def _send_smtp_sync(server_host, port, user, password, to_email, msg_str):
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(server_host, port, context=context) as server:
+        server.login(user, password)
+        server.sendmail(user, to_email, msg_str)
+
+
+class RecipientModel(BaseModel):
+    email: str
+    name: Optional[str] = None
+
+
+class CustomEmailRequest(BaseModel):
+    # Support both single and multiple
+    recipient_email: Optional[str] = None
+    recipients: Optional[List[RecipientModel]] = []
+    subject: str
+    body: str
+    sender_email: Optional[str] = None
+    sender_password: Optional[str] = None
+
+
+@app.post("/send-custom-email")
+async def send_custom_email(
+    request: CustomEmailRequest, current_user: dict = Depends(get_current_user)
+):
+    """
+    Sends a custom email using provided or default credentials via SMTP/SSL 465.
+    """
+    # Map request to internal dictionary format
+    data = {
+        "recipientEmail": request.recipient_email,
+        "recipients": [r.dict() for r in request.recipients]
+        if request.recipients
+        else [],
+        "title": request.subject,
+        "body": request.body,
+        "senderEmail": request.sender_email,
+        "senderPassword": request.sender_password,
+    }
+
+    try:
+        await send_email_internal(data)
+        return {"message": "Email enviado com sucesso!"}
+    except Exception as e:
+        print(f"Send Email Failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar email: {str(e)}")

@@ -41,6 +41,10 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
     const [invoiceRejected, setInvoiceRejected] = useState(initialData?.invoiceRejected || false);
     const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
 
+    // Invoice Upload Restriction State
+    const [uploadAllowed, setUploadAllowed] = useState(true);
+    const [uploadRestrictionMsg, setUploadRestrictionMsg] = useState("");
+
     // Sub-Operation Selection State
     const [subOpsList, setSubOpsList] = useState<SubOperation[]>([]);
     const [selectedSubOp, setSelectedSubOp] = useState<SubOperation | null>(initialData?.subOperation || null);
@@ -124,6 +128,46 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
             }
         }
     }, [submittedPeriods, selectedYear, selectedMonth, viewMode]);
+
+    // Check Invoice Date Restrictions
+    useEffect(() => {
+        if (viewMode) return;
+
+        const checkRestriction = async () => {
+            try {
+                const settingsRef = doc(db, "settings", "invoice_dates");
+                const settingsSnap = await getDoc(settingsRef);
+
+                if (settingsSnap.exists()) {
+                    const { startDay, endDay } = settingsSnap.data();
+                    if (startDay && endDay) {
+                        const today = new Date().getDate();
+                        const start = parseInt(startDay);
+                        const end = parseInt(endDay);
+
+                        if (!isNaN(start) && !isNaN(end)) {
+                            // Check if configured
+                            if (today < start || today > end) {
+                                setUploadAllowed(false);
+                                setUploadRestrictionMsg(`Envio permitido apenas entre os dias ${start} e ${end}.`);
+                                return;
+                            }
+                        }
+                    }
+                }
+                // Default: Allowed if no config or within range
+                setUploadAllowed(true);
+                setUploadRestrictionMsg("");
+            } catch (err) {
+                console.error("Error checking date restrictions:", err);
+                // Fail safe: Allow upload if error checking settings? Or Block?
+                // Let's Allow to avoid blocking due to network glitch, assuming restriction is an "extra" rule.
+                setUploadAllowed(true);
+            }
+        };
+
+        checkRestriction();
+    }, [viewMode]);
 
     // Load Data Effect
     useEffect(() => {
@@ -718,12 +762,15 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                                         onChange={(e) => {
                                             if (e.target.files?.[0]) handleInvoiceUpload(e.target.files[0]);
                                         }}
-                                        disabled={isUploadingInvoice}
+                                        disabled={isUploadingInvoice || !uploadAllowed}
                                     />
                                     <label
-                                        htmlFor="invoice-upload"
-                                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm cursor-pointer transition-all active:scale-95 ${invoiceUrl ? "bg-white text-purple-600 border-2 border-purple-100 hover:border-purple-300"
-                                            : "bg-purple-600 text-white hover:bg-purple-700 shadow-purple-200"
+                                        htmlFor={uploadAllowed ? "invoice-upload" : ""}
+                                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-95 ${!uploadAllowed
+                                            ? "bg-gray-200 text-gray-400 cursor-not-allowed border-none shadow-none"
+                                            : invoiceUrl
+                                                ? "bg-white text-purple-600 border-2 border-purple-100 hover:border-purple-300 cursor-pointer"
+                                                : "bg-purple-600 text-white hover:bg-purple-700 shadow-purple-200 cursor-pointer"
                                             }`}
                                     >
                                         {isUploadingInvoice ? (
@@ -735,8 +782,8 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                                         )}
                                     </label>
                                     {/* Tooltip */}
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                        {invoiceUrl ? "Alterar Nota" : "Enviar Nota"}
+                                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 ${!uploadAllowed ? "bg-red-500" : "bg-gray-800"}`}>
+                                        {!uploadAllowed ? uploadRestrictionMsg : (invoiceUrl ? "Alterar Nota" : "Enviar Nota")}
                                     </div>
                                 </div>
                             )}
@@ -758,7 +805,9 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                         <>
                             <button
                                 onClick={confirmSend}
-                                className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-95 text-xs lg:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                                disabled={!uploadAllowed}
+                                className={`flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-95 text-xs lg:text-sm flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`}
+                                title={!uploadAllowed ? uploadRestrictionMsg : ""}
                             >
                                 <span className="material-symbols-rounded text-lg">send</span>
                                 {invoiceRejected ? "Reenviar Nota" : "Enviar RD"}

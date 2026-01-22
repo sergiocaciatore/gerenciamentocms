@@ -10,6 +10,7 @@ import OperationsList from "./rd/OperationsList";
 import HistoryList from "./rd/HistoryList";
 import CompiledReport from "./rd/CompiledReport";
 import CostReport from "./rd/CostReport";
+import EmailConfigPage from "./rd/EmailConfigPage";
 
 export default function RDDashboard() {
     const [activePage, setActivePage] = useState("available");
@@ -58,6 +59,8 @@ export default function RDDashboard() {
                         <CompiledReport />
                     ) : activePage === "cost-report" ? (
                         <CostReport />
+                    ) : activePage === "email-config" ? (
+                        <EmailConfigPage />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-gray-500">
                             Em desenvolvimento...

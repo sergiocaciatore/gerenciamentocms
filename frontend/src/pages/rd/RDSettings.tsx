@@ -14,6 +14,7 @@ interface SettingsData {
         cnpjCard?: string;
         cnd?: string;
         cndt?: string;
+        cedit?: string;
     };
     // Banking Info
     bankName?: string;
@@ -22,11 +23,18 @@ interface SettingsData {
     pixKey?: string;
 }
 
-const DOCUMENTS = [
+interface DocumentType {
+    id: string;
+    label: string;
+    link?: string;
+}
+
+const DOCUMENTS: DocumentType[] = [
     { id: "contract", label: "Contrato Social" },
     { id: "cnpjCard", label: "Carta CNPJ" },
-    { id: "cnd", label: "Certidão Negativa de Débitos (CND)" },
-    { id: "cndt", label: "Certidão Negativa de Débitos Trabalhistas (CNDT)" },
+    { id: "cnd", label: "Certidão Negativa de Débitos (CND)", link: "https://servicos.receitafederal.gov.br/servico/certidoes/#/home" },
+    { id: "cndt", label: "Certidão Negativa de Débitos Trabalhistas (CNDT)", link: "https://www.tst.jus.br/certidao1" },
+    { id: "cedit", label: "Certidão Negativa de Débitos Trabalhistas (CEDIT)", link: "https://eprocesso.sit.trabalho.gov.br/Entrar?ReturnUrl=%2FCertidao%2FEmitir" },
 ];
 
 export default function RDSettings() {
@@ -340,10 +348,24 @@ export default function RDSettings() {
                                             <span className="material-symbols-rounded text-xl">description</span>
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="font-medium text-gray-700 text-sm truncate">{docItem.label}</span>
+                                            {docItem.link ? (
+                                                <a
+                                                    href={docItem.link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="font-medium text-gray-700 text-sm truncate hover:text-blue-600 hover:underline transition-colors"
+                                                    title={`Acessar: ${docItem.label}`}
+                                                >
+                                                    {docItem.label}
+                                                    <span className="material-symbols-rounded text-[14px] ml-1 align-middle text-gray-400">open_in_new</span>
+                                                </a>
+                                            ) : (
+                                                <span className="font-medium text-gray-700 text-sm truncate">{docItem.label}</span>
+                                            )}
+
                                             {fileUrl ? (
                                                 <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate">
-                                                    Ver documento
+                                                    Ver documento enviado
                                                 </a>
                                             ) : (
                                                 <span className="text-xs text-gray-400">Pendente</span>

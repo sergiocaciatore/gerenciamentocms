@@ -325,8 +325,8 @@ export default function CompiledReport() {
                             <thead className="bg-gray-50/90 text-gray-500 font-medium text-xs uppercase tracking-wider backdrop-blur-sm sticky top-0 z-30 shadow-sm">
                                 <tr>
                                     <th className="p-3 w-20 text-center border-b border-gray-200 sticky left-0 bg-gray-50 z-30 border-r border-gray-200">Cte</th>
-                                    <th className="p-3 w-32 border-b border-gray-200 sticky left-20 bg-gray-50 z-30 border-r border-gray-200">Contábil</th>
-                                    <th className="p-3 w-64 border-b border-gray-200 sticky left-52 bg-gray-50 z-30 border-r border-gray-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Nome do CC (Obra)</th>
+                                    {/* <th className="p-3 w-32 border-b border-gray-200 sticky left-20 bg-gray-50 z-30 border-r border-gray-200">Contábil</th> */}
+                                    <th className="p-3 w-64 border-b border-gray-200 sticky left-20 bg-gray-50 z-30 border-r border-gray-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Nome do CC (Obra)</th>
 
                                     {users.map(user => (
                                         <th key={user.id} className="p-3 border-b border-gray-200 min-w-[100px] text-center border-r border-dashed border-gray-200 last:border-r-0" title={user.fullName}>
@@ -348,10 +348,10 @@ export default function CompiledReport() {
                                         <td className="p-3 text-center font-mono text-gray-500 font-medium border-r border-gray-100 sticky left-0 bg-white z-10 group-hover:bg-blue-50/40 transition-colors">
                                             {item.cte}
                                         </td>
-                                        <td className="p-3 font-mono text-gray-500 border-r border-gray-100 sticky left-20 bg-white z-10 group-hover:bg-blue-50/40 transition-colors">
+                                        {/* <td className="p-3 font-mono text-gray-500 border-r border-gray-100 sticky left-20 bg-white z-10 group-hover:bg-blue-50/40 transition-colors">
                                             {item.contabil}
-                                        </td>
-                                        <td className="p-3 font-medium border-r border-gray-100 sticky left-52 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-blue-50/40 transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-[250px]" title={item.obra}>
+                                        </td> */}
+                                        <td className="p-3 font-medium border-r border-gray-100 sticky left-20 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-blue-50/40 transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-[250px]" title={item.obra}>
                                             {item.obra}
                                         </td>
 
@@ -378,8 +378,8 @@ export default function CompiledReport() {
                             <tfoot className="bg-gray-100/90 text-gray-700 font-bold text-xs uppercase tracking-wider backdrop-blur-sm sticky bottom-0 z-30 shadow-[0_-2px_5px_-2px_rgba(0,0,0,0.1)]">
                                 <tr>
                                     <td className="p-3 text-center border-t border-gray-200 sticky left-0 bg-gray-100 z-30 border-r border-gray-200">Total</td>
-                                    <td className="p-3 border-t border-gray-200 sticky left-20 bg-gray-100 z-30 border-r border-gray-200"></td>
-                                    <td className="p-3 border-t border-gray-200 sticky left-52 bg-gray-100 z-30 border-r border-gray-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-right pr-4">
+                                    {/* <td className="p-3 border-t border-gray-200 sticky left-20 bg-gray-100 z-30 border-r border-gray-200"></td> */}
+                                    <td className="p-3 border-t border-gray-200 sticky left-20 bg-gray-100 z-30 border-r border-gray-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-right pr-4">
                                         Total de Horas:
                                     </td>
                                     {users.map(user => (

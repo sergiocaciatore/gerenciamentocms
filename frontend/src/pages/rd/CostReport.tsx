@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { collection, getDocs, getDoc, doc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 interface CostReportProps {
@@ -39,6 +39,7 @@ export default function CostReport({ className = "" }: CostReportProps) {
     const [aggregatedCosts, setAggregatedCosts] = useState<Record<string, CostItem>>({});
     const [loading, setLoading] = useState(true);
     const [loadingData, setLoadingData] = useState(false);
+    const [generatingPDF, setGeneratingPDF] = useState(false);
 
     // Initial Load of Operations
     useEffect(() => {
@@ -220,15 +221,16 @@ export default function CostReport({ className = "" }: CostReportProps) {
         const input = document.getElementById('cost-report-container');
         if (!input) return;
 
+        setGeneratingPDF(true); // Start loading
+
         try {
-            const canvas = await html2canvas(input, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff'
+            // Using html-to-image for better Tailwind v4/oklab support
+            const imgData = await toPng(input, {
+                cacheBust: true,
+                backgroundColor: '#ffffff',
+                style: { transform: 'scale(1)' } // Prevent scaling issues
             });
 
-            const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
@@ -237,8 +239,14 @@ export default function CostReport({ className = "" }: CostReportProps) {
 
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
+
+            // Create an image to get natural dimensions
+            const img = new Image();
+            img.src = imgData;
+            await new Promise((resolve) => { img.onload = resolve; });
+
+            const imgWidth = img.width;
+            const imgHeight = img.height;
             const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
             const imgX = (pdfWidth - imgWidth * ratio) / 2;
             const imgY = 10;
@@ -247,6 +255,9 @@ export default function CostReport({ className = "" }: CostReportProps) {
             pdf.save(`Relatorio_Custos_${startDate}_${endDate}.pdf`);
         } catch (error) {
             console.error("Error exporting PDF:", error);
+            alert("Erro ao gerar PDF. Tente novamente.");
+        } finally {
+            setGeneratingPDF(false); // Stop loading
         }
     };
 
@@ -273,12 +284,19 @@ export default function CostReport({ className = "" }: CostReportProps) {
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
 
                     {/* Export PDF Button */}
+                    {/* Export PDF Button */}
                     <button
                         onClick={exportToPDF}
-                        className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-gray-600 hover:text-red-500 transition-all flex items-center justify-center group"
-                        title="Exportar PDF"
+                        disabled={generatingPDF}
+                        className="p-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+                        title={generatingPDF ? "Gerando..." : "Exportar PDF"}
                     >
-                        <span className="material-symbols-rounded">picture_as_pdf</span>
+                        {generatingPDF ? (
+                            <span className="material-symbols-rounded animate-spin text-xl">progress_activity</span>
+                        ) : (
+                            <span className="material-symbols-rounded text-xl">picture_as_pdf</span>
+                        )}
+                        <span className="font-medium text-sm">PDF</span>
                     </button>
 
                     {/* Operation Selector */}

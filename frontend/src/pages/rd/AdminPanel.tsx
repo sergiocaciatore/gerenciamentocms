@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { collection, getDocs, query, doc, updateDoc, deleteDoc, deleteField, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
+import EmailConfigModal from '../../components/EmailConfigModal';
+import InvoiceDateConfigModal from '../../components/InvoiceDateConfigModal';
 import ConfirmationModal from "../../components/ConfirmationModal";
+// Force TS Re-index
 import Timesheet from './Timesheet';
 import Refunds from './Refunds';
 import UserDetailsModal from './UserDetailsModal';
@@ -46,6 +49,8 @@ export default function AdminPanel() {
     const [viewingRefunds, setViewingRefunds] = useState<{ rd: RDData, userName: string } | null>(null);
     const [viewingUserDetail, setViewingUserDetail] = useState<UserData | null>(null);
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isDateConfigModalOpen, setIsDateConfigModalOpen] = useState(false);
 
     // Dynamic Operations State
     const [operationsList, setOperationsList] = useState<string[]>([]);
@@ -661,6 +666,24 @@ export default function AdminPanel() {
 
                     {/* Row 3: Advanced Filters Controls */}
                     <div className="flex gap-2 items-center flex-wrap justify-end">
+                        {/* Email Config Button */}
+                        <button
+                            onClick={() => setIsEmailModalOpen(true)}
+                            className="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-blue-600 transition-colors flex items-center justify-center"
+                            title="Configurar Email"
+                        >
+                            <span className="material-symbols-rounded text-lg">settings_suggest</span>
+                        </button>
+
+                        {/* Invoice Date Config Button */}
+                        <button
+                            onClick={() => setIsDateConfigModalOpen(true)}
+                            className="px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 hover:text-blue-600 transition-colors flex items-center justify-center"
+                            title="Datas para envio de nota"
+                        >
+                            <span className="material-symbols-rounded text-lg">event_busy</span>
+                        </button>
+
                         <button
                             onClick={() => setFilterRDPending(!filterRDPending)}
                             disabled={selectedMonth === -1}
@@ -1257,6 +1280,17 @@ export default function AdminPanel() {
                     </div>
                 </div>
             )}
+            {/* Email Config Modal */}
+            <EmailConfigModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+            />
+            {/* Invoice Date Config Modal */}
+            <InvoiceDateConfigModal
+                isOpen={isDateConfigModalOpen}
+                onClose={() => setIsDateConfigModalOpen(false)}
+            />
+
         </div>
     );
 }

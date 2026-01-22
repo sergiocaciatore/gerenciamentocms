@@ -73,7 +73,7 @@ export default function OperationsList() {
     }, [newOpName]);
 
     const handleCreateSubOperation = useCallback(async () => {
-        if (!selectedOpForSub || !newSubOp.cte || !newSubOp.contabil || !newSubOp.obra) {
+        if (!selectedOpForSub || !newSubOp.cte || !newSubOp.obra) {
             alert("Preencha todos os campos obrigatórios.");
             return;
         }
@@ -210,7 +210,7 @@ export default function OperationsList() {
                                                         <thead className="bg-gray-100 text-gray-600 font-medium">
                                                             <tr>
                                                                 <th className="p-3 w-24 text-center">Cte.</th>
-                                                                <th className="p-3 w-32">Contábil</th>
+                                                                {/* <th className="p-3 w-32">Contábil</th> */}
                                                                 <th className="p-3">Obra</th>
                                                             </tr>
                                                         </thead>
@@ -218,7 +218,7 @@ export default function OperationsList() {
                                                             {op.subOperations.map((sub, idx) => (
                                                                 <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
                                                                     <td className="p-3 text-center font-mono text-gray-500">{sub.cte}</td>
-                                                                    <td className="p-3 font-mono text-gray-700">{sub.contabil}</td>
+                                                                    {/* <td className="p-3 font-mono text-gray-700">{sub.contabil}</td> */}
                                                                     <td className="p-3 font-medium text-gray-800">{sub.obra}</td>
                                                                 </tr>
                                                             ))}
@@ -294,7 +294,7 @@ export default function OperationsList() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Contábil</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contábil <span className="text-gray-400 font-normal text-xs">(Opcional)</span></label>
                                 <input
                                     type="text"
                                     value={newSubOp.contabil}
@@ -324,7 +324,7 @@ export default function OperationsList() {
                             <button
                                 onClick={handleCreateSubOperation}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={!newSubOp.cte || !newSubOp.contabil || !newSubOp.obra}
+                                disabled={!newSubOp.cte || !newSubOp.obra}
                             >
                                 Adicionar
                             </button>
