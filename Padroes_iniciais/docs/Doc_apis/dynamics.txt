@@ -1,0 +1,50 @@
+	•	id — string (uuid) — Identificador único do cliente
+	•	nome — string — Nome do negócio potencial
+	•	assunto — string — Assunto do negócio potencial
+	•	unidade_negocio_interesse — object — BU de interesse do negócio potencial
+	•	unidade_negocio_interesse.codigo — string — Código da unidade de negócio
+	•	unidade_negocio_proprietaria — object — BU proprietária do negócio potencial
+	•	unidade_negocio_proprietaria.codigo — string — Código da unidade de negócio
+	•	status — string — Status do negócio potencial — permitidos: aberto, liberado_para_qualificacao, qualificado, desqualificado
+	•	origem — string — Origem do negócio potencial — permitidos: site, 0800, prospeccao, indicacao, outros, whatsapp, midia, site_carrinho, sdr
+	•	origem_sdr — string — Origem de SDR do negócio potencial — permitidos: speedio, indicacao
+	•	sub_origem_sdr — string — Sub-Origem de SDR do negócio potencial
+	•	local_demanda — object — Local da demanda do negócio potencial
+	•	local_demanda.municipio — object — Município da demanda do negócio potencial
+	•	local_demanda.municipio.nome — string — Nome do município
+	•	local_demanda.municipio.codigo_ibge — string — Código IBGE do município
+	•	local_demanda.estado — object — Estado da demanda do negócio potencial
+	•	local_demanda.estado.sigla — string — Sigla do estado — permitidos: AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO
+	•	observacao — string — Observação do negócio potencial
+	•	consentimentoEnvioEmail — boolean — Consentimento para envio de e-mails
+	•	aquecimento_lead — string — Nível de aquecimento do negócio potencial — permitidos: quente, morno, frio
+	•	possui_demanda_imediata — boolean — Indica se o negócio potencial possui demanda imediata
+	•	questionario_pre_venda — array — Questionário de qualificação do negócio potencial
+	•	questionario_pre_venda[] — object — Item do questionário
+	•	questionario_pre_venda[].ordem — string — Ordem da pergunta dentro do questionário
+	•	questionario_pre_venda[].pergunta — string — Pergunta do questionário
+	•	questionario_pre_venda[].resposta — string — Resposta do responsável do negócio potencial à pergunta
+	•	contato — object — Contato do negócio potencial
+	•	contato.nome — string — Nome do contato do negócio potencial
+	•	contato.sobrenome — string — Sobrenome do contato do negócio potencial
+	•	contato.telefone — string — Telefone do contato do negócio potencial
+	•	contato.email — string — Email do contato do negócio potencial
+	•	empresa — object — Empresa do negócio potencial
+	•	empresa.cnpj — string — CNPJ da empresa do negócio potencial
+	•	empresa.razao_social — string — Razão social da empresa do negócio potencial
+	•	utms — object — Informações de rastreamento do negócio potencial
+	•	utms.campanha — string
+	•	utms.clickid — string
+	•	utms.content — string
+	•	utms.media — string
+	•	utms.termo — string
+	•	utms.origem — string
+	•	utms.source — string
+	•	utms.url — string
+	•	utms.pagepath — string
+	•	utms.ip — string
+
+    Descrição:
+
+    As utms são recebidas do @infra_campanha, mas o utms.termo sempre será "teste-ia-whats" 
+    

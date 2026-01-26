@@ -28,14 +28,14 @@ from email.mime.multipart import MIMEMultipart
 import asyncio
 import pytz
 
-# Temp storage for AI files
+# Armazenamento temporário para arquivos da IA
 TEMP_DIR = "/tmp/cms_ai_files"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 app = FastAPI()
 
 
-# Default origins for development and production
+# Origens padrão para desenvolvimento e produção
 DEFAULT_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
@@ -44,8 +44,8 @@ DEFAULT_ORIGINS = [
     "https://www.gerenciamentocms.app.br",
 ]
 
-# Read from env or use defaults
-# Parsing robusto: split por virgula, strip de espacos, remove vazios
+# Ler do env ou usar padrões
+# Parsing robusto: divisão por vírgula, remoção de espaços e vazios
 cors_origins_str = os.getenv("CORS_ORIGINS", "")
 env_origins = []
 if cors_origins_str and cors_origins_str.strip():
@@ -53,7 +53,7 @@ if cors_origins_str and cors_origins_str.strip():
         origin.strip() for origin in cors_origins_str.split(",") if origin.strip()
     ]
 
-# MERGE defaults with env origins to ensure safely
+# Mesclar padrões com origens do env para garantir segurança
 origins = list(set(DEFAULT_ORIGINS + env_origins))
 
 print(f"CORS Origins Configured: {origins}")
@@ -61,7 +61,7 @@ print(f"CORS Origins Configured: {origins}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.run\.app",  # Allow all Cloud Run subdomains
+    allow_origin_regex=r"https://.*\.run\.app",  # Permitir todos os subdomínios do Cloud Run
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -147,7 +147,7 @@ class WorkCreate(BaseModel):
 @app.post("/works")
 def create_work(work: WorkCreate, current_user: dict = Depends(get_current_user)):
     db = firestore.client()
-    # Use the provided ID as the document ID
+    # Usar o ID fornecido como ID do documento
     doc_ref = db.collection("works").document(work.id)
     doc_ref.set(work.dict())
     return {"message": "Work created successfully", "id": work.id}
@@ -163,18 +163,18 @@ def get_works(
 ):
     db = firestore.client()
 
-    # Base Query
+    # Consulta Base
     works_ref = db.collection("works")
 
-    # Appply Filters
+    # Aplicar Filtros
     if regional and regional.strip():
         works_ref = works_ref.where("regional", "==", regional.strip())
 
-    # Search (limited to Prefix on regional for optimization or just fetch all if search is heavy?
-    # Firestore doesn't support 'contains'. For now, let's apply offset/limit.
-    # If a search term is generic, we might miss data if we only search the first page.
-    # TODO: Implement full text search engine (e.g. Algolia or specialized collection)
-    # For now, we apply pagination to the filtered result.
+    # Pesquisa (limitada ao Prefixo na regional para otimização ou apenas buscar tudo se a pesquisa for pesada?
+    # Firestore não suporta 'contains'. Por enquanto, aplicamos offset/limit.
+    # Se um termo de pesquisa for genérico, podemos perder dados se pesquisarmos apenas na primeira página.
+    # TODO: Implementar mecanismo de busca de texto completo (ex: Algolia ou coleção especializada)
+    # Por enquanto, aplicamos paginação ao resultado filtrado.
 
     works_ref = works_ref.limit(limit).offset(offset)
     works_docs = works_ref.stream()
@@ -189,16 +189,16 @@ def get_works(
     if not works_list:
         return []
 
-    # 2. Optimized Relation Checks (Only for fetched works)
+    # 2. Verificações de Relação Otimizadas (Apenas para obras buscadas)
     work_ids = [w["id"] for w in works_list]
 
-    # Batch check for existence where ID == WorkID (1:1 relations)
-    # create references
+    # Verificação em lote para existência onde ID == WorkID (relações 1:1)
+    # criar referências
     plan_refs = [db.collection("plannings").document(wid) for wid in work_ids]
     mgmt_refs = [db.collection("managements").document(wid) for wid in work_ids]
     team_refs = [db.collection("team").document(wid) for wid in work_ids]
 
-    # getAll is efficient for bulk reads
+    # get_all é eficiente para leituras em massa
     plan_snaps = db.get_all(plan_refs)
     mgmt_snaps = db.get_all(mgmt_refs)
     team_snaps = db.get_all(team_refs)
@@ -207,18 +207,18 @@ def get_works(
     managements_map = {snap.id: snap.exists for snap in mgmt_snaps}
     team_map = {snap.id: snap.exists for snap in team_snaps}
 
-    # Control Tower / OCs (One-to-Many: Work -> OCs)
-    # Optimization: Check if ANY OC exists for these works.
-    # Firestore 'in' query supports up to 10 (or 30) values. If limit > 10, run in chunks.
+    # Torre de Controle / OCs (Um-para-Muitos: Obra -> OCs)
+    # Otimização: Verificar se ALGUMA OC existe para essas obras.
+    # A consulta 'in' do Firestore suporta até 10 (ou 30) valores. Se limite > 10, executar em blocos.
     ocs_work_ids = set()
 
-    # Process in chunks of 10 for 'in' queries
+    # Processar em blocos de 10 para consultas 'in'
     chunk_size = 10
     for i in range(0, len(work_ids), chunk_size):
         chunk = work_ids[i : i + chunk_size]
-        # We only need to know if at least one exists.
-        # This query gets all OCs for these works. Heavy if many OCs, but better than ALL OCs.
-        # select([]) minimizes bandwidth.
+        # Precisamos apenas saber se pelo menos uma existe.
+        # Esta consulta busca todas as OCs para essas obras. Pesado se houver muitas OCs, mas melhor que TODAS as OCs.
+        # select([]) minimiza a largura de banda.
         ocs_query = (
             db.collection("ocs")
             .where("work_id", "in", chunk)
@@ -226,12 +226,12 @@ def get_works(
             .stream()
         )
         for d in ocs_query:
-            # We just need to mark the work_id as having an OC
+            # Apenas precisamos marcar o work_id como tendo uma OC
             data = d.to_dict()
             if "work_id" in data:
                 ocs_work_ids.add(data["work_id"])
 
-    # 3. Map Flags
+    # 3. Mapear Flags
     for work in works_list:
         wid = work["id"]
         work["has_engineering"] = team_map.get(wid, False)
@@ -246,27 +246,27 @@ def get_works(
 def delete_work(work_id: str, current_user: dict = Depends(get_current_user)):
     db = firestore.client()
 
-    # 1. Delete Work
+    # 1. Deletar Obra
     db.collection("works").document(work_id).delete()
 
-    # 2. Delete Linked Planning (ID is work_id)
+    # 2. Deletar Planejamento Vinculado (ID é work_id)
     db.collection("plannings").document(work_id).delete()
 
-    # 3. Delete Linked Management (ID is work_id)
+    # 3. Deletar Gerenciamento Vinculado (ID é work_id)
     db.collection("managements").document(work_id).delete()
 
-    # 4. Delete OCs (and their events)
-    # Note: For strict consistency we should use a batch, but simplified here for independent deletes
+    # 4. Deletar OCs (e seus eventos)
+    # Nota: Para consistência estrita, deveríamos usar um batch, mas simplificado aqui para deleções independentes
     ocs = db.collection("ocs").where("work_id", "==", work_id).stream()
     for oc in ocs:
-        # Delete linked events for this OC
+        # Deletar eventos vinculados a esta OC
         events = db.collection("oc_events").where("oc_id", "==", oc.id).stream()
         for evt in events:
             evt.reference.delete()
-        # Delete the OC itself
+        # Deletar a própria OC
         oc.reference.delete()
 
-    # 5. Delete Occurrences
+    # 5. Deletar Ocorrências
     occurrences = db.collection("occurrences").where("work_id", "==", work_id).stream()
     for occ in occurrences:
         occ.reference.delete()
@@ -286,7 +286,7 @@ def update_work(
 
 @app.post("/works/{work_id}/assignments")
 async def add_resident_assignment(work_id: str, assignment: ResidentAssignment):
-    """Add a resident assignment to a work"""
+    """Adiciona uma atribuição de residente a uma obra"""
     db = firestore.client()
     doc_ref = db.collection("works").document(work_id)
 
@@ -294,7 +294,7 @@ async def add_resident_assignment(work_id: str, assignment: ResidentAssignment):
     return {"message": "Resident assigned successfully"}
 
 
-# --- Events ---
+# --- Eventos ---
 
 
 class EventCreate(BaseModel):
@@ -341,7 +341,7 @@ def delete_event(event_id: str, current_user: dict = Depends(get_current_user)):
     return {"message": "Event deleted successfully"}
 
 
-# --- Suppliers ---
+# --- Fornecedores ---
 
 
 class SupplierCreate(BaseModel):
@@ -402,7 +402,7 @@ def delete_supplier(supplier_id: str, current_user: dict = Depends(get_current_u
     return {"message": "Supplier deleted successfully"}
 
 
-# --- Occurrences (Ativities) ---
+# --- Ocorrências (Atividades) ---
 
 
 class OccurrenceCreate(BaseModel):
@@ -457,7 +457,7 @@ def delete_occurrence(
     return {"message": "Occurrence deleted successfully"}
 
 
-# --- Team ---
+# --- Equipe ---
 
 
 class TeamMemberCreate(BaseModel):
@@ -507,7 +507,7 @@ def delete_team_member(member_id: str, current_user: dict = Depends(get_current_
     return {"message": "Team member deleted successfully"}
 
 
-# --- Control Tower (OCs) ---
+# --- Torre de Controle (OCs) ---
 
 
 class OCCreate(BaseModel):
@@ -521,9 +521,9 @@ class OCCreate(BaseModel):
 @app.post("/ocs")
 def create_oc(oc: OCCreate, current_user: dict = Depends(get_current_user)):
     db = firestore.client()
-    # Auto-generate ID for OCs or use a specific strategy?
-    # For now, letting Firestore generate the ID by using .add() instead of .document().set()
-    # Or we can create a UUID. Let's use .add() which returns a tuple (update_time, doc_ref)
+    # Gerar ID automaticamente para OCs ou usar uma estratégia específica?
+    # Por enquanto, deixando o Firestore gerar o ID usando .add() em vez de .document().set()
+    # Ou podemos criar um UUID. Vamos usar .add() que retorna uma tupla (update_time, doc_ref)
     update_time, doc_ref = db.collection("ocs").add(oc.dict())
     return {"message": "OC created successfully", "id": doc_ref.id}
 
@@ -561,7 +561,7 @@ def delete_oc(oc_id: str, current_user: dict = Depends(get_current_user)):
     return {"message": "OC deleted successfully"}
 
 
-# --- Control Tower (Events) ---
+# --- Torre de Controle (Eventos) ---
 
 
 class OCEventCreate(BaseModel):
@@ -616,7 +616,7 @@ def delete_oc_event(event_id: str, current_user: dict = Depends(get_current_user
     return {"message": "OC Event deleted successfully"}
 
 
-# --- Event Definitions (Templates) ---
+# --- Definições de Eventos (Modelos) ---
 
 
 class EventDefinitionCreate(BaseModel):
@@ -702,7 +702,7 @@ def create_project_avoidance(
     item: ProjectAvoidanceCreate, current_user: dict = Depends(get_current_user)
 ):
     db = firestore.client()
-    # Use work_id as document ID for easy 1:1 lookup, enforcing strip to avoid duplicates
+    # Usar work_id como ID do documento para fácil busca 1:1, forçando strip para evitar duplicatas
     clean_id = item.work_id.strip()
     doc_ref = db.collection("project_avoidances").document(clean_id)
     doc_ref.set(item.dict(), merge=True)
@@ -744,13 +744,13 @@ def delete_project_avoidance(
     return {"message": "Project Avoidance deleted successfully"}
 
 
-# --- Engineering Management ---
+# --- Gestão de Engenharia ---
 
 
 class ManagementItem(BaseModel):
     name: str
     date: str = ""
-    status: str = "⚪️"  # Default to gray circle
+    status: str = "⚪️"  # Padrão círculo cinza
 
 
 class ThermometerItem(BaseModel):
@@ -791,7 +791,7 @@ class EngineeringCapexItem(BaseModel):
 class DailyLogItem(BaseModel):
     day: str
     date: str = ""
-    effective: str = ""  # Int as string to avoid 0 issues
+    effective: str = ""  # Int como string para evitar problemas com 0
     weather: str = "☀️"
     production: str = "✅"
 
@@ -814,7 +814,7 @@ class ManagementCreate(BaseModel):
     owner_works: List[ManagementItem] = []
     licenses: List[ManagementItem] = []
     thermometer: List[ThermometerItem] = []
-    # New fields
+    # Novos campos
     operator: str = ""
     size_m2: str = ""
     floor_size_m2: str = ""
@@ -823,7 +823,7 @@ class ManagementCreate(BaseModel):
     control_tower: str = ""
     pm: str = ""
     cm: str = ""
-    # Presentation Fields
+    # Campos de apresentação
     presentation_highlights: str = ""
     attention_points: str = ""
     pp_destaques_executivos: str = ""
@@ -836,10 +836,10 @@ class ManagementCreate(BaseModel):
     imovel_entrega_antecipada: str = ""
     marcos: List[MarcoItem] = []
 
-    # Schedules
+    # Cronogramas
     macro_schedule: List[ScheduleItem] = []
     supply_schedule: List[ScheduleItem] = []
-    # Advanced Info
+    # Informações Avançadas
     complementary_info: List[ComplementaryInfoItem] = []
     general_docs: GeneralDocItem = GeneralDocItem()
     capex: EngineeringCapexItem = EngineeringCapexItem()
@@ -852,7 +852,7 @@ def create_management(
     management: ManagementCreate, current_user: dict = Depends(get_current_user)
 ):
     db = firestore.client()
-    # Key by work_id to make it 1-to-1 connection easily retrievable
+    # Usar work_id como chave para tornar a conexão 1-para-1 facilmente recuperável
     doc_ref = db.collection("managements").document(management.work_id)
     doc_ref.set(management.dict())
     return {"message": "Management data saved successfully", "id": management.work_id}
@@ -865,7 +865,7 @@ def get_management(work_id: str, current_user: dict = Depends(get_current_user))
     doc = doc_ref.get()
     if doc.exists:
         return doc.to_dict()
-    return {}  # Return empty if not found, frontend filters will handle initialization
+    return {}  # Retornar vazio se não encontrado, filtros do frontend lidarão com a inicialização
 
 
 @app.get("/managements")
@@ -875,7 +875,7 @@ def get_all_managements(current_user: dict = Depends(get_current_user)):
     managements = []
     for doc in docs:
         data = doc.to_dict()
-        # Ensure work_id is present (it should be, but just in case)
+        # Garantir que work_id esteja presente (deveria estar, mas apenas por precaução)
         if "work_id" not in data:
             data["work_id"] = doc.id
         managements.append(data)
@@ -896,8 +896,8 @@ def create_planning(
     planning: PlanningCreate, current_user: dict = Depends(get_current_user)
 ):
     db = firestore.client()
-    # Use work_id as the document ID for 1:1 relationship, or auto-id if 1:N
-    # Assuming 1 Planning per Work for now, using work_id is safer
+    # Usar work_id como ID do documento para relacionamento 1:1, ou auto-id se 1:N
+    # Assumindo 1 Planejamento por Obra por enquanto, usar work_id é mais seguro
     doc_ref = db.collection("plannings").document(planning.work_id)
     doc_ref.set(planning.dict())
     return {"message": "Planning created successfully", "id": planning.work_id}
@@ -914,7 +914,7 @@ def get_plannings(current_user: dict = Depends(get_current_user)):
         data = doc.to_dict()
         data["id"] = doc.id
 
-        # Fetch Work Details for Header
+        # Buscar Detalhes da Obra para o Cabeçalho
         work_id = data.get("work_id")
         if work_id:
             work_ref = db.collection("works").document(work_id).get()
@@ -958,7 +958,7 @@ class ChatRequest(BaseModel):
 @app.post("/ai/chat")
 def chat_endpoint(request: ChatRequest, current_user: dict = Depends(get_current_user)):
     try:
-        # Pass user name and config to service
+        # Passar nome do usuário e configuração para serviço
         user_name = current_user.get("name", "Usuário")
         response_text, generated_files = chat_with_data(
             request.message, request.history, request.config, user_name
@@ -998,7 +998,7 @@ async def upload_file(
 
 
 def remove_file(path: str):
-    """Background task to remove file after download"""
+    """Tarefa em segundo plano para remover arquivo após o download"""
     try:
         os.remove(path)
         print(f"Deleted temp file: {path}")
@@ -1008,12 +1008,12 @@ def remove_file(path: str):
 
 @app.get("/ai/download/{file_id}")
 def download_file(file_id: str, background_tasks: BackgroundTasks):
-    # Security: Ensure file_id is just UUID/alphanumeric to prevent path traversal
-    # Simple check: UUIDs don't have slashes
+    # Segurança: Garantir que file_id seja apenas UUID/alfanumérico para evitar travessia de caminho
+    # Verificação simples: UUIDs não possuem barras
     if "/" in file_id or "\\" in file_id:
         raise HTTPException(status_code=400, detail="Invalid file ID")
 
-    # We search for the file with any extension in TEMP_DIR matching the ID
+    # Buscamos o arquivo com qualquer extensão no TEMP_DIR correspondente ao ID
     found_file = None
     for f in os.listdir(TEMP_DIR):
         if f.startswith(file_id):
@@ -1025,12 +1025,12 @@ def download_file(file_id: str, background_tasks: BackgroundTasks):
 
     file_path = os.path.join(TEMP_DIR, found_file)
 
-    # Schedule deletion after response
+    # Agendar exclusão após resposta
     background_tasks.add_task(remove_file, file_path)
 
     return FileResponse(
         path=file_path,
-        filename=found_file,  # User will see this name (or we could store original name in DB, but simplistic for now)
+        filename=found_file,  # Usuário verá este nome (ou poderíamos armazenar o nome original no DB, mas simplificado por enquanto)
         media_type="application/octet-stream",
     )
 
@@ -1073,16 +1073,16 @@ class BacklogItem(BaseModel):
 async def create_backlog_item(
     item: BacklogItem, current_user: dict = Depends(get_current_user)
 ):
-    """Create a new backlog item"""
+    """Criar um novo item de backlog"""
     db = firestore.client()
-    # Set created_at if not present
+    # Definir created_at se não estiver presente
     if not item.created_at:
-        # Format: dd/mm/aaaa às hh:mm:ss
+        # Formato: dd/mm/aaaa às hh:mm:ss
         now = datetime.now()
         item.created_at = now.strftime("%d/%m/%Y às %H:%M:%S")
 
-    # Set created_by
-    item.created_by = current_user.get("name", "Unknown User")
+    # Definir created_by
+    item.created_by = current_user.get("name", "Usuário Desconhecido")
 
     doc_ref = db.collection("backlog_items").document(item.id)
     doc_ref.set(item.dict())
@@ -1091,7 +1091,7 @@ async def create_backlog_item(
 
 @app.get("/backlog-items")
 async def get_backlog_items(current_user: dict = Depends(get_current_user)):
-    """Get all backlog items"""
+    """Obter todos os itens de backlog"""
     db = firestore.client()
     docs = db.collection("backlog_items").stream()
     items = []
@@ -1105,20 +1105,20 @@ async def get_backlog_items(current_user: dict = Depends(get_current_user)):
 
 @app.delete("/backlog-items/{item_id}")
 async def delete_backlog_item(item_id: str):
-    """Delete a backlog item by ID"""
+    """Deletar um item de backlog por ID"""
     try:
         db = firestore.client()
-        # Check if item exists
+        # Verificar se item existe
         doc_ref = db.collection("backlog_items").document(item_id)
         doc = doc_ref.get()
         if not doc.exists:
-            # Already deleted? Return success or 404.
-            # For idempotency, success is better, but user might be confused if they expected it to exist.
-            # However, in this case of double-click race, returning 200 or 404 is better than 500.
-            # Let's return 404 as "Not Found" is semantically correct, but we handle the 500 cause.
-            raise HTTPException(status_code=404, detail="Item not found")
+            # Já deletado? Retornar sucesso ou 404.
+            # Para idempotência, sucesso é melhor, mas usuário pode ficar confuso se esperava que existisse.
+            # No entanto, neste caso de condição de corrida de clique duplo, retornar 200 ou 404 é melhor que 500.
+            # Vamos retornar 404 como "Não Encontrado" é semanticamente correto, mas tratamos a causa 500.
+            raise HTTPException(status_code=404, detail="Item não encontrado")
 
-        # Delete item
+        # Deletar item
         doc_ref.delete()
         return {"message": "Item deleted successfully"}
     except HTTPException:
@@ -1129,7 +1129,7 @@ async def delete_backlog_item(item_id: str):
 
 @app.put("/backlog-items/{item_id}")
 async def update_backlog_item(item_id: str, item: BacklogItem):
-    """Update a backlog item"""
+    """Atualizar um item de backlog"""
     db = firestore.client()
     doc_ref = db.collection("backlog_items").document(item_id)
     doc_ref.set(item.dict())
@@ -1156,7 +1156,7 @@ class Resident(BaseModel):
 
 @app.post("/residents")
 async def create_resident(resident: Resident):
-    """Create a new resident"""
+    """Criar um novo residente"""
     db = firestore.client()
     doc_ref = db.collection("residents").document(resident.id)
     doc_ref.set(resident.dict())
@@ -1165,7 +1165,7 @@ async def create_resident(resident: Resident):
 
 @app.get("/residents")
 async def get_residents():
-    """Get all residents"""
+    """Obter todos os residentes"""
     db = firestore.client()
     docs = db.collection("residents").stream()
     residents = []
@@ -1176,10 +1176,10 @@ async def get_residents():
 
 @app.post("/works/{work_id}/assignments/{resident_id}/evaluate")
 async def evaluate_resident(work_id: str, resident_id: str, evaluation: Evaluation):
-    """Evaluate a resident in a work"""
+    """Avaliar um residente em uma obra"""
     db = firestore.client()
 
-    # 1. Update Work Assignment
+    # 1. Atualizar Atribuição de Obra
     work_ref = db.collection("works").document(work_id)
     work_doc = work_ref.get()
 
@@ -1204,7 +1204,7 @@ async def evaluate_resident(work_id: str, resident_id: str, evaluation: Evaluati
 
     work_ref.update({"residents": updated_residents})
 
-    # 2. Update Resident Aggregated Metrics
+    # 2. Atualizar Métricas Agregadas do Residente
     resident_ref = db.collection("residents").document(resident_id)
     resident_doc = resident_ref.get()
 
@@ -1225,7 +1225,7 @@ async def evaluate_resident(work_id: str, resident_id: str, evaluation: Evaluati
 
         count = current_metrics.get("count", 0)
 
-        # Calculate new average
+        # Calcular nova média
         new_count = count + 1
         new_metrics = {
             "technical": (
@@ -1263,7 +1263,7 @@ async def evaluate_resident(work_id: str, resident_id: str, evaluation: Evaluati
 
 @app.delete("/works/{work_id}/assignments/{resident_id}")
 async def remove_resident_from_work(work_id: str, resident_id: str):
-    """Remove a resident assignment from a work"""
+    """Remover uma atribuição de residente de uma obra"""
     db = firestore.client()
     work_ref = db.collection("works").document(work_id)
     work_doc = work_ref.get()
@@ -1285,7 +1285,7 @@ async def remove_resident_from_work(work_id: str, resident_id: str):
 
 @app.delete("/residents/{resident_id}")
 async def delete_resident(resident_id: str):
-    """Delete a resident"""
+    """Deletar um residente"""
     db = firestore.client()
     doc_ref = db.collection("residents").document(resident_id)
     doc = doc_ref.get()
@@ -1299,7 +1299,7 @@ async def delete_resident(resident_id: str):
 
 @app.put("/residents/{resident_id}")
 async def update_resident(resident_id: str, resident: Resident):
-    """Update a resident"""
+    """Atualizar um residente"""
     if resident_id != resident.id:
         raise HTTPException(status_code=400, detail="ID mismatch")
 
@@ -1321,37 +1321,37 @@ class LPU(BaseModel):
     work_id: str
     limit_date: str
     created_at: Optional[str] = None
-    # Permissions
+    # Permissões
     allow_quantity_change: bool = False
     allow_add_items: bool = False
     allow_remove_items: bool = False
     allow_lpu_edit: bool = False
 
-    # Phase 2 Fields (Quotation)
+    # Campos da Fase 2 (Cotação)
     status: Optional[str] = "draft"  # draft, waiting, submitted
     quote_token: Optional[str] = None
     invited_suppliers: Optional[List[dict]] = []  # [{id, name}]
     quote_permissions: Optional[dict] = None
 
-    # New Field for Filtering
+    # Novo Campo para Filtragem
     selected_items: Optional[List[str]] = []
 
-    # Data
+    # Dados
     prices: Optional[dict] = {}
     quantities: Optional[dict] = {}
 
 
 @app.post("/lpus")
 async def create_lpu(lpu: LPU, current_user: dict = Depends(get_current_user)):
-    """Create a new LPU"""
+    """Criar uma nova LPU"""
     db = firestore.client()
 
-    # Check if work exists
+    # Verificar se a obra existe
     work_ref = db.collection("works").document(lpu.work_id)
     if not work_ref.get().exists:
         raise HTTPException(status_code=404, detail="Work not found")
 
-    # Set created_at if not present
+    # Definir created_at se não estiver presente
     if not lpu.created_at:
         now = datetime.now()
         lpu.created_at = now.strftime("%d/%m/%Y às %H:%M:%S")
@@ -1363,7 +1363,7 @@ async def create_lpu(lpu: LPU, current_user: dict = Depends(get_current_user)):
 
 @app.get("/lpus")
 async def get_lpus(current_user: dict = Depends(get_current_user)):
-    """Get all LPUs"""
+    """Obter todas as LPUs"""
     db = firestore.client()
     docs = db.collection("lpus").stream()
     lpus = []
@@ -1376,7 +1376,7 @@ async def get_lpus(current_user: dict = Depends(get_current_user)):
 async def update_lpu(
     lpu_id: str, lpu: LPU, current_user: dict = Depends(get_current_user)
 ):
-    """Update an LPU"""
+    """Atualizar uma LPU"""
     if lpu_id != lpu.id:
         raise HTTPException(status_code=400, detail="ID mismatch")
 
@@ -1392,7 +1392,7 @@ async def update_lpu(
 
 @app.delete("/lpus/{lpu_id}")
 async def delete_lpu(lpu_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete an LPU"""
+    """Deletar uma LPU"""
     db = firestore.client()
     doc_ref = db.collection("lpus").document(lpu_id)
 
@@ -1427,7 +1427,7 @@ class SupplierLoginRequest(BaseModel):
 def supplier_login(req: SupplierLoginRequest):
     db = firestore.client()
 
-    # 1. Find LPU by Token
+    # 1. Encontrar LPU pelo Token
     lpus_ref = db.collection("lpus")
     query = lpus_ref.where("quote_token", "==", req.token).limit(1)
     docs = query.stream()
@@ -1438,7 +1438,7 @@ def supplier_login(req: SupplierLoginRequest):
     for doc in docs:
         lpu_data = doc.to_dict()
         lpu_doc_id = doc.id
-        # Limit 1
+        # Limite 1
         break
 
     if not lpu_data:
@@ -1446,15 +1446,15 @@ def supplier_login(req: SupplierLoginRequest):
             status_code=404, detail="Cotação não encontrada ou token inválido."
         )
 
-    # 2. Verify Supplier CNPJ
-    # Normalize input CNPJ (remove symbols)
+    # 2. Verificar CNPJ do Fornecedor
+    # Normalizar CNPJ de entrada (remover símbolos)
     input_cnpj = "".join(filter(str.isdigit, req.cnpj))
 
-    # Check if this CNPJ exists in suppliers collection to get the ID
-    # Store suppliers usually with symbols or without? We should check both or assume normalize.
-    # To be safe, let's fetch matching CNPJ if possible.
-    # If storage varies, this is tricky. Let's assume input matches storage for now or try to clean.
-    # Better strategy: Get all invited IDs from LPU, then fetch those suppliers and check CNPJ.
+    # Verificar se este CNPJ existe na coleção de fornecedores para pegar o ID
+    # Armazenar fornecedores geralmente com símbolos ou sem? Devemos verificar ambos ou assumir normalização.
+    # Por segurança, vamos buscar CNPJ correspondente se possível.
+    # Se o armazenamento variar, isso é complicado. Vamos assumir que a entrada corresponde ao armazenamento por enquanto ou tentar limpar.
+    # Melhor estratégia: Obter todos os IDs convidados da LPU, então buscar esses fornecedores e verificar CNPJ.
 
     invited_suppliers = lpu_data.get("invited_suppliers", [])  # List of {id, name}
     if not invited_suppliers:
@@ -1464,7 +1464,7 @@ def supplier_login(req: SupplierLoginRequest):
 
     is_authorized = False
 
-    # Optimization: If list is small, fetch all invited suppliers
+    # Otimização: Se a lista for pequena, buscar todos os fornecedores convidados
     for invited in invited_suppliers:
         sup_id = invited.get("id")
         if not sup_id:
@@ -1485,8 +1485,8 @@ def supplier_login(req: SupplierLoginRequest):
             status_code=403, detail="CNPJ não autorizado para esta cotação."
         )
 
-    # 3. Return LPU Data
-    # Include ID in response
+    # 3. Retornar Dados da LPU
+    # Incluir ID na resposta
     lpu_data["id"] = lpu_doc_id
     return lpu_data
 
@@ -1503,7 +1503,7 @@ class SupplierSubmitRequest(BaseModel):
 def supplier_submit(lpu_id: str, req: SupplierSubmitRequest):
     db = firestore.client()
 
-    # 1. Verify LPU & Token
+    # 1. Verificar LPU e Token
     doc_ref = db.collection("lpus").document(lpu_id)
     doc = doc_ref.get()
 
@@ -1514,11 +1514,11 @@ def supplier_submit(lpu_id: str, req: SupplierSubmitRequest):
     if lpu_data.get("quote_token") != req.token:
         raise HTTPException(status_code=403, detail="Token inválido")
 
-    # 2. Verify Status
+    # 2. Verificar Status
     if lpu_data.get("status") == "submitted":
         raise HTTPException(status_code=400, detail="Esta cotação já foi enviada.")
 
-    # 3. Find Supplier Name from CNPJ (for record keeping)
+    # 3. Encontrar Nome do Fornecedor pelo CNPJ (para manutenção de registros)
     input_cnpj = "".join(filter(str.isdigit, req.cnpj))
     supplier_name = "Fornecedor Desconhecido"
 
@@ -1536,10 +1536,10 @@ def supplier_submit(lpu_id: str, req: SupplierSubmitRequest):
                 supplier_name = sup_data.get("social_reason") or sup_data.get("name")
                 break
 
-    # 4. Update with Metadata
+    # 4. Atualizar com Metadados
     from datetime import datetime
 
-    # Use UTC for storage, explicitly marked with Z
+    # Usar UTC para armazenamento, explicitamente marcado com Z
     now = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
     doc_ref.update(
@@ -1574,11 +1574,11 @@ def create_revision(lpu_id: str, req: RevisionRequest):
 
     lpu_data = doc.to_dict()
 
-    # Snapshot current state to history
-    # Only snapshot if there is actual submitted data
+    # Snapshot do estado atual para histórico
+    # Apenas snapshot se houver dados submetidos reais
     current_history = lpu_data.get("history", [])
 
-    # If status is submitted, we save the current state as a revision
+    # Se status for submitted, salvamos o estado atual como uma revisão
     if lpu_data.get("status") == "submitted":
         snapshot = {
             "prices": lpu_data.get("prices", {}),
@@ -1589,15 +1589,15 @@ def create_revision(lpu_id: str, req: RevisionRequest):
         }
         current_history.append(snapshot)
 
-    # Reset for new revision
+    # Redefinir para nova revisão
     doc_ref.update(
         {
             "status": "waiting",
             "history": current_history,
             "revision_comment": req.comment,
-            "prices": {},  # Clear current
-            "quantities": {},  # Clear current
-            "submission_metadata": firestore.DELETE_FIELD,  # Remove metadata
+            "prices": {},  # Limpar atual
+            "quantities": {},  # Limpar atual
+            "submission_metadata": firestore.DELETE_FIELD,  # Remover metadados
         }
     )
 
@@ -1638,7 +1638,7 @@ def approve_lpu(lpu_id: str, req: ApproveRequest = Body(default=None)):
         updates["prices"] = revision.get("prices", {})
         updates["quantities"] = revision.get("quantities", {})
         updates["submission_metadata"] = revision.get("submission_metadata")
-        # Keep the history, but update current state to match the approved revision
+        # Manter o histórico, mas atualizar o estado atual para coincidir com a revisão aprovada
 
     doc_ref.update(updates)
     return {"message": "LPU approved", "restored_revision": req.revision_number}
@@ -1655,7 +1655,7 @@ class EmailConfig(BaseModel):
 @app.post("/verify-email")
 def verify_email(config: EmailConfig, current_user: dict = Depends(get_current_user)):
     """
-    Verifies email credentials against postmail.cmseng.com.br
+    Verifica as credenciais de e-mail em postmail.cmseng.com.br
     SMTP: 465 (SSL)
     POP3: 995 (SSL)
     """
@@ -1665,21 +1665,21 @@ def verify_email(config: EmailConfig, current_user: dict = Depends(get_current_u
     email = config.email
     password = config.password
 
-    # 1. Verify SMTP (Send)
+    # 1. Verificar SMTP (Envio)
     try:
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL(SERVER, SMTP_PORT, context=context) as server:
             server.login(email, password)
-            # Just login is enough to verify credentials
+            # Apenas o login é suficiente para verificar as credenciais
     except Exception as e:
         print(f"SMTP Verification Failed: {e}")
         raise HTTPException(
             status_code=400, detail=f"Falha na autenticação SMTP (Envio): {str(e)}"
         )
 
-    # 2. Verify POP3 (Receive)
+    # 2. Verificar POP3 (Recebimento)
     try:
-        # POP3_SSL defaults to port 995
+        # POP3_SSL padrão é porta 995
         server = poplib.POP3_SSL(SERVER, POP_PORT)
         server.user(email)
         server.pass_(password)
@@ -1691,12 +1691,12 @@ def verify_email(config: EmailConfig, current_user: dict = Depends(get_current_u
             detail=f"Falha na autenticação POP3 (Recebimento): {str(e)}",
         )
 
-    # If both pass, save to Firestore for this user/tenant context
-    # Usually this is a global setting or per-user. Assuming global for now or user-specific?
-    # Requirement: "o usuário insira só o email e a senha".
-    # We will just verify here. Saving can be done by the frontend to a specific doc,
-    # or we can verify AND save here.
-    # Let's just return success for verification, frontend saves to Firestore Settings.
+    # Se ambos passarem, salvar no Firestore para este contexto de usuário/tenant
+    # Geralmente isso é uma configuração global ou por usuário. Assumindo global por enquanto ou específica do usuário?
+    # Requisito: "o usuário insira só o email e a senha".
+    # Vamos apenas verificar aqui. O salvamento pode ser feito pelo frontend em um documento específico,
+    # ou podemos verificar E salvar aqui.
+    # Vamos apenas retornar sucesso para verificação, o frontend salva nas Configurações do Firestore.
 
     return {"message": "Credenciais verificadas com sucesso!", "valid": True}
 
@@ -1706,7 +1706,7 @@ async def startup_event():
     print("STARTUP EVENT TRIGGERED", flush=True)  # DEBUG
     try:
         initialize_firebase()
-        # Start Scheduler in Background
+        # Iniciar Agendador em Segundo Plano
         print("Starting scheduler task...", flush=True)  # DEBUG
         asyncio.create_task(scheduler_loop())
     except Exception as e:
@@ -1715,9 +1715,9 @@ async def startup_event():
 
 async def scheduler_loop():
     """
-    Background Task: Checks every 60s for scheduled emails.
+    Tarefa em Segundo Plano: Verifica a cada 60s por e-mails agendados.
     """
-    # BRT Timezone
+    # Fuso Horário BRT
     tz = pytz.timezone("America/Sao_Paulo")
 
     print("[SCHEDULER] Started email scheduler loop.", flush=True)
@@ -1728,22 +1728,22 @@ async def scheduler_loop():
             current_date_str = now.strftime("%Y-%m-%d")
             current_time_str = now.strftime("%H:%M")
 
-            # Basic query: Get all Scheduled Emails that are NOT 'sent'
-            # Optimization: In a real app, we would index by date/status.
-            # Here assuming volume is low enough to filter in memory or simple query.
-            # Firestore query: where('status', '!=', 'sent') requires an index if mixed with other fields.
-            # Let's try to get all and filter.
+            # Consulta básica: Obter todos os E-mails Agendados que NÃO estão 'sent' (enviados)
+            # Otimização: Em um app real, indexaríamos por data/status.
+            # Aqui assumindo que o volume é baixo o suficiente para filtrar em memória ou consulta simples.
+            # Consulta Firestore: where('status', '!=', 'sent') requer um índice se misturado com outros campos.
+            # Vamos tentar obter todos e filtrar.
 
             db = firestore.client()
-            # Note: collection name must match frontend: "scheduled_emails"
+            # Nota: nome da coleção deve coincidir com o frontend: "scheduled_emails"
             docs = db.collection("scheduled_emails").stream()
 
             for doc in docs:
                 data = doc.to_dict()
                 email_id = doc.id
 
-                # Check Status
-                status = data.get("status", "pending")  # Default to pending if missing
+                # Verificar Status
+                status = data.get("status", "pending")  # Padrão para pending se ausente
                 print(
                     f"[SCHEDULER] Checking {email_id}: Date={data.get('date')} Time={data.get('time')} Status={status}",
                     flush=True,
@@ -1752,17 +1752,17 @@ async def scheduler_loop():
                 if status == "sent":
                     continue
 
-                # Check Date & Time
+                # Verificar Data e Hora
                 DATE = data.get("date")  # "YYYY-MM-DD"
                 TIME = data.get("time", "08:00")  # "HH:mm"
 
                 if not DATE:
                     continue
 
-                # Compare:
-                # If Date < Today: Overdue, send it.
-                # If Date == Today: Check Time.
-                # If Date > Today: Wait.
+                # Comparar:
+                # Se Data < Hoje: Atrasado, enviar.
+                # Se Data == Hoje: Verificar Hora.
+                # Se Data > Hoje: Aguardar.
 
                 should_send = False
                 if DATE < current_date_str:
@@ -1776,14 +1776,14 @@ async def scheduler_loop():
                         f"[SCHEDULER] Sending email {email_id} - Scheduled: {DATE} {TIME}"
                     )
                     try:
-                        # Send Email
+                        # Enviar Email
                         await send_email_internal(data)
 
-                        # Check for recurrence
+                        # Verificar recorrência
                         recurrence = data.get("recurrence", "none")
 
                         if recurrence and recurrence != "none":
-                            # Calculate next send date
+                            # Calcular próxima data de envio
                             from datetime import timedelta
                             from dateutil.relativedelta import relativedelta
 
@@ -1798,19 +1798,19 @@ async def scheduler_loop():
                             else:
                                 next_date = current_scheduled
 
-                            # Update for next occurrence
+                            # Atualizar para próxima ocorrência
                             db.collection("scheduled_emails").document(email_id).update(
                                 {
                                     "date": next_date.strftime("%Y-%m-%d"),
                                     "lastSentAt": now.isoformat(),
-                                    "status": "pending",  # Keep pending for next run
+                                    "status": "pending",  # Manter pending para próxima execução
                                 }
                             )
                             print(
                                 f"[SCHEDULER] Email {email_id} sent. Next occurrence: {next_date.strftime('%Y-%m-%d')}"
                             )
                         else:
-                            # One-time email: mark as sent
+                            # Email único: marcar como enviado
                             db.collection("scheduled_emails").document(email_id).update(
                                 {"status": "sent", "sentAt": now.isoformat()}
                             )
@@ -1818,7 +1818,7 @@ async def scheduler_loop():
 
                     except Exception as e:
                         print(f"[SCHEDULER] Failed to send email {email_id}: {e}")
-                        # Optional: increment retry count or mark as error
+                        # Opcional: incrementar contagem de tentativas ou marcar como erro
 
         except Exception as e:
             print(f"[SCHEDULER] Error in loop: {e}")
@@ -1828,13 +1828,13 @@ async def scheduler_loop():
 
 async def send_email_internal(data: dict):
     """
-    Reusable logic to send email.
-    Supports 'recipients' list or legacy 'recipientEmail'.
+    Lógica reutilizável para enviar e-mail.
+    Suporta lista de 'recipients' ou 'recipientEmail' legado.
     """
     recipients = data.get("recipients", [])  # List of {email, name}
     recipient_email_legacy = data.get("recipientEmail")
 
-    # Normalize recipients list
+    # Normalizar lista de destinatários
     final_recipients = []
 
     if recipients and isinstance(recipients, list) and len(recipients) > 0:
@@ -1854,11 +1854,11 @@ async def send_email_internal(data: dict):
     sender_email = data.get("senderEmail")
     sender_password = data.get("senderPassword")
 
-    # Reuse the logic of determining credentials
+    # Reutilizar a lógica de determinação de credenciais
     SERVER = "postmail.cmseng.com.br"
     PORT = 465
 
-    # Determine credentials logic same as endpoint
+    # Determinar lógica de credenciais igual ao endpoint
     if not sender_email or not sender_password:
         try:
             db = firestore.client()
@@ -1875,7 +1875,7 @@ async def send_email_internal(data: dict):
     if not sender_email or not sender_password:
         raise Exception("Missing credentials")
 
-    # Run sync SMTP
+    # Executar SMTP síncrono
     loop = asyncio.get_event_loop()
 
     print(
@@ -1932,7 +1932,7 @@ class RecipientModel(BaseModel):
 
 
 class CustomEmailRequest(BaseModel):
-    # Support both single and multiple
+    # Suporte tanto a único quanto múltiplos
     recipient_email: Optional[str] = None
     recipients: Optional[List[RecipientModel]] = []
     subject: str
@@ -1946,9 +1946,9 @@ async def send_custom_email(
     request: CustomEmailRequest, current_user: dict = Depends(get_current_user)
 ):
     """
-    Sends a custom email using provided or default credentials via SMTP/SSL 465.
+    Envia um e-mail personalizado usando credenciais fornecidas ou padrão via SMTP/SSL 465.
     """
-    # Map request to internal dictionary format
+    # Mapear requisição para formato de dicionário interno
     data = {
         "recipientEmail": request.recipient_email,
         "recipients": [r.dict() for r in request.recipients]

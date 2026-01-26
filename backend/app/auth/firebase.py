@@ -15,7 +15,7 @@ def initialize_firebase():
         return
 
     try:
-        # Check if app is already initialized (e.g. by another worker or test)
+        # Verificar se o app já está inicializado (ex: por outro worker ou teste)
         firebase_admin.get_app()
         _firebase_initialized = True
         return
@@ -24,7 +24,7 @@ def initialize_firebase():
 
     service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
 
-    # 1. Try Service Account File if provided
+    # 1. Tentar arquivo de Conta de Serviço se fornecido
     if service_account_path and os.path.exists(service_account_path):
         import json
 
@@ -33,22 +33,20 @@ def initialize_firebase():
                 service_account_info = json.load(f)
             cred = credentials.Certificate(service_account_info)
             firebase_admin.initialize_app(cred)
-            print(f"Firebase initialized with service account: {service_account_path}")
+            print(f"Firebase inicializado com conta de serviço: {service_account_path}")
             _firebase_initialized = True
             return
         except Exception as e:
-            print(f"Error loading service account file: {e}")
-            # Do not raise immediately, try ADC fallback logic below
+            print(f"Erro ao carregar arquivo de conta de serviço: {e}")
+            # Não gerar erro imediatamente, tentar lógica de fallback ADC abaixo
 
-    # 2. Try Application Default Credentials (ADC)
-    # This works automatically on Cloud Run if the service account has permission.
-    # Also works locally if GOOGLE_APPLICATION_CREDENTIALS is set to a path.
-    print(
-        "Attempting to initialize Firebase with Application Default Credentials (ADC)..."
-    )
+    # 2. Tentar Application Default Credentials (ADC)
+    # Isso funciona automaticamente no Cloud Run se a conta de serviço tiver permissão.
+    # Também funciona localmente se GOOGLE_APPLICATION_CREDENTIALS estiver definido para um caminho.
+    print("Tentando inicializar Firebase com Application Default Credentials (ADC)...")
     try:
-        # We can pass projectId if available, but ADC often discovers it.
-        # However, for 'auth' specific features, specifying projectId explicitly is often safer.
+        # Podemos passar projectId se disponível, mas o ADC geralmente o descobre.
+        # No entanto, para recursos específicos de 'auth', especificar projectId explicitamente é frequentemente mais seguro.
         project_id = (
             os.getenv("FIREBASE_PROJECT_ID")
             or os.getenv("GCLOUD_PROJECT")
@@ -56,33 +54,42 @@ def initialize_firebase():
         )
 
         if project_id:
-            print(f"Initializing with ADC and projectId: {project_id}")
+            print(f"Inicializando com ADC e projectId: {project_id}")
             firebase_admin.initialize_app(options={"projectId": project_id})
         else:
-            print("Initializing with ADC (no explicit projectId)...")
+            print("Inicializando com ADC (sem projectId explícito)...")
             firebase_admin.initialize_app()
 
         _firebase_initialized = True
-        print("Firebase initialized successfully with ADC.")
+        print("Firebase inicializado com sucesso via ADC.")
         return
 
     except Exception as e:
-        print(f"Failed to initialize Firebase with ADC: {e}")
-        # Critical failure if we can't init
-        # raise e  # Optional: decide if we want to crash or run with limited functionality
+        print(f"Falha ao inicializar Firebase com ADC: {e}")
+        # Falha crítica se não pudermos inicializar
+        # raise e  # Opcional: decidir se queremos travar ou executar com funcionalidade limitada
 
-    # Mark as initialized to prevent repeated failed attempts loop (or leave false to retry)
+    # Marcar como inicializado para prevenir loop de tentativas falhas repetidas (ou deixar falso para tentar novamente)
     _firebase_initialized = True
 
 
-# Call init
-# initialize_firebase()  <-- Moved to main.py startup event to avoid deadlock on import
+# Chamada de inicialização
+# initialize_firebase()  <-- Movido para o evento de inicialização em main.py para evitar deadlock na importação
 
 
 def verify_token(token: str):
+    """
+    Verifica a validade do token ID do Firebase.
+
+    Args:
+        token (str): O token JWT recebido no cabeçalho.
+
+    Returns:
+        dict | None: Dados do usuário decodificados se válido, None caso contrário.
+    """
     try:
         decoded_token = auth.verify_id_token(token)
         return decoded_token
     except Exception as e:
-        print(f"Error verifying token: {e}")
+        print(f"Erro ao verificar token: {e}")
         return None

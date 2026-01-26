@@ -1,0 +1,27 @@
+"444618b9-affb-419a-8533-1d50bdba5270", "nome": "Oportunidade WhatsApp - Rafael Mendes Candido", "assunto": "Cotação Plataforma Tesoura Elétrica - 5 mm", "status": "aberto", "origem": "whatsapp", "unidade_negocio_interesse": {"codigo": "leves"}, "unidade_negocio_proprietaria": {"codigo": "leves"}, "local_demanda": {"municipio": {"nome": "São Paulo", "codigo_ibge": "0000000"}, "estado": {"sigla": "SP"}}, "contato": {"nome": "Rafael", "sobrenome": "Mendes Candido", "telefone": "(11) 95675-2844", "email": "rafael.mendes@mills.com.br"}, "observacao": "Info Extra: Cliente **Rafael Mendes Candido** busca **Plataforma Tesoura Elétrica** para **pintura** a **5 m** em **ambiente interno**. **Obra em São Paulo/SP**, endereço **Av. Euzebio Matoso, 1375**. **Início 15/01/2026** por **2 semanas**. **Contato:** rafael.mendes@mills.com.br / WhatsApp 5511956752844. **CNPJ 19.598.467/0001-03**; cliente informou razão social **“Teste do Rafael”**, porém a consulta retornou **AUTO ELETRICA 283 LTDA** e o cliente respondeu **“não”** (não confirma).\nEndereço: Avenida Euzebio Matoso 1375\nPeríodo: 2 semanas\n\n[DADOS EMPRESA] CNPJ: 19598467000103 - Razão: Teste do Rafael", "consentimentoEnvioEmail": true, "aquecimento_lead": "quente", "possui_demanda_imediata": true, "empresa": null, "questionario_pre_venda": [{"ordem": "1", "pergunta": "Família do Equipamento", "resposta": "Plataforma Tesoura Elétrica"}, {"ordem": "2", "pergunta": "Altura Necessária", "resposta": "5 m"}, {"ordem": "3", "pergunta": "Tipo de Área", "resposta": "Interno"}, {"ordem": "4", "pergunta": "Tipo de Serviço", "resposta": "Pintura"}, {"ordem": "5", "pergunta": "Data de Início", "resposta": "15/01/2026"}, {"ordem": "6", "pergunta": "Período de Locação", "resposta": "2 semanas"}], "utms": {"campanha": null, "clickid": null, "content": null, "media": null, "termo": "teste-ia-whats", "origem": null, "source": null, "url": null, "pagepath": null, "ip": null}, "origem_sdr": null, "sub_origem_sdr": null}
+[INFO]	2026-01-14T19:12:48.352Z	fa44c2cd-4e98-4948-b9b6-ed7733349c2f	Sucesso envio Dynamics: 201
+[INFO]	2026-01-14T19:12:48.353Z	fa44c2cd-4e98-4948-b9b6-ed7733349c2f	ID do Lead Criado: 2d908afc-7cf1-f011-8407-7ced8da90092
+[ERROR]	2026-01-14T19:12:48.360Z	fa44c2cd-4e98-4948-b9b6-ed7733349c2f	Erro na comunicação com API: An error occurred (ValidationException) when calling the UpdateItem operation: The document path provided in the update expression is invalid for update
+[ERROR]	2026-01-14T19:12:48.360Z	fa44c2cd-4e98-4948-b9b6-ed7733349c2f	Erro ao processar mensagem individual: An error occurred (ValidationException) when calling the UpdateItem operation: The document path provided in the update expression is invalid for update
+Traceback (most recent call last):
+File "/var/task/src_aws/lambda_mia_crm.py", line 242, in handler
+raise e_api  # Relança para DLQ se for erro transiente
+^^^^^^^^^^^
+File "/var/task/src_aws/lambda_mia_crm.py", line 234, in handler
+table.update_item(
+File "/var/lang/lib/python3.12/site-packages/boto3/resources/factory.py", line 581, in do_action
+response = action(self, *args, **kwargs)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/var/lang/lib/python3.12/site-packages/boto3/resources/action.py", line 88, in __call__
+response = getattr(parent.meta.client, operation_name)(*args, **params)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/var/lang/lib/python3.12/site-packages/botocore/client.py", line 602, in _api_call
+return self._make_api_call(operation_name, kwargs)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/var/lang/lib/python3.12/site-packages/botocore/context.py", line 123, in wrapper
+return func(*args, **kwargs)
+^^^^^^^^^^^^^^^^^^^^^
+File "/var/lang/lib/python3.12/site-packages/botocore/client.py", line 1078, in _make_api_call
+raise error_class(parsed_response, operation_name)
+END RequestId: fa44c2cd-4e98-4948-b9b6-ed7733349c2f
+REPORT RequestId: fa44c2cd-4e98-4948-b9b6-ed7733349c2f	Duration: 8081.83 ms	Billed Duration: 11490 ms	Memory Size: 1024 MB	Max Memory Used: 147 MB	Init Duration: 3408.03 ms	

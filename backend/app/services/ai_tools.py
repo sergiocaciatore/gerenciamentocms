@@ -6,8 +6,8 @@ import json
 def get_all_works():
     # ... (same)
     """
-    Fetches a list of all works from the database.
-    Returns basic info: ID, regional, city, state.
+    Busca uma lista de todas as obras do banco de dados.
+    Retorna informações básicas: ID, regional, cidade, estado.
     """
     db = firestore.client()
     docs = db.collection("works").stream()
@@ -30,7 +30,7 @@ def get_all_works():
 
 def get_work_details(work_id: str):
     """
-    Fetches full details for a specific work ID.
+    Busca detalhes completos de uma obra específica pelo ID.
     """
     db = firestore.client()
     doc_ref = db.collection("works").document(work_id)
@@ -44,10 +44,10 @@ def get_work_details(work_id: str):
 
 def get_work_planning(work_id: str):
     """
-    Fetches planning data for a specific work ID.
+    Busca dados de planejamento para uma obra específica.
     """
     db = firestore.client()
-    # Planning ID is currently same as Work ID in our logic
+    # O ID do planejamento é atualmente o mesmo que o ID da Obra em nossa lógica
     doc_ref = db.collection("plannings").document(work_id)
     doc = doc_ref.get()
 
@@ -59,21 +59,21 @@ def get_work_planning(work_id: str):
     return json.dumps(doc.to_dict(), default=str)
 
 
-# Map of available tools for the AI Service to use
+# Mapa de ferramentas disponíveis para o Serviço de IA usar
 
-# --- File Tools ---
+# --- Ferramentas de Arquivo ---
 
 TEMP_DIR = "/tmp/cms_ai_files"
 
 
 def get_file_content(file_id: str):
     """
-    Reads the content of a previously uploaded file.
-    Use this when the user mentions they uploaded a file or sends a file_id.
+    Lê o conteúdo de um arquivo enviado anteriormente.
+    Use isso quando o usuário mencionar que enviou um arquivo ou enviar um file_id.
     """
     import os
 
-    # Locate file
+    # Localizar arquivo
     found_file = None
     if os.path.exists(TEMP_DIR):
         for filename in os.listdir(TEMP_DIR):
@@ -96,9 +96,9 @@ def get_file_content(file_id: str):
 
 def create_report_file(filename: str, content: str):
     """
-    Creates a downloadable text file (report, document, code) for the user.
-    Usage: Call this when the user asks to "create a document", "generate a report", or "save this".
-    Return: The file_id that enables the user to download it.
+    Cria um arquivo de texto baixável (relatório, documento, código) para o usuário.
+    Uso: Chame isso quando o usuário pedir para "criar um documento", "gerar um relatório" ou "salvar isso".
+    Retorno: O file_id que permite ao usuário baixá-lo.
     """
     import os
     import uuid
@@ -107,7 +107,7 @@ def create_report_file(filename: str, content: str):
         os.makedirs(TEMP_DIR)
 
     file_id = str(uuid.uuid4())
-    # Ensure filename has extension
+    # Garantir que o nome do arquivo tenha extensão
     if "." not in filename:
         filename += ".txt"
 
@@ -123,7 +123,7 @@ def create_report_file(filename: str, content: str):
                 "status": "success",
                 "file_id": file_id,
                 "filename": filename,
-                "type": "document_created",  # Signal to AI Service to extract this
+                "type": "document_created",  # Sinal para o Serviço de IA extrair isso
             }
         )
     except Exception as e:
@@ -132,7 +132,7 @@ def create_report_file(filename: str, content: str):
 
 def get_lpu_data(work_id: Optional[str] = None):
     """
-    Fetches LPU (Lista de Preços Unitários) data.
+    Busca dados da LPU (Lista de Preços Unitários).
     """
     db = firestore.client()
     query = db.collection("lpus")
@@ -146,7 +146,7 @@ def get_lpu_data(work_id: Optional[str] = None):
 
 def get_control_tower_data():
     """
-    Fetches Control Tower data (OCs and Events).
+    Busca dados da Torre de Controle (OCs e Eventos).
     """
     db = firestore.client()
     ocs_docs = db.collection("ocs").stream()
@@ -160,7 +160,7 @@ def get_control_tower_data():
 
 def get_team_members():
     """
-    Fetches details about the team (Residents/Engineers).
+    Busca detalhes sobre a equipe (Residentes/Engenheiros).
     """
     db = firestore.client()
     docs = db.collection("residents").stream()
@@ -170,7 +170,7 @@ def get_team_members():
 
 def get_managements(work_id: Optional[str] = None):
     """
-    Fetches Management/Report data.
+    Busca dados de Gerenciamento/Relatórios.
     """
     db = firestore.client()
     query = db.collection("managements")
@@ -184,7 +184,7 @@ def get_managements(work_id: Optional[str] = None):
 
 def get_daily_logs(work_id: str, date: Optional[str] = None):
     """
-    Fetches Daily Logs (Diário de Obra).
+    Busca Diários de Obra.
     """
     db = firestore.client()
     query = db.collection("daily_logs").where("workId", "==", work_id)
@@ -209,13 +209,13 @@ AVAILABLE_TOOLS = {
     "create_report_file": create_report_file,
 }
 
-# OpenAI Tool Definitions
+# Definições de Ferramentas OpenAI
 TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
             "name": "get_all_works",
-            "description": "Get a list of all works/projects with basic status info.",
+            "description": "Obter uma lista de todas as obras/projetos com informações básicas de status.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -227,13 +227,13 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_work_details",
-            "description": "Get detailed information about a specific work by ID (address, dates, business case).",
+            "description": "Obter informações detalhadas sobre uma obra específica por ID (endereço, datas, business case).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "work_id": {
                         "type": "string",
-                        "description": "The ID of the work/project (e.g., 'O-001')",
+                        "description": "O ID da obra/projeto (ex: 'O-001')",
                     }
                 },
                 "required": ["work_id"],
@@ -244,13 +244,13 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_work_planning",
-            "description": "Get the planning data for a specific work.",
+            "description": "Obter dados de planejamento para uma obra específica.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "work_id": {
                         "type": "string",
-                        "description": "The ID of the work/project",
+                        "description": "O ID da obra/projeto",
                     }
                 },
                 "required": ["work_id"],
@@ -261,13 +261,13 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_file_content",
-            "description": "Read content of an uploaded file. User must provide file_id.",
+            "description": "Ler conteúdo de um arquivo enviado. O usuário deve fornecer file_id.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file_id": {
                         "type": "string",
-                        "description": "The ID of the file to read.",
+                        "description": "O ID do arquivo para ler.",
                     }
                 },
                 "required": ["file_id"],
@@ -278,13 +278,13 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_lpu_data",
-            "description": "Get LPU (Lista de Preços Unitários) data, optionally filtered by work_id.",
+            "description": "Obter dados da LPU (Lista de Preços Unitários), opcionalmente filtrados por work_id.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "work_id": {
                         "type": "string",
-                        "description": "Optional work ID to filter LPU items.",
+                        "description": "ID da obra opcional para filtrar itens da LPU.",
                     }
                 },
                 "required": [],
@@ -295,7 +295,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_control_tower_data",
-            "description": "Get Control Tower data including OCs (Ocorrências) and Events timeline.",
+            "description": "Obter dados da Torre de Controle incluindo OCs (Ocorrências) e linha do tempo de Eventos.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
@@ -303,7 +303,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_team_members",
-            "description": "Get list of team members (Residents, Engineers) and their assignments.",
+            "description": "Obter lista de membros da equipe (Residentes, Engenheiros) e suas atribuições.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
@@ -311,13 +311,13 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_managements",
-            "description": "Get management reports and status data.",
+            "description": "Obter relatórios gerenciais e dados de status.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "work_id": {
                         "type": "string",
-                        "description": "Optional work ID to filter reports.",
+                        "description": "ID da obra opcional para filtrar relatórios.",
                     }
                 },
                 "required": [],
@@ -328,14 +328,14 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_daily_logs",
-            "description": "Get daily construction logs (Diário de Obra).",
+            "description": "Obter diário de obra (Daily Logs).",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "work_id": {"type": "string", "description": "The ID of the work."},
+                    "work_id": {"type": "string", "description": "O ID da obra."},
                     "date": {
                         "type": "string",
-                        "description": "Optional date (YYYY-MM-DD) to filter logs.",
+                        "description": "Data opcional (AAAA-MM-DD) para filtrar logs.",
                     },
                 },
                 "required": ["work_id"],
@@ -346,17 +346,17 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "create_report_file",
-            "description": "Create/Save a file (report, text, code) for the user to download.",
+            "description": "Criar/Salvar um arquivo (relatório, texto, código) para o usuário baixar.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "Name of the file (e.g. 'relatorio_obra.txt')",
+                        "description": "Nome do arquivo (ex: 'relatorio_obra.txt')",
                     },
                     "content": {
                         "type": "string",
-                        "description": "The full text content of the file.",
+                        "description": "O conteúdo completo do texto do arquivo.",
                     },
                 },
                 "required": ["filename", "content"],

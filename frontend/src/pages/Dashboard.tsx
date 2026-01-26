@@ -44,12 +44,12 @@ export default function Dashboard() {
         fetchData();
     }, [fetchData]);
 
-    // Filter Data Logic
+    // Lógica de Filtro de Dados
     const filteredWorks = selectedWorkId === "all"
         ? works
         : works.filter(w => w.id === selectedWorkId);
 
-    // Calculate Financials for Chart and Categories
+    // Calcular Financeiro para Gráfico e Categorias
     const categoryTotals: Record<string, number> = {};
 
     const financialData = filteredWorks.map(work => {
@@ -57,14 +57,14 @@ export default function Dashboard() {
 
         const workOcs = ocs.filter(oc => oc.work_id === work.id);
         const realizedValue = workOcs.reduce((sum, oc) => {
-            // Aggregate Category totals
+            // Agregar totais por Categoria
             const desc = oc.description || "Outros";
             const val = oc.value || 0;
             categoryTotals[desc] = (categoryTotals[desc] || 0) + val;
             return sum + val;
         }, 0);
 
-        // Get OCs details for tooltip
+        // Obter detalhes de OCs para tooltip
         const topOcs = workOcs
             .sort((a, b) => (b.value || 0) - (a.value || 0))
             .slice(0, 5) // Top 5 OCs
@@ -80,18 +80,18 @@ export default function Dashboard() {
         };
     }).sort((a, b) => b.bc - a.bc);
 
-    // Calculate Totals based on Filter
+    // Calcular Totais baseados no Filtro
     const totalBC = financialData.reduce((acc, item) => acc + item.bc, 0);
     const totalRealized = financialData.reduce((acc, item) => acc + item.realized, 0);
     const totalSaving = totalBC - totalRealized;
 
-    // Process Categories for Visualization
+    // Processar Categorias para Visualização
     const sortedCategories = Object.entries(categoryTotals)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
-    // If more than 5 categories, group others (optional, but good for UI)
-    // For now, let's list all or top 6
+    // Se mais de 5 categorias, agrupar outros (opcional, mas bom para UI)
+    // Por enquanto, vamos listar todos ou top 6
     const topCategories = sortedCategories; // .slice(0, 6);
 
     const formatCurrency = (val: number) => {
@@ -110,10 +110,10 @@ export default function Dashboard() {
                 />
             )}
 
-            {/* Main Container */}
+            {/* Container Principal */}
             <div className="p-6 max-w-[1920px] mx-auto space-y-6">
 
-                {/* Tab Navigation */}
+                {/* Navegação por Abas */}
                 <div className="flex justify-center mb-4">
                     <div className="bg-white/40 p-1.5 rounded-xl flex gap-1 shadow-sm border border-white/50 backdrop-blur-md">
                         <button
@@ -142,7 +142,7 @@ export default function Dashboard() {
                     <div className="relative overflow-visible rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl p-6">
                         <div className="flex justify-between items-center mb-6 px-1">
                             <h2 className="text-lg font-bold text-gray-800">Financeiro Executivo</h2>
-                            {/* Work Filter Dropdown */}
+                            {/* Dropdown de Filtro de Obras */}
                             <div className="relative z-20">
                                 <select
                                     value={selectedWorkId}
@@ -160,7 +160,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Top KPI Cards */}
+                        {/* Cards de KPI Superior */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                             {/* Business Case Total */}
                             <div className="bg-white/60 rounded-xl p-4 shadow-sm border border-white/60 relative overflow-hidden group">
@@ -206,7 +206,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Financial Charts Grid */}
+                        {/* Grade de Gráficos Financeiros */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* CHART: Comparativo por Obra */}
                             <div className="bg-white/60 rounded-xl shadow-sm border border-white/60 p-5 flex flex-col h-full">
@@ -298,10 +298,10 @@ export default function Dashboard() {
                 {/* ================= ESTRATEGICO TAB ================= */}
                 {activeTab === 'estrategico' && (
                     <>
-                        {/* EXECUTIVE ANALYTICS SECTION */}
+                        {/* SEÇÃO DE ANÁLISE EXECUTIVA */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
-                            {/* 1. Regional Analysis */}
+                            {/* 1. Análise Regional */}
                             <div className="bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-6 flex flex-col">
                                 <h3 className="text-gray-800 font-bold mb-4 flex items-center gap-2">
                                     <span className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
@@ -311,7 +311,7 @@ export default function Dashboard() {
                                 </h3>
                                 <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
                                     {(() => {
-                                        // Group works by regional
+                                        // Agrupar obras por regional
                                         const regionalData: Record<string, { count: number; bc: number; realized: number }> = {};
 
                                         works.forEach(w => {
@@ -357,7 +357,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            {/* 2. Process Efficiency */}
+                            {/* 2. Eficiência de Processo */}
                             <div className="bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-6 flex flex-col">
                                 <h3 className="text-gray-800 font-bold mb-4 flex items-center gap-2">
                                     <span className="p-1.5 bg-purple-100 text-purple-600 rounded-lg">
@@ -421,7 +421,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            {/* 3. Risk Monitor */}
+                            {/* 3. Monitor de Risco */}
                             <div className="bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-6 flex flex-col">
                                 <h3 className="text-gray-800 font-bold mb-4 flex items-center gap-2">
                                     <span className="p-1.5 bg-red-100 text-red-600 rounded-lg">
@@ -474,9 +474,9 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Works Dashboard Section */}
+                        {/* Seção Dashboard de Obras */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Left Column: GoLive Countdown */}
+                            {/* Coluna Esquerda: Contagem Regressiva GoLive */}
                             <div className="bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-6 flex flex-col h-full">
                                 <div className="flex items-center justify-between mb-6">
                                     <h2 className="text-lg font-bold text-gray-800">Próximos Go-Lives</h2>
@@ -542,7 +542,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            {/* Right Column: Stage Tracking */}
+                            {/* Coluna Direita: Acompanhamento de Etapas */}
                             <div className="bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-6 flex flex-col h-full">
                                 <div className="flex items-center justify-between mb-6">
                                     <h2 className="text-lg font-bold text-gray-800">Acompanhamento de Etapas</h2>

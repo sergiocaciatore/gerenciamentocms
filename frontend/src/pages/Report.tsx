@@ -45,7 +45,7 @@ interface Management {
     // ...
 }
 
-// Local interfaces removed in favor of imported types
+// Interfaces locais removidas em favor de tipos importados
 
 interface OC {
     work_id: string;
@@ -54,14 +54,14 @@ interface OC {
     // ...
 }
 
-// Load Map Images
+// Carregar Imagens do Mapa
 const mapImagesGlob = import.meta.glob('../assets/estados/*.png', { eager: true });
 const mapImages = Object.entries(mapImagesGlob).map(([path, mod]: [string, unknown]) => ({
     name: path.split('/').pop()?.replace('.png', '') || '',
     url: (mod as { default: string }).default
 }));
 
-// Memoized SubTask Item Component to prevent re-renders
+// Componente SubTask Item memorizado para evitar re-renderizações
 const SubTaskItem = React.memo(({ task, index, onUpdate }: { task: PlanningStage, index: number, onUpdate: (index: number, field: 'start_real' | 'end_real', value: string) => void }) => {
     return (
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -92,9 +92,9 @@ const SubTaskItem = React.memo(({ task, index, onUpdate }: { task: PlanningStage
         </div>
     );
 }, (prevProps, nextProps) => {
-    // Custom comparison: Only re-render if the task ID or Name or Index changes.
-    // We ignore onUpdate changes because we know the ref update logic is stable enough for this use case
-    // and we don't want re-renders breaking the input focus/state.
+    // Comparação personalizada: Só renderiza novamente se o ID da tarefa, Nome ou Índice mudar.
+    // Ignoramos alterações no onUpdate porque sabemos que a lógica de atualização da ref é estável o suficiente para este caso de uso
+    // e não queremos que re-renderizações quebrem o foco/estado do input.
     return prevProps.index === nextProps.index &&
         prevProps.task.id === nextProps.task.id &&
         prevProps.task.name === nextProps.task.name;
@@ -116,19 +116,19 @@ export default function Report() {
     // UI
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [isMapModalOpen, setIsMapModalOpen] = useState(false); // New state for map modal
+    const [isMapModalOpen, setIsMapModalOpen] = useState(false); // Novo estado para modal de mapa
     const [isUploading, setIsUploading] = useState(false);
-    const [isReorderModalOpen, setIsReorderModalOpen] = useState(false); // Reorder Modal
+    const [isReorderModalOpen, setIsReorderModalOpen] = useState(false); // Modal de Reordenar
     const [organizeMode, setOrganizeMode] = useState<'works' | 'regional'>('works');
-    const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false); // Timeline Modal
-    const [isSubTaskModalOpen, setIsSubTaskModalOpen] = useState(false); // Sub-Task Edit Modal
+    const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false); // Modal de Cronograma
+    const [isSubTaskModalOpen, setIsSubTaskModalOpen] = useState(false); // Modal de Edição de Sub-Tarefa
     const [selectedPhaseName, setSelectedPhaseName] = useState("");
     const [subTaskForm, setSubTaskForm] = useState<PlanningStage[]>([]);
     const subTaskFormRef = useRef<PlanningStage[]>([]);
 
-    const [isTeamModalOpen, setIsTeamModalOpen] = useState(false); // Team Edit Modal
+    const [isTeamModalOpen, setIsTeamModalOpen] = useState(false); // Modal de Edição de Equipe
 
-    // Filters
+    // Filtros
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
         regional: string[];
@@ -146,13 +146,13 @@ export default function Report() {
         controlTower: []
     });
 
-    // PDF Generation
+    // Geração de PDF
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [selectedWorksForPdf, setSelectedWorksForPdf] = useState<Set<string>>(new Set());
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [pdfProgress, setPdfProgress] = useState(0); // 0 to 100
 
-    // Team Edit Form
+    // Formulário de Edição de Equipe
     const [teamForm, setTeamForm] = useState({
         engineer: "",
         coordinator: "",
@@ -165,22 +165,20 @@ export default function Report() {
     const [isEnhancing, setIsEnhancing] = useState<string | null>(null);
     const [isFlipped, setIsFlipped] = useState(false);
 
-    // Derived
+    // Derivado
     const filteredWorks = useMemo(() => {
         return works.filter(w => {
-            // 1. Regional Filter
+            // 1. Filtro Regional
             if (activeFilters.regional.length > 0 && !activeFilters.regional.includes(w.regional)) return false;
 
-            // 2. Team Filters
-            // We need to join with managements to check team members
+            // 2. Filtros de Equipe
+            // Precisamos juntar com managements para verificar membros da equipe
             const mgmt = managements.find(m => m.work_id === w.id);
             if (!mgmt) {
-                // If no management record, exclude if any team filter is active (except maybe engineer which might be on work?)
-                // Actually work has engineer/coordinator sometimes on itself (see interface), but let's check management first as it's the source of truth for current team
-                // The interface says Work has engineer/coordinator, but Team Modal uses Managements?
-                // Let's check where Team Modal saves. It saves to 'teamForm' but doesn't seem to persist fully in the code I saw?
-                // Wait, handleUpdateManagement updates 'managements'. So we check 'managements'.
-                // If any team filter is set and no mgmt record, we can't match it.
+                // Se não houver registro de gestão, excluir se algum filtro de equipe estiver ativo (exceto engenheiro que pode estar na obra?)
+                // Na verdade a Obra tem engenheiro/coordenador, mas vamos verificar gestão primeiro pois é a fonte da verdade para equipe atual
+                // A interface diz que Obra tem engenheiro/coordenador, mas Modal de Equipe usa Managements
+                // Se algum filtro de equipe estiver definido e não houver gestão, não podemos combinar.
                 const hasTeamFilter = Object.entries(activeFilters).some(([key, val]) => key !== 'regional' && val.length > 0);
                 if (hasTeamFilter) return false;
                 return true;
@@ -199,14 +197,14 @@ export default function Report() {
     const visibleWorks = useMemo(() => filteredWorks.filter(w => !hiddenWorkIds.has(w.id)), [filteredWorks, hiddenWorkIds]);
     const currentWork = visibleWorks[currentIndex];
 
-    // Maintain valid index when list shrinks
+    // Manter índice válido quando a lista diminui
     useEffect(() => {
         if (currentIndex >= visibleWorks.length && visibleWorks.length > 0) {
             setCurrentIndex(visibleWorks.length - 1);
         }
     }, [visibleWorks.length, currentIndex]);
 
-    // Persist hidden state
+    // Persistir estado oculto
     useEffect(() => {
         localStorage.setItem('hiddenWorkIds', JSON.stringify([...hiddenWorkIds]));
     }, [hiddenWorkIds]);
@@ -215,7 +213,7 @@ export default function Report() {
     const currentPlanning = plannings.find(p => p.work_id === currentWork?.id);
     const currentOcs = ocs.filter(o => o.work_id === currentWork?.id);
 
-    // --- Data Fetching ---
+    // --- Busca de Dados ---
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
@@ -238,7 +236,7 @@ export default function Report() {
                     const ocsData = ocsRes.ok ? await ocsRes.json() : [];
                     const teamData: RegistrationTeam[] = teamRes.ok ? await teamRes.json() : [];
 
-                    // Apply saved order from localStorage first
+                    // Aplicar ordem salva do localStorage primeiro
                     const sortedWorks = worksData as Work[];
                     const savedOrder = JSON.parse(localStorage.getItem('worksOrder') || '[]');
                     if (savedOrder && savedOrder.length > 0) {
@@ -246,17 +244,17 @@ export default function Report() {
                             const idxA = savedOrder.indexOf(a.id);
                             const idxB = savedOrder.indexOf(b.id);
                             if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                            if (idxA !== -1) return -1; // a is in savedOrder, b is not
-                            if (idxB !== -1) return 1;  // b is in savedOrder, a is not
-                            return 0; // neither are in savedOrder, maintain original relative order
+                            if (idxA !== -1) return -1; // a está na ordem salva, b não
+                            if (idxB !== -1) return 1;  // b está na ordem salva, a não
+                            return 0; // nenhum está na ordem salva, manter ordem relativa original
                         });
                     } else {
-                        // If no saved order, apply default sorting: Project Avoidance first (numeric IDs descending), then others
+                        // Se não houver ordem salva, aplicar ordenação padrão: Project Avoidance primeiro (IDs numéricos decrescentes), depois outros
                         sortedWorks.sort((a, b) => {
                             const idA = parseInt(a.id);
                             const idB = parseInt(b.id);
-                            if (!isNaN(idA) && !isNaN(idB)) return idB - idA; // Numeric IDs descending
-                            return a.id.localeCompare(b.id); // Alphabetical for others
+                            if (!isNaN(idA) && !isNaN(idB)) return idB - idA; // IDs numéricos decrescentes
+                            return a.id.localeCompare(b.id); // Alfabético para outros
                         });
                     }
 
@@ -272,7 +270,7 @@ export default function Report() {
                     setIsLoading(false);
                 }
             } else {
-                // Handle case where user is not logged in
+                // Lidar com caso onde usuário não está logado
                 setIsLoading(false);
             }
         });
@@ -368,10 +366,10 @@ export default function Report() {
     const handleTeamEditClick = () => {
         if (!currentWork) return;
 
-        // Prefer management data, fallback to work data (which seems to happen in the UI logic)
-        // But the UI logic for display was: currentMgmt?.engineer || currentWork?.engineer
-        // The display logic casts currentWork to Management in some places, suggesting the type might be loose or properties exist on Work too.
-        // We will stick to the display logic priority.
+        // Preferir dados de gestão, fallback para dados de obra (o que parece acontecer na lógica da UI)
+        // Mas a lógica da UI para exibição era: currentMgmt?.engineer || currentWork?.engineer
+        // A lógica de exibição converte currentWork para Management em alguns lugares, sugerindo que o tipo pode ser solto ou propriedades existem em Work também.
+        // Vamos manter a prioridade da lógica de exibição.
 
         setTeamForm({
             engineer: currentMgmt?.engineer || currentWork.engineer || "",
@@ -388,7 +386,7 @@ export default function Report() {
 
         const newMgmtData: Management = {
             ...(currentMgmt || { work_id: currentWork.id }),
-            work_id: currentWork.id, // Ensure work_id is set
+            work_id: currentWork.id, // Garantir que work_id esteja definido
             engineer: teamForm.engineer,
             coordinator: teamForm.coordinator,
             control_tower: teamForm.controlTower,
@@ -396,7 +394,7 @@ export default function Report() {
             cm: teamForm.cm
         };
 
-        // Optimistic Update
+        // Atualização Otimista
         setManagements(prev => {
             const index = prev.findIndex(m => m.work_id === currentWork.id);
             if (index >= 0) {
@@ -433,15 +431,15 @@ export default function Report() {
         setIsMapModalOpen(false);
     };
 
-    // Helper to resolve map URL from stored value (name or legacy path)
+    // Auxiliar para resolver URL do mapa do valor armazenado (nome ou caminho legado)
     const getMapUrl = (val: string | undefined) => {
         if (!val) return null;
 
-        // 1. Try finding by Name (New behavior: "GO", "SP")
+        // 1. Tentar encontrar por Nome (Novo comportamento: "GO", "SP")
         const byName = mapImages.find(m => m.name === val);
         if (byName) return byName.url;
 
-        // 2. Try parsing Legacy Dev Path (/src/assets/estados/GO.png)
+        // 2. Tentar analisar Caminho de Desenvolvimento Legado (/src/assets/estados/GO.png)
         const match = val.match(/estados\/([A-Z]{2})\.png/);
         if (match) {
             const stateCode = match[1];
@@ -449,7 +447,7 @@ export default function Report() {
             if (found) return found.url;
         }
 
-        // 3. Return original (e.g. Firebase Storage URL or valid production path)
+        // 3. Retornar original (ex: URL do Firebase Storage ou caminho de produção válido)
         return val;
     };
 
@@ -466,7 +464,7 @@ export default function Report() {
 
             handleUpdateManagement(field, downloadUrl);
 
-            // Construct object if missing for save
+            // Construir objeto se faltando para salvar
             const newMgmt = currentMgmt
                 ? { ...currentMgmt, [field]: downloadUrl }
                 : { work_id: currentWork.id, [field]: downloadUrl };
@@ -504,7 +502,7 @@ export default function Report() {
 
             for (let i = 0; i < worksToPrint.length; i++) {
                 const work = worksToPrint[i];
-                // Find index in visibleWorks to switch view
+                // Encontrar índice em visibleWorks para trocar visualização
                 const idx = visibleWorks.findIndex(w => w.id === work.id);
                 if (idx !== -1) {
                     setCurrentIndex(idx);
@@ -542,7 +540,7 @@ export default function Report() {
                         if (i > 0) pdf.addPage();
                         pdf.addImage(imgData, 'PNG', x, y, printWidth, printHeight);
 
-                        // Optional: Add footer or title if needed, but image capture covers it
+                        // Opcional: Adicionar rodapé ou título se necessário, mas captura de imagem cobre isso
                     }
                 }
                 setPdfProgress(Math.round(((i + 1) / worksToPrint.length) * 100));
@@ -579,18 +577,18 @@ export default function Report() {
             setWorks(newWorks);
             localStorage.setItem('worksOrder', JSON.stringify(newWorks.map(w => w.id)));
 
-            // Keep current work selected correctly
+            // Manter trabalho atual selecionado corretamente
             const currentId = works[currentIndex].id;
             const newIndex = newWorks.findIndex(w => w.id === currentId);
             if (newIndex !== -1) setCurrentIndex(newIndex);
         } else {
-            // Regional Reordering
+            // Reordenação Regional
             const uniqueRegionals = Array.from(new Set(works.map(w => w.regional))).filter(Boolean);
             const newRegionals = Array.from(uniqueRegionals);
             const [movedRegional] = newRegionals.splice(sourceIndex, 1);
             newRegionals.splice(destinationIndex, 0, movedRegional);
 
-            // Reconstruct Works Array based on new Regional Order
+            // Reconstruir Array de Obras baseado na nova Ordem Regional
             const groupedWorks: Record<string, Work[]> = {};
             works.forEach(w => {
                 if (!groupedWorks[w.regional]) groupedWorks[w.regional] = [];
@@ -604,13 +602,13 @@ export default function Report() {
                     delete groupedWorks[reg];
                 }
             });
-            // Append any remaining (shouldn't happen if logic is correct, but safe fallback)
+            // Anexar quaisquer restantes (não deve acontecer se a lógica estiver correta, mas fallback seguro)
             Object.values(groupedWorks).forEach(group => newWorks.push(...group));
 
             setWorks(newWorks);
             localStorage.setItem('worksOrder', JSON.stringify(newWorks.map(w => w.id)));
 
-            // Keep current work selected correctly
+            // Manter trabalho atual selecionado corretamente
             const currentId = works[currentIndex].id;
             const newIndex = newWorks.findIndex(w => w.id === currentId);
             if (newIndex !== -1) setCurrentIndex(newIndex);
@@ -656,7 +654,7 @@ export default function Report() {
         setWorks(newWorks);
         localStorage.setItem('worksOrder', JSON.stringify(newWorks.map(w => w.id)));
 
-        // Adjust current index if we moved the current item
+        // Ajustar índice atual se movemos o item atual
         if (index === currentIndex) {
             setCurrentIndex(direction === 'up' ? index - 1 : index + 1);
         } else if (direction === 'up' && index - 1 === currentIndex) {
@@ -666,7 +664,7 @@ export default function Report() {
         }
     };
 
-    // Configuration for Macro Phases and their Sub-tasks
+    // Configuração para Macro Fases e suas Sub-tarefas
     const PHASE_CONFIG: Record<string, string[]> = {
         'Contrato Assinado': ['Contrato Assinado'],
         'Layout Aprovado': ['Layout Aprovado'],
@@ -714,7 +712,7 @@ export default function Report() {
         const allTasks: PlanningStage[] = currentPlanning.data.schedule;
         const subTaskNames = PHASE_CONFIG[phaseKey] || [];
 
-        // Match tasks by name (case insensitive, loose match to handle variations)
+        // Combinar tarefas por nome (case insensitive, correspondência flexível para lidar com variações)
         const relevantTasks = subTaskNames.map(name =>
             allTasks.find(t => t.name.toLowerCase().includes(name.toLowerCase()))
         );
@@ -722,8 +720,8 @@ export default function Report() {
         const firstTaskObj = relevantTasks[0];
         const lastTaskObj = relevantTasks[relevantTasks.length - 1];
 
-        // Macro Start is Start of First Task
-        // Macro End is End of Last Task
+        // Macro Início é o Início da Primeira Tarefa
+        // Macro Fim é o Fim da Última Tarefa
         const start = firstTaskObj?.start_real || null;
         const end = lastTaskObj?.end_real || null;
 
@@ -758,7 +756,7 @@ export default function Report() {
     }
     const currency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.abs(val));
 
-    // Fix Date Timezone Issue: parse YYYY-MM-DD as local date
+    // Corrigir Problema de Fuso Horário da Data: analisar YYYY-MM-DD como data local
     const dateFmt = (d: string | null | undefined) => {
         if (!d) return '-';
         const [y, m, day] = d.split('-').map(Number);
@@ -768,7 +766,7 @@ export default function Report() {
     // Improved Parser
     const parseCurrency = (val: string | undefined) => {
         if (!val) return 0;
-        // Remove "R$", spaces, dots (thousands), leave comma and minus
+        // Remover "R$", espaços, pontos (milhares), deixar vírgula e menos
         const clean = val.replace(/[R$\s.]/g, '').replace(',', '.');
         const num = parseFloat(clean);
         return isNaN(num) ? 0 : num;
@@ -781,7 +779,7 @@ export default function Report() {
         const subTaskNames = PHASE_CONFIG[phaseKey] || [];
         const allTasks = currentPlanning.data.schedule;
 
-        // Filter tasks that match the phase
+        // Filtrar tarefas que correspondem à fase
         const matchingTasks = subTaskNames.map(name => {
             return allTasks.find(t => t.name.toLowerCase().includes(name.toLowerCase()));
         }).filter((t): t is PlanningStage => !!t);
@@ -790,7 +788,7 @@ export default function Report() {
             setSelectedPhaseName(phaseKey);
             const tasksData = JSON.parse(JSON.stringify(matchingTasks));
             setSubTaskForm(tasksData);
-            subTaskFormRef.current = tasksData; // Initialize Ref
+            subTaskFormRef.current = tasksData; // Inicializar Ref
             setIsSubTaskModalOpen(true);
         }
     };
@@ -800,7 +798,7 @@ export default function Report() {
 
         const updatedSchedule = [...(currentPlanning.data.schedule || [])];
 
-        // Update the tasks in the full schedule with values from the form REf
+        // Atualizar as tarefas no cronograma completo com valores do form Ref
         subTaskFormRef.current.forEach(formTask => {
             const idx = updatedSchedule.findIndex(t => (t.id && formTask.id && t.id === formTask.id) || t.name === formTask.name);
             if (idx !== -1) {
@@ -816,7 +814,7 @@ export default function Report() {
             }
         };
 
-        // Optimistic Update
+        // Atualização Otimista
         setPlannings(prev => prev.map(p =>
             p.work_id === currentPlanning.work_id ? updatedPlanning : p
         ));
@@ -835,18 +833,18 @@ export default function Report() {
             });
         } catch (error) {
             console.error("Error saving subtasks", error);
-            // Revert changes if needed or show error
+            // Reverter mudanças se necessário ou mostrar erro
         }
     }, [currentPlanning]);
 
-    // Stable Handler for Ref Updates
+    // Handler estável para atualizações de Ref
     const handleSubTaskRefUpdate = useCallback((index: number, field: 'start_real' | 'end_real', value: string) => {
         if (subTaskFormRef.current[index]) {
             subTaskFormRef.current[index][field] = value;
         }
     }, []);
 
-    // Keyboard shortcuts
+    // Atalhos de teclado
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (isSubTaskModalOpen) {
@@ -861,12 +859,12 @@ export default function Report() {
             }
             if (isFilterModalOpen) {
                 if (e.key === 'Escape') setIsFilterModalOpen(false);
-                if (e.key === 'Enter') setIsFilterModalOpen(false); // Filter applies instantly, Enter just closes/confirms
+                if (e.key === 'Enter') setIsFilterModalOpen(false); // Filtro aplica instantaneamente, Enter apenas fecha/confirma
                 return;
             }
             if (isReorderModalOpen) {
                 if (e.key === 'Escape') setIsReorderModalOpen(false);
-                if (e.key === 'Enter') setIsReorderModalOpen(false); // Reorder applies instantly, Enter just closes/confirms
+                if (e.key === 'Enter') setIsReorderModalOpen(false); // Reordenação aplica instantaneamente, Enter apenas fecha/confirma
                 return;
             }
         };
@@ -875,14 +873,14 @@ export default function Report() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isSubTaskModalOpen, isTeamModalOpen, isFilterModalOpen, isReorderModalOpen, handleSaveSubTasks, handleSaveTeam]);
 
-    // --- Render ---
+    // --- Renderização ---
     if (isLoading) return <LoadingSpinner message="Carregando relatório..." subMessage="Aguarde enquanto preparamos o relatório para você." />;
 
     return (
         <div className="relative flex flex-col h-full gap-4">
 
             {/* Modal for Reordering Works */}
-            {/* Modal for Reordering Works */}
+            {/* Modal para Reordenar Obras */}
             {isReorderModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#00000080] backdrop-blur-sm" onClick={() => setIsReorderModalOpen(false)}>
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
@@ -893,7 +891,7 @@ export default function Report() {
                             </button>
                         </div>
 
-                        {/* Mode Switcher */}
+                        {/* Alternador de Modo */}
                         <div className="bg-gray-100 p-1 rounded-lg flex gap-1 mb-4 shrink-0">
                             <button
                                 onClick={() => setOrganizeMode('works')}
@@ -1015,7 +1013,7 @@ export default function Report() {
                 document.body
             )}
 
-            {/* Modal for Map Selection */}
+            {/* Modal para Seleção de Mapa */}
             {isMapModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#00000080] backdrop-blur-sm" onClick={() => setIsMapModalOpen(false)}>
                     <div className="bg-white rounded-2xl p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
@@ -1039,7 +1037,7 @@ export default function Report() {
             )}
 
 
-            {/* Modal for Timeline Editing */}
+            {/* Modal para Edição de Cronograma */}
             {isTimelineModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#00000080] backdrop-blur-sm" onClick={() => setIsTimelineModalOpen(false)}>
                     <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
@@ -1104,7 +1102,7 @@ export default function Report() {
             )}
 
 
-            {/* Top Bar Navigation (Standard) */}
+            {/* Barra de Navegação Superior (Padrão) */}
             <div id="report-header" className="bg-[#ffffffb3] backdrop-blur-xl shadow-sm p-3 items-center justify-between flex shrink-0 z-50 relative rounded-xl border border-[#ffffff80]">
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-20 hover:opacity-100 transition-opacity">
                     <img src={mllogo} alt="Logo" className="h-8 grayscale hover:grayscale-0 transition-all" />
@@ -1165,12 +1163,12 @@ export default function Report() {
                 </div>
             </div>
 
-            {/* Main Content Grid - Standard Layout */}
+            {/* Grade de Conteúdo Principal - Layout Padrão */}
             <div id="report-content" className="flex-1 grid grid-cols-12 gap-6 min-h-0 pb-2">
 
-                {/* LEFT: Visuals (3 cols) */}
+                {/* ESQUERDA: Visuais (3 cols) */}
                 <div className="col-span-3 flex flex-col gap-6">
-                    {/* Map Card */}
+                    {/* Cartão do Mapa */}
                     <div className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl shadow-sm border border-[#ffffff80] h-36 relative overflow-hidden group">
                         <span className="text-[10px] text-gray-400 absolute top-2 left-3 bg-[#ffffffcc] px-2 py-0.5 rounded backdrop-blur-sm z-10 pointer-events-none uppercase font-bold tracking-wider">Localização</span>
                         <div
@@ -1189,9 +1187,9 @@ export default function Report() {
                         </div>
                     </div>
 
-                    {/* Photos */}
+                    {/* Fotos */}
                     <div className="flex-1 grid grid-rows-2 gap-4">
-                        {/* Photo 1 */}
+                        {/* Foto 1 */}
                         <label className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl relative overflow-hidden group border border-[#ffffff80] cursor-pointer hover:border-blue-300 transition-colors shadow-sm h-full w-full block">
                             <input
                                 type="file"
@@ -1217,7 +1215,7 @@ export default function Report() {
                             {isUploading && <div className="absolute inset-0 bg-[#ffffffcc] flex items-center justify-center z-20"><span className="animate-spin text-xl">⏳</span></div>}
                         </label>
 
-                        {/* Photo 2 */}
+                        {/* Foto 2 */}
                         <label className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl relative overflow-hidden group border border-[#ffffff80] cursor-pointer hover:border-blue-300 transition-colors shadow-sm h-full w-full block">
                             <input
                                 type="file"
@@ -1245,10 +1243,10 @@ export default function Report() {
                     </div>
                 </div>
 
-                {/* CENTER: Team & Timeline (5 cols) */}
+                {/* CENTRO: Equipe e Cronograma (5 cols) */}
                 <div className="col-span-5 flex flex-col gap-6">
 
-                    {/* Team Section (Top) */}
+                    {/* Seção de Equipe (Topo) */}
                     <div
                         className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl p-4 shadow-sm border border-[#ffffff80] flex-none cursor-pointer hover:bg-[#ffffffcc] transition-colors group relative"
                         onClick={handleTeamEditClick}
@@ -1317,7 +1315,7 @@ export default function Report() {
                         </div>
                     </div>
 
-                    {/* Timeline (Bottom - Reduced Height via flex-1 shared) */}
+                    {/* Cronograma (Base - Altura Reduzida via flex-1 compartilhado) */}
                     <div className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-[#ffffff80] relative flex flex-col overflow-y-auto flex-1 group/timeline">
                         <div className="absolute top-4 left-6 right-6 flex justify-between items-center">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Cronograma Realizado</h3>
@@ -1337,7 +1335,7 @@ export default function Report() {
                         </div>
 
                         <div className="mt-6 space-y-2 relative flex-1 pr-1">
-                            {/* Vertical Line */}
+                            {/* Linha Vertical */}
                             <div className="absolute left-[19px] top-2 bottom-4 w-0.5 bg-[#e5e7eb80]"></div>
 
                             {phases.map((phase, idx) => {
@@ -1350,13 +1348,13 @@ export default function Report() {
                                         className="relative flex gap-3 group/item cursor-pointer hover:bg-[#f9fafb80] rounded-lg p-1 transition-colors"
                                         onClick={() => handlePhaseClick(phase)}
                                     >
-                                        {/* Line & Dot */}
+                                        {/* Linha & Ponto */}
                                         <div className="flex flex-col items-center">
                                             <div className={`w-3 h-3 rounded-full border-2 z-10 box-border ${status === 'green' ? 'bg-green-500 border-green-500' : status === 'yellow' ? 'bg-yellow-400 border-yellow-400' : 'bg-gray-100 border-gray-200'}`}></div>
                                             {!isLast && <div className="w-0.5 bg-[#e5e7eb80] flex-1 my-1"></div>}
                                         </div>
 
-                                        {/* Content */}
+                                        {/* Conteúdo */}
                                         <div className="flex-1 pb-4 min-h-[52px] border-b border-[#f3f4f680] last:border-0 last:pb-0">
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1 mr-4">
@@ -1367,7 +1365,7 @@ export default function Report() {
                                                         </span>
                                                     </div>
 
-                                                    {/* Progress Bar */}
+                                                    {/* Barra de Progresso */}
                                                     <div className="w-full max-w-[150px] h-2 bg-[#f3f4f680] rounded-full overflow-hidden relative">
                                                         <div
                                                             className={`h-full rounded-full transition-all duration-500 ${status === 'green' ? 'bg-green-500' : status === 'yellow' ? 'bg-yellow-400 striped-bar' : 'bg-gray-200'}`}
@@ -1376,7 +1374,7 @@ export default function Report() {
                                                     </div>
                                                 </div>
 
-                                                {/* Dates - Always Visible */}
+                                                {/* Datas - Sempre Visíveis */}
                                                 <div className="text-right shrink-0">
                                                     <div className="flex gap-4 text-[10px]">
                                                         <div>
@@ -1388,7 +1386,7 @@ export default function Report() {
                                                             <span className="font-mono text-gray-600 font-medium">{dateFmt(end)}</span>
                                                         </div>
                                                     </div>
-                                                    {/* SLA Display */}
+                                                    {/* Exibição de SLA */}
                                                     {slaReal !== null && (
                                                         <div className="mt-0.5">
                                                             <span className="text-[8px] text-gray-400 uppercase mr-1">SLA Real:</span>
@@ -1405,10 +1403,10 @@ export default function Report() {
                     </div>
                 </div>
 
-                {/* RIGHT: Financials & Notes (4 cols) */}
+                {/* DIREITA: Financeiro e Notas (4 cols) */}
                 <div className="col-span-4 flex flex-col gap-6 overflow-hidden pr-1 pb-1">
 
-                    {/* Financials Flip Card */}
+                    {/* Cartão Giratório Financeiro */}
                     <div className="relative h-[220px] w-full group/flip" style={{ perspective: '1000px' }}>
                         <div
                             className="relative w-full h-full transition-all duration-700"
@@ -1417,7 +1415,7 @@ export default function Report() {
                                 transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
                             }}
                         >
-                            {/* FRONT FACE */}
+                            {/* FACE FRONTAL */}
                             <div
                                 className="absolute inset-0 bg-[#ffffff99] backdrop-blur-xl rounded-2xl p-4 shadow-sm border border-[#ffffff80] flex flex-col z-20 overflow-hidden"
                                 style={{ backfaceVisibility: 'hidden', transform: 'rotateY(0deg)' }}
@@ -1444,7 +1442,7 @@ export default function Report() {
                                         <span className="font-bold text-gray-800 text-sm truncate ml-2">{currency(currentOcs.reduce((acc, o) => acc + (o.value || 0), 0))}</span>
                                     </div>
 
-                                    {/* Bar Calculation */}
+                                    {/* Cálculo da Barra */}
                                     {(() => {
                                         const total = parseCurrency(currentWork?.business_case || currentWork?.capex_approved) || 0;
                                         const spent = currentOcs.reduce((acc, o) => acc + (o.value || 0), 0);
@@ -1474,7 +1472,7 @@ export default function Report() {
                                                         className={`h-2.5 rounded-full ${barColor} transition-all duration-1000 relative overflow-hidden`}
                                                         style={{ width: `${cappedProgress}%` }}
                                                     >
-                                                        {/* "Levemente Animado" - Shimmer Effect */}
+                                                        {/* "Levemente Animado" - Efeito Cintilante */}
                                                         <div className="absolute inset-0 bg-[#ffffff4d] skew-x-12 animate-[shimmer_2s_infinite]"></div>
                                                     </div>
                                                 </div>
@@ -1484,7 +1482,7 @@ export default function Report() {
                                 </div>
                             </div>
 
-                            {/* BACK FACE */}
+                            {/* FACE TRASEIRA */}
                             <div
                                 className="absolute inset-0 bg-[#ffffffb3] backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-[#ffffff80] flex flex-col z-20"
                                 style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
@@ -1512,10 +1510,10 @@ export default function Report() {
                         </div>
                     </div>
 
-                    {/* Merged Highlights & Attention Card */}
+                    {/* Destaques e Atenção Mesclados */}
                     <div className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl shadow-sm border border-[#ffffff80] flex-1 flex flex-col min-h-0 overflow-hidden">
 
-                        {/* Section 1: Highlights */}
+                        {/* Seção 1: Destaques */}
                         <div className="flex-1 flex flex-col border-b border-[#ffffff33] p-4 min-h-0">
                             <div className="flex justify-between items-center mb-2 shrink-0">
                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -1546,7 +1544,7 @@ export default function Report() {
                             ></div>
                         </div>
 
-                        {/* Section 2: Attention Points */}
+                        {/* Seção 2: Pontos de Atenção */}
                         <div className="flex-1 flex flex-col p-4 min-h-0 bg-[#fef2f21a]">
                             <div className="flex justify-between items-center mb-2 shrink-0">
                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -1580,9 +1578,9 @@ export default function Report() {
                     </div>
                 </div>
 
-                {/* Team Edit Modal */}
+                {/* Modal de Edição de Equipe */}
 
-                {/* Sub-Task Edit Modal */}
+                {/* Modal de Edição de Sub-Tarefa */}
                 {isSubTaskModalOpen && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#00000080] backdrop-blur-sm" onClick={() => setIsSubTaskModalOpen(false)}>
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -1731,7 +1729,7 @@ export default function Report() {
                     document.body
                 )}
 
-                {/* Filter Modal */}
+                {/* Modal de Filtro */}
                 {isFilterModalOpen && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#00000080] backdrop-blur-sm" onClick={() => setIsFilterModalOpen(false)}>
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -1747,7 +1745,7 @@ export default function Report() {
 
                             <div className="p-8 overflow-y-auto custom-scrollbar">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {/* Regional Filter */}
+                                    {/* Filtro Regional */}
                                     <div className="bg-[#f9fafb80] p-4 rounded-xl border border-gray-100">
                                         <h4 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
@@ -1773,7 +1771,7 @@ export default function Report() {
                                         </div>
                                     </div>
 
-                                    {/* Role Filters */}
+                                    {/* Filtros de Função */}
                                     {[
                                         { label: 'Engenheiro', key: 'engineer', role: 'Engenheiro' },
                                         { label: 'Coordenador', key: 'coordinator', role: 'Coordenador' },
@@ -1788,21 +1786,21 @@ export default function Report() {
                                             </h4>
                                             <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
                                                 {Array.from(new Set(managements.map(m => {
-                                                    // @ts-expect-error - Dynamic key access safe here due to mapping
+                                                    // @ts-expect-error - Acesso dinâmico de chave seguro aqui devido ao mapeamento
                                                     const val = m[filter.key === 'controlTower' ? 'control_tower' : filter.key];
                                                     return val;
                                                 }))).filter(Boolean).sort().map((name: string) => (
                                                     <label key={name} className="flex items-center gap-2 cursor-pointer group p-1 hover:bg-white rounded transition-colors">
                                                         <input
                                                             type="checkbox"
-                                                            // @ts-expect-error - Dynamic key access
+                                                            // @ts-expect-error - Acesso dinâmico de chave
                                                             checked={activeFilters[filter.key].includes(name)}
                                                             onChange={e => {
                                                                 if (e.target.checked) {
-                                                                    // @ts-expect-error - Dynamic key access
+                                                                    // @ts-expect-error - Acesso dinâmico de chave
                                                                     setActiveFilters(p => ({ ...p, [filter.key]: [...p[filter.key], name] }));
                                                                 } else {
-                                                                    // @ts-expect-error - Dynamic key access
+                                                                    // @ts-expect-error - Acesso dinâmico de chave
                                                                     setActiveFilters(p => ({ ...p, [filter.key]: p[filter.key].filter((x: string) => x !== name) }));
                                                                 }
                                                             }}
@@ -1855,7 +1853,7 @@ export default function Report() {
 
 
 
-                {/* PDF Selection Modal */}
+                {/* Modal de Seleção de PDF */}
                 {isPdfModalOpen && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#00000080] backdrop-blur-sm" onClick={() => !isGeneratingPdf && setIsPdfModalOpen(false)}>
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>

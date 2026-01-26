@@ -36,7 +36,7 @@ const Pagination: React.FC<PaginationProps> = ({
                 <div className="flex items-center gap-1">
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                         let pageNum = i + 1;
-                        // Simple logic to show current page in middle if many pages
+                        // Lógica simples para mostrar página atual no meio se houver muitas páginas
                         if (totalPages > 5 && currentPage > 3) {
                             pageNum = currentPage - 2 + i;
                             if (pageNum > totalPages) pageNum = totalPages - (4 - i);

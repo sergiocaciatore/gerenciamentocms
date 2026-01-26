@@ -10,32 +10,32 @@ from dotenv import load_dotenv
 from pathlib import Path
 from app.services.ai_tools import AVAILABLE_TOOLS, TOOL_DEFINITIONS
 
-# Initialize OpenAI Client (Lazy/Safe Initialization)
-# We do not cache the client globally to ensure hot-reload of env vars works
+# Inicializar Cliente OpenAI (Inicialização Tardia/Segura)
+# Não fazemos cache do cliente globalmente para garantir que o hot-reload de vars de ambiente funcione
 # client = None
 
 
 def get_client():
-    # Force load from the specific backend/.env file
+    # Forçar carregamento do arquivo backend/.env específico
     env_path = Path(__file__).resolve().parent.parent.parent / ".env"
     load_dotenv(dotenv_path=env_path, override=True)
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        print(f"DTO-DEBUG: OPENAI_API_KEY not found in {env_path}")
+        print(f"DTO-DEBUG: OPENAI_API_KEY não encontrada em {env_path}")
         return None
 
     if OpenAI is None:
         print(
-            "CRITICAL: 'openai' Python library not found. Please install it (pip install openai)."
+            "CRÍTICO: biblioteca Python 'openai' não encontrada. Por favor instale (pip install openai)."
         )
         return None
 
     try:
-        # Create fresh client each time to ensure key is current
+        # Criar novo cliente a cada vez para garantir que a chave esteja atualizada
         return OpenAI(api_key=api_key)
     except Exception as e:
-        print(f"Error initializing OpenAI client: {e}")
+        print(f"Erro ao inicializar cliente OpenAI: {e}")
         return None
 
 
@@ -78,43 +78,43 @@ def chat_with_data(
     user_name: str = "Usuário",
 ):
     """
-    Main function to handle chat with the AI.
-    Executes the tool-use loop.
+    Função principal para lidar com o chat com a IA.
+    Executa o loop de uso de ferramentas.
     """
     if history is None:
         history = []
 
-    # --- BUILD DYNAMIC SYSTEM PROMPT ---
+    # --- CONSTRUIR SYSTEM PROMPT DINÂMICO ---
     system_content = BASE_SYSTEM_PROMPT
 
-    # 1. User Context
+    # 1. Contexto do Usuário
     intro = config.get("introduction", "") if config else ""
     system_content += f"\n\nCONTEXTO DO USUÁRIO:\nVocê está falando com {user_name}."
     if intro:
         system_content += f"\nO usuário se descreve assim: '{intro}'. Leve isso em consideração para criar intimidade e se adaptar."
 
-    # 2. Tone Configuration
+    # 2. Configuração de Tom
     tone = (
         config.get("tone", "Estrategista") if config else "Estrategista"
-    )  # Default to Strategist prompt
+    )  # Padrão para prompt de Estrategista
     tone_instruction = TONE_PROMPTS.get(tone, TONE_PROMPTS["Estrategista"])
     system_content += f"\n\nTOM DE VOZ:\n{tone_instruction}"
 
-    # 3. Final Prepare Messages
+    # 3. Preparação Final das Mensagens
     messages = [{"role": "system", "content": system_content}]
 
-    # Add history (simple version, could be optimized)
-    # history expected format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+    # Adicionar histórico (versão simples, poderia ser otimizada)
+    # formato esperado do histórico: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
     messages.extend(history)
 
-    # Add current user message
+    # Adicionar mensagem atual do usuário
     messages.append({"role": "user", "content": message})
 
     client = get_client()
     if not client:
         return "Desculpe, a chave da API OpenAI não está configurada corretamente no backend."
 
-    # 2. First Call to Model (Decision Step)
+    # 2. Primeira Chamada ao Modelo (Etapa de Decisão)
     response = client.chat.completions.create(
         model="gpt-5-nano",
         messages=messages,
@@ -124,20 +124,20 @@ def chat_with_data(
 
     response_message = response.choices[0].message
 
-    # 3. Check for Tool Calls
+    # 3. Verificar Chamadas de Ferramenta
     tool_calls = response_message.tool_calls
-    generated_files = []  # Track files created in this session
+    generated_files = []  # Rastrear arquivos criados nesta sessão
 
     if tool_calls:
-        # Append the assistant's "thought" (tool call request) to messages
+        # Adicionar o "pensamento" do assistente (requisição de ferramenta) às mensagens
         messages.append(response_message)
 
-        # Execute each tool
+        # Executar cada ferramenta
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
 
-            # Look up function
+            # Buscar função
             function_to_call = AVAILABLE_TOOLS.get(function_name)
 
             if function_to_call:
@@ -145,7 +145,7 @@ def chat_with_data(
                 try:
                     tool_output = function_to_call(**function_args)
 
-                    # Check if this tool created a file
+                    # Verificar se esta ferramenta criou um arquivo
                     try:
                         output_data = json.loads(tool_output)
                         if (
@@ -159,14 +159,14 @@ def chat_with_data(
                                 }
                             )
                     except Exception:
-                        pass  # Not JSON or not a file output
+                        pass  # Não é JSON ou não é uma saída de arquivo
 
                 except Exception as e:
                     tool_output = json.dumps({"error": str(e)})
             else:
-                tool_output = json.dumps({"error": "Tool not found"})
+                tool_output = json.dumps({"error": "Ferramenta não encontrada"})
 
-            # Append tool result to messages
+            # Adicionar resultado da ferramenta às mensagens
             messages.append(
                 {
                     "role": "tool",
@@ -176,28 +176,28 @@ def chat_with_data(
                 }
             )
 
-        # 4. Second Call to Model (Response Generation with Data)
+        # 4. Segunda Chamada ao Modelo (Geração de Resposta com Dados)
         final_response = client.chat.completions.create(
             model="gpt-5-nano",
             messages=messages,
-            # Tools are still available if it needs to chain calls (optional, usually one round is enough for basic queries)
+            # Ferramentas ainda disponíveis se precisar encadear chamadas (opcional, geralmente uma rodada é suficiente para consultas básicas)
             tools=TOOL_DEFINITIONS,
         )
 
         return final_response.choices[0].message.content, generated_files
 
     else:
-        # No tool needed, just return the text
+        # Nenhuma ferramenta necessária, apenas retornar o texto
         return response_message.content, []
 
 
 def enhance_text(text: str, context: str = "") -> str:
     """
-    Enhance text with technical tone, spellcheck, and HTML formatting.
+    Melhora o texto com tom técnico, verificação ortográfica e formatação HTML.
     """
     client = get_client()
     if not client:
-        return text  # Fallback to original
+        return text  # Fallback para o original
 
     system_prompt = """
     Você é um Editor Técnico Sênior de Engenharia.
@@ -230,5 +230,5 @@ def enhance_text(text: str, context: str = "") -> str:
         response = client.chat.completions.create(model="gpt-5-nano", messages=messages)
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error enhancing text: {e}")
+        print(f"Erro ao melhorar texto: {e}")
         return text

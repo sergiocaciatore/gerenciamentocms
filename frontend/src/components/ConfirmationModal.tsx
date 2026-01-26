@@ -10,7 +10,7 @@ interface ConfirmationModalProps {
     type?: "success" | "danger" | "warning" | "info";
     confirmText?: string;
     cancelText?: string;
-    isAlert?: boolean; // If true, only shows one button (OK)
+    isAlert?: boolean; // Se verdadeiro, mostra apenas um botão (OK)
 }
 
 export default function ConfirmationModal({
@@ -26,13 +26,13 @@ export default function ConfirmationModal({
 }: ConfirmationModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
-    // Keyboard Shortcuts: Escape (Close), Enter (Confirm)
+    // Atalhos de teclado: Esc (Fechar), Enter (Confirmar)
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 onClose();
             } else if (event.key === "Enter" && onConfirm) {
-                // Prevent default behavior to avoid accidental duplicate submissions if focus is on button
+                // Prevenir comportamento padrão para evitar submissões duplicadas acidentais se o foco estiver no botão
                 event.preventDefault();
                 onConfirm();
                 onClose();
@@ -51,7 +51,7 @@ export default function ConfirmationModal({
 
     if (!isOpen) return null;
 
-    // Define colors/icons based on type
+    // Definir cores/ícones baseados no tipo
     const styles = {
         success: {
             iconBg: "bg-green-100",
@@ -83,26 +83,26 @@ export default function ConfirmationModal({
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            {/* Backdrop */}
+            {/* Fundo (Backdrop) */}
             <div
                 className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
             ></div>
 
-            {/* Modal Content */}
+            {/* Conteúdo do Modal */}
             <div
                 ref={modalRef}
                 className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all animate-bounce-in"
             >
                 <div className="flex flex-col items-center text-center">
-                    {/* Icon */}
+                    {/* Ícone */}
                     <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-full ${currentStyle.iconBg}`}>
                         <span className={`material-symbols-rounded text-2xl ${currentStyle.iconColor}`}>
                             {currentStyle.icon}
                         </span>
                     </div>
 
-                    {/* Text */}
+                    {/* Texto */}
                     <h3 className="mb-2 text-lg font-bold text-gray-900 leading-tight">
                         {title}
                     </h3>
@@ -110,7 +110,7 @@ export default function ConfirmationModal({
                         {message}
                     </div>
 
-                    {/* Buttons */}
+                    {/* Botões */}
                     <div className="flex w-full gap-3">
                         {!isAlert && (
                             <button

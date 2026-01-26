@@ -3,16 +3,28 @@ from app.auth.firebase import verify_token
 
 
 async def get_current_user(authorization: str = Header(None)):
+    """
+    Obtém o usuário atual a partir do token de autorização.
+
+    Args:
+        authorization (str): Token Bearer presente no cabeçalho Authorization.
+
+    Returns:
+        dict: Dados do usuário decodificados do token.
+
+    Raises:
+        HTTPException: Se o token estiver ausente, inválido ou expirado.
+    """
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header missing",
+            detail="Cabeçalho de autorização ausente",
         )
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication scheme",
+            detail="Esquema de autenticação inválido",
         )
 
     token = authorization.split(" ")[1]
@@ -21,7 +33,7 @@ async def get_current_user(authorization: str = Header(None)):
     if not decoded_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail="Token inválido ou expirado",
         )
 
     return decoded_token

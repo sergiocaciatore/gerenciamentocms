@@ -17,27 +17,8 @@ export default function GoLiveWidget() {
     const [error, setError] = useState(false);
 
 
-    // Re-fetch settings on force update (actually hook handles auth change, but we need to ensure re-render on local storage change if hook didn't catch it?)
-    // actually, custom hook only updates its OWN state on setSettings. 
-    // If Settings page calls hook and updates, THIS instance of hook won't know unless we sync.
-    // Let's modify the hook strategy or simply re-read from localStorage on event.
-    // For simplicity, let's just make the hook listen to the event too, OR just read from local storage here on event.
-
-    // Actually, simpler: The hook I wrote `useUserSettings` has a local state. 
-    // If I use it in two places, they have separate states. 
-    // I should update the HOOK to listen to the event to sync state across components.
-    // But for now, let's just manually re-read or reload window? No, that's bad.
-    // Quick fix: Update GoLiveWidget to manually check localStorage or simply reload the hook? 
-    // No, the hook `useEffect` runs on mount.
-    // Let's rely on the `windows.dispatchEvent` I added. 
-    // I will modify the previous hook to listen to the event. 
-
-    // Wait, I can't modify the previous file in THIS step easily without backtracking.
-    // I already wrote the hook. 
-    // Let's just implement the widget logic to READ the settings.
-    // If state sync is an issue, I'll fix the hook next.
-
-    // For now:
+    // TODO: Melhorar sincronização de estado do hook useUserSettings entre componentes.
+    // Por enquanto, confiamos no dispatchEvent para atualizações.
 
     const fetchWorks = async () => {
         setLoading(true);
@@ -65,7 +46,7 @@ export default function GoLiveWidget() {
     };
 
     useEffect(() => {
-        // Fetch on first open
+        // Buscar na primeira abertura
         if (isOpen && works.length === 0) {
             fetchWorks();
         }
@@ -86,14 +67,7 @@ export default function GoLiveWidget() {
     }, [works]);
 
     if (settingsLoading || !settings.showGoLiveWidget) {
-        return null; // Return null if specific conditions are met, BUT only after all hooks are declared if possible?
-        // Actually, if I return here, I MUST ensure no hooks are called below.
-        // Wait, render is the last thing.
-        // But in the previous step I removed the early return that was BEFORE fetchWorks/useEffect/useMemo.
-        // Now fetchWorks is defined. But useMemo/useEffect are still below.
-        // I must allow them to run or use a condition inside.
-        // Best approach: "always invalid" approach for hooks if hidden? No.
-        // Just return null at the END.
+        return null; // Retorna null se condições específicas forem atendidas (mas apenas no final para não quebrar hooks)
     }
 
     return (

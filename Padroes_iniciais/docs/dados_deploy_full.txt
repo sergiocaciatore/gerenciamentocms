@@ -1,0 +1,12 @@
+=== RELATÓRIO DE DEPLOY MANUAL ===
+Data: Wed Jan 14 11:52:50 -03 2026
+
+[WEBHOOK META]
+URL: https://uw2sfwm4cjtnshb3fhbmf2bbu40fnaki.lambda-url.us-east-2.on.aws/
+Token: mia-verify-token-2025
+Status: Atualizado
+
+[OUTROS ROBÔS]
+Conversa: Atualizado
+CRM Sender: Atualizado
+Reengajamento: Atualizado

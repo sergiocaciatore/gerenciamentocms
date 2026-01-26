@@ -3,12 +3,12 @@ import { auth } from '../firebase';
 
 export interface UserSettings {
     showGoLiveWidget: boolean;
-    widgetName?: string; // Future proofing as user asked to "set the name" too? 
-    // "colocar o nome desse botão e o toggle" -> "put the *name of this button* (label) and the toggle" 
-    // OR "put the name of the button configuration"?
-    // "nome desse botão" usually means the label on the button. 
-    // "colocar o nome desse botão" could mean "Label: [ Show Go Live Widget ] (Toggle)"
-    // I will assume they want a toggle with a label like "Exibir Botão de Próximos Go-Lives".
+    widgetName?: string; // Preparado para o futuro, pois o usuário pediu para "definir o nome" também?
+    // "colocar o nome desse botão e o toggle"
+    // OU "colocar o nome da configuração do botão"?
+    // "nome desse botão" geralmente significa o rótulo no botão.
+    // "colocar o nome desse botão" poderia significar "Rótulo: [ Exibir Botão de Go Live ] (Toggle)"
+    // Vou assumir que eles querem um toggle com um rótulo como "Exibir Botão de Próximos Go-Lives".
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -73,7 +73,7 @@ export const useUserSettings = () => {
         setSettings(prev => {
             const newSettings = { ...prev, [key]: value };
             localStorage.setItem(`cms_settings_${auth.currentUser?.uid}`, JSON.stringify(newSettings));
-            // Dispatch a custom event so other components update immediately if they listen
+            // Despachar um evento personalizado para que outros componentes atualizem imediatamente se estiverem ouvindo
             window.dispatchEvent(new Event('settings_updated'));
             return newSettings;
         });
