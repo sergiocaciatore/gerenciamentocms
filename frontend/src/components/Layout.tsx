@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import GoLiveWidget from "./GoLiveWidget";
 import { useEffect, useState } from "react";
@@ -7,18 +7,22 @@ import { auth } from "../firebase";
 
 export default function Layout() {
     const navigate = useNavigate();
+    const { userId } = useParams();
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (!user) {
                 navigate("/login");
+            } else if (userId && user.uid !== userId) {
+                // Se o ID da URL não bater com o usuário logado, redireciona para a URL correta
+                navigate(`/${user.uid}/dashboard`, { replace: true });
             }
             setIsLoading(false);
         });
 
         return () => unsubscribe();
-    }, [navigate]);
+    }, [navigate, userId]);
 
     if (isLoading) {
         return (

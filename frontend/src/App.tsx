@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import RootRedirect from "./components/RootRedirect";
 import Login from "./pages/Login";
 import RDLogin from "./pages/RDLogin";
 import RDDashboard from "./pages/RDDashboard";
@@ -29,21 +30,22 @@ function App() {
         <Route path="/rd" element={<RDLogin />} />
         <Route path="/rd/:userId" element={<RDDashboard />} />
         <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/assistant" element={<Assistant />} />
-          <Route path="/registration" element={<Registration />} />
-          <Route path="/engineering" element={<Engineering />} />
-          <Route path="/project-avoidance" element={<ProjectAvoidance />} />
-          <Route path="/control-tower" element={<ControlTower />} />
-          <Route path="/planning" element={<Planning />} />
-          <Route path="/backlog" element={<BackLog />} />
-          <Route path="/residentes" element={<Residentes />} />
-          <Route path="/lpu" element={<LPU />} />
-          <Route path="/diario" element={<DiarioDeObra />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/obras-pp" element={<WorksPP />} />
-          <Route path="/settings" element={<Settings />} />
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="/:userId" element={<Layout />}>
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="assistant" element={<Assistant />} />
+          <Route path="registration" element={<Registration />} />
+          <Route path="engineering" element={<Engineering />} />
+          <Route path="project-avoidance" element={<ProjectAvoidance />} />
+          <Route path="control-tower" element={<ControlTower />} />
+          <Route path="planning" element={<Planning />} />
+          <Route path="backlog" element={<BackLog />} />
+          <Route path="residentes" element={<Residentes />} />
+          <Route path="lpu" element={<LPU />} />
+          <Route path="diario" element={<DiarioDeObra />} />
+          <Route path="report" element={<Report />} />
+          <Route path="obras-pp" element={<WorksPP />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="/fornecedor/login/:token" element={<SupplierLogin />} />
       </Routes>

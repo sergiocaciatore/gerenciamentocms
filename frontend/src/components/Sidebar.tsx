@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, getAuthToken } from "../firebase";
 
@@ -119,6 +119,7 @@ export default function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isAnimationEnabled, setIsAnimationEnabled] = useState(true);
+    const { userId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -249,11 +250,22 @@ export default function Sidebar() {
             {/* Menu Items */}
             <div className="flex-1 overflow-y-auto py-4 space-y-2">
                 {menuItems.map((item) => {
-                    const isActive = location.pathname === item.path;
+                    // Logic to build path with userId
+                    let linkPath = item.path;
+                    if (userId) {
+                        if (item.path === "/") {
+                            linkPath = `/${userId}/dashboard`;
+                        } else {
+                            linkPath = `/${userId}${item.path}`;
+                        }
+                    }
+
+                    const isActive = location.pathname === linkPath || (item.path === "/" && location.pathname === `/${userId}`); // Handle exact match logic if needed
+
                     return (
                         <Link
                             key={item.path}
-                            to={item.path}
+                            to={linkPath}
                             className={`flex items-center px-4 py-3 mx-2 rounded-xl transition-all duration-200 group ${isActive
                                 ? "bg-white/40 text-gray-900 shadow-sm"
                                 : "text-gray-600 hover:bg-white/20 hover:text-gray-900"
