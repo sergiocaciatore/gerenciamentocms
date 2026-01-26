@@ -1,57 +1,57 @@
-# Backend - Cloud Run Ready
+# Backend - Pronto para Cloud Run
 
-This FastAPI application has been containerized for Google Cloud Run.
+Esta aplicação FastAPI foi containerizada para o Google Cloud Run.
 
-## Prerequisites
+## Pré-requisitos
 
-- Python 3.12+ (for local dev)
+- Python 3.12+ (para desenvolvimento local)
 - Docker
 - Google Cloud SDK (`gcloud`)
 
-## Local Development (Docker)
+## Desenvolvimento Local (Docker)
 
-To run the container locally, simulating the Cloud Run environment:
+Para rodar o container localmente, simulando o ambiente do Cloud Run:
 
-1. **Build the image:**
+1. **Construir a imagem:**
 
     ```bash
     docker build -t cms-backend .
     ```
 
-2. **Run the container:**
+2. **Rodar o container:**
 
-    You need to provide the `PORT` environment variable (Cloud Run defaults to 8080) and your Firebase Project ID.
+    Você precisa fornecer a variável de ambiente `PORT` (Cloud Run usa 8080 por padrão) e seu ID do Projeto Firebase.
 
-    *Note: For local auth to work without a service account file, ensure you have run `gcloud auth application-default login` on your host machine, or mount your service account key.*
+    *Nota: Para autenticação local funcionar sem um arquivo de conta de serviço, certifique-se de ter rodado `gcloud auth application-default login` na sua máquina host, ou monte sua chave de conta de serviço.*
 
     ```bash
-    # Basic run (will fail auth if no credentials provided)
-    docker run -p 8080:8080 -e PORT=8080 -e FIREBASE_PROJECT_ID=your-project-id cms-backend
+    # Execução básica (falhará na autenticação se não houver credenciais)
+    docker run -p 8080:8080 -e PORT=8080 -e FIREBASE_PROJECT_ID=seu-projeto-id cms-backend
     ```
 
-    **With Credentials (Recommended for testing):**
-    If you have a `serviceAccountKey.json`, you can mount it:
+    **Com Credenciais (Recomendado para testes):**
+    Se você tiver um `serviceAccountKey.json`, pode montá-lo:
 
     ```bash
     docker run -p 8080:8080 \
       -e PORT=8080 \
-      -e FIREBASE_PROJECT_ID=your-project-id \
+      -e FIREBASE_PROJECT_ID=seu-projeto-id \
       -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/serviceAccountKey.json \
       -v $(pwd)/../serviceAccountKey.json:/tmp/keys/serviceAccountKey.json \
       cms-backend
     ```
 
-## Deploy to Cloud Run
+## Deploy no Cloud Run
 
-1. **Submit the build to Cloud Build:**
+1. **Submeter a build para o Cloud Build:**
 
     ```bash
     gcloud builds submit --tag gcr.io/PROJECT_ID/cms-backend
     ```
 
-    *Replace `PROJECT_ID` with your actual Google Cloud Project ID.*
+    *Substitua `PROJECT_ID` pelo ID real do seu projeto Google Cloud.*
 
-2. **Deploy the service:**
+2. **Implantar o serviço:**
 
     ```bash
     gcloud run deploy cms-backend \
@@ -62,20 +62,20 @@ To run the container locally, simulating the Cloud Run environment:
       --port 8080
     ```
 
-    *Note: `--allow-unauthenticated` makes the API public. Remove this flag if you want to restrict access to authenticated IAM users only (e.g. if using a Gateway).*
+    *Nota: `--allow-unauthenticated` torna a API pública. Remova esta flag se quiser restringir o acesso apenas a usuários IAM autenticados (ex: se estiver usando um Gateway).*
 
-## Configuration
+## Configuração
 
-The application uses **Application Default Credentials (ADC)**.
+A aplicação usa **Application Default Credentials (ADC)**.
 
-- **On Cloud Run:** The service uses the attached Service Account (default or custom). ensure this account has permissions for:
+- **No Cloud Run:** O serviço usa a Conta de Serviço anexada (padrão ou personalizada). Garanta que esta conta tenha permissões para:
   - Cloud Firestore User
   - Firebase Authentication Admin
-  - Cloud Storage (if needed)
-- **Locally:** Falls back to `GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth application-default login`.
+  - Cloud Storage (se necessário)
+- **Localmente:** Recorre para `GOOGLE_APPLICATION_CREDENTIALS` ou `gcloud auth application-default login`.
 
-**Environment Variables:**
+**Variáveis de Ambiente:**
 
-- `PORT`: (Required) Port to listen on (injected by Cloud Run).
-- `FIREBASE_PROJECT_ID`: (Optional but recommended) Explicit project ID.
-- `CORS_ORIGINS`: (Optional) Comma-separated list of allowed origins.
+- `PORT`: (Obrigatório) Porta para escutar (injetada pelo Cloud Run).
+- `FIREBASE_PROJECT_ID`: (Opcional, mas recomendado) ID do projeto explícito.
+- `CORS_ORIGINS`: (Opcional) Lista separada por vírgulas de origens permitidas.
