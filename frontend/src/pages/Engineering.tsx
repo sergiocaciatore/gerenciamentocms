@@ -330,23 +330,58 @@ export default function Engineering() {
         }));
     };
 
-    const handleSaveManagement = async () => {
-        if (!selectedWorkId) return;
+    const handleSaveManagement = async (specificWorkId?: string) => {
+        // Determine ID to save: specific (from card button) or selected (from modal)
+        const targetId = specificWorkId || selectedWorkId;
+        if (!targetId) return;
+
         try {
-            const payload = {
-                work_id: selectedWorkId,
-                operator, engineer, coordinator, control_tower: controlTower
-            };
+            // Find current state in managements array
+            const currentMgmt = managements.find(m => m.work_id === targetId);
+
+            // Construct payload merging current state with form state (if modal is open)
+            // If modal is open, form state (operator, etc) takes precedence for those fields
+            // If saving from card, we use the data in the managements array (updated by inline edits)
+            
+            let payload: EngineeringManagement;
+
+            if (currentMgmt) {
+                 payload = {
+                    ...currentMgmt,
+                    // If modal is open and we are saving that specific work, overwrite with form values
+                    ...(isModalOpen && selectedWorkId === targetId ? {
+                        operator, engineer, coordinator, control_tower: controlTower
+                    } : {})
+                };
+            } else {
+                // New management (from Modal)
+                payload = {
+                    work_id: targetId,
+                    operator, engineer, coordinator, control_tower: controlTower,
+                    owner_works: initOwnerWorks(),
+                    licenses: initLicenses(),
+                    thermometer: initThermometer(),
+                    macro_schedule: initMacroSchedule(),
+                    supply_schedule: initSupplySchedule(),
+                    complementary_info: initComplementaryInfo(),
+                    general_docs: initGeneralDocs(),
+                    capex: initCapex(),
+                    daily_log: initDailyLog(),
+                    highlights: initHighlights()
+                } as EngineeringManagement;
+            }
+
             const token = await getAuthToken();
             const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
+
             if (res.ok) {
-                setToast({ message: "Gestão salva com sucesso!", type: "success" });
-                setIsModalOpen(false);
-                fetchManagements();
+                setToast({ message: "Dados salvos com sucesso!", type: "success" });
+                if (isModalOpen) setIsModalOpen(false);
+                fetchManagements(); // Refresh data
             } else {
                 setToast({ message: "Erro ao salvar.", type: "error" });
             }
@@ -567,22 +602,33 @@ export default function Engineering() {
                                     {isExpanded && (
                                         <div className="mt-8 pt-6 border-t border-gray-200/50 animate-fadeIn cursor-auto" onClick={(e) => e.stopPropagation()}>
                                             {/* Tabs Navigation */}
-                                            <div className="flex flex-wrap gap-4 mb-6 border-b border-gray-200/50 pb-2">
-                                                {['overview', 'macro', 'supply', 'docs', 'daily', 'occurrences', 'highlights'].map(tab => (
-                                                    <button
-                                                        key={tab}
-                                                        onClick={() => setCardTab(tab)}
-                                                        className={`text-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${cardTab === tab ? "text-blue-600 border-b-2 border-blue-600 -mb-2.5 pb-2" : "text-gray-400 hover:text-gray-600"}`}
-                                                    >
-                                                        {tab === 'overview' ? 'Visão Geral' : tab === 'macro' ? 'Cronograma' : tab === 'supply' ? 'Suprimentos' : tab === 'docs' ? 'Documentação' : tab === 'daily' ? 'Diário' : tab === 'occurrences' ? 'Ocorrências' : 'Destaques'}
-                                                    </button>
-                                                ))}
+                                            <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b border-gray-200/50 pb-2 gap-4">
+                                                <div className="flex flex-wrap gap-4">
+                                                    {['overview', 'macro', 'supply', 'docs', 'daily', 'occurrences', 'highlights'].map(tab => (
+                                                        <button
+                                                            key={tab}
+                                                            onClick={() => setCardTab(tab)}
+                                                            className={`text-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${cardTab === tab ? "text-blue-600 border-b-2 border-blue-600 -mb-2.5 pb-2" : "text-gray-400 hover:text-gray-600"}`}
+                                                        >
+                                                            {tab === 'overview' ? 'Visão Geral' : tab === 'macro' ? 'Cronograma' : tab === 'supply' ? 'Suprimentos' : tab === 'docs' ? 'Documentação' : tab === 'daily' ? 'Diário' : tab === 'occurrences' ? 'Ocorrências' : 'Destaques'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <button
+                                                    onClick={() => handleSaveManagement(m.work_id)}
+                                                    className="flex items-center gap-2 text-xs font-bold text-white bg-green-600 px-4 py-1.5 rounded-lg hover:bg-green-700 transition-colors shadow-lg shadow-green-500/30"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                    </svg>
+                                                    Salvar Alterações
+                                                </button>
                                             </div>
 
                                             {/* Overview */}
                                             {cardTab === "overview" && (
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                                    <div className="col-span-full flex justify-end">
+                                                    <div className="col-span-full flex justify-end gap-2">
                                                         <button
                                                             onClick={() => handleGenerateReport(m)}
                                                             className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50/50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
@@ -973,7 +1019,7 @@ export default function Engineering() {
                     )}
                     <div className="flex justify-end gap-2 pt-4">
                         <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancelar</button>
-                        <button onClick={handleSaveManagement} className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all">Salvar Gestão</button>
+                        <button onClick={() => handleSaveManagement()} className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all">Salvar Gestão</button>
                     </div>
                 </div>
             </Modal>
