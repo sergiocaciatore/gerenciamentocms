@@ -23,6 +23,7 @@ interface Work {
         city?: string;
         state?: string;
     };
+    go_live_date?: string;
     // ...
 }
 
@@ -62,6 +63,76 @@ const mapImages = Object.entries(mapImagesGlob).map(([path, mod]: [string, unkno
 }));
 
 // Componente SubTask Item memorizado para evitar re-renderizações
+const STAGES_CONFIG = [
+    { name: "Contrato Assinado", sla: 1 },
+    { name: "Layout aprovado", sla: 1 },
+    { name: "Projetos - Solicitação LPU", sla: 1 },
+    { name: "Projetos - Recebimento LPU", sla: 2 },
+    { name: "Projetos - Validação de LPU", sla: 1 },
+    { name: "Projetos - Envio para aprovação LPU", sla: 1 },
+    { name: "Projetos - Aprovação de custos", sla: 1 },
+    { name: "Projetos - Emissão de Ordem de Compra", sla: 10 },
+    { name: "Projetos - Elaboração", sla: 10 },
+    { name: "Projetos - Validação técnica", sla: 3 },
+    { name: "Projetos - Projeto validado", sla: 3 },
+    { name: "Obras - Solicitação LPU", sla: 2 },
+    { name: "Obras - Recebimento LPU", sla: 7 },
+    { name: "Obras - Validação de LPU", sla: 2 },
+    { name: "Obras - Envio para aprovação LPU", sla: 2 },
+    { name: "Obras - Aprovação de custos", sla: 2 },
+    { name: "Obras - Emissão de Ordem de Compra", sla: 15 },
+    { name: "Gerenciamento - Documentação", sla: 1 },
+    { name: "Gerenciamento - Integração", sla: 3 },
+    { name: "Gerenciamento - Assinatura documentos", sla: 3 },
+    { name: "Gerenciamento - Kickoff Construtora", sla: 1 },
+    { name: "Gerenciamento - Comunicar início de obras", sla: 1 },
+    { name: "Gerenciamento - Acompanhamento de obras", sla: 50 },
+    { name: "Gerenciamento - Comunicar Término", sla: 1 },
+    { name: "CloseOut - CheckList", sla: 15 },
+    { name: "CloseOut - Vistoria", sla: 15 },
+    { name: "CloseOut - GoLive", sla: 0 }
+];
+
+const subDays = (date: Date, days: number) => {
+    const result = new Date(date);
+    result.setDate(result.getDate() - days);
+    return result;
+};
+
+const calculateInitialSchedule = (goLiveDate: string, currentSchedule: PlanningStage[] = []): PlanningStage[] => {
+    if (!goLiveDate) return [];
+
+    const safeSchedule = Array.isArray(currentSchedule) ? currentSchedule : [];
+    const scheduleMap = new Map(safeSchedule.map(item => [item.name, item]));
+    const calculated: PlanningStage[] = [];
+    let currentEndDate = new Date(goLiveDate);
+    // Ajuste de fuso horário simples se necessário, mas mantendo lógica original por enquanto
+    
+    const reversedStages = [...STAGES_CONFIG].reverse();
+
+    for (const stage of reversedStages) {
+        const existing = scheduleMap.get(stage.name) || ({} as Partial<PlanningStage>);
+        const endPlanned = new Date(currentEndDate);
+        let startPlanned = subDays(endPlanned, stage.sla);
+
+        if (stage.sla === 0) {
+            startPlanned = endPlanned;
+        }
+
+        calculated.unshift({
+            name: stage.name,
+            sla: stage.sla,
+            start_planned: startPlanned.toISOString().split('T')[0],
+            end_planned: endPlanned.toISOString().split('T')[0],
+            start_real: existing.start_real || "",
+            end_real: existing.end_real || "",
+            responsible: existing.responsible || ""
+        });
+        currentEndDate = startPlanned;
+    }
+    return calculated;
+};
+
 const SubTaskItem = React.memo(({ task, index, onUpdate }: { task: PlanningStage, index: number, onUpdate: (index: number, field: 'start_real' | 'end_real', value: string) => void }) => {
     return (
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -774,10 +845,16 @@ export default function Report() {
 
     // --- Sub-Task Editing Logic ---
     const handlePhaseClick = (phaseKey: string) => {
-        if (!currentPlanning || !currentPlanning.data || !currentPlanning.data.schedule) return;
+        // Se não houver planejamento ou dados, tentar inicializar ou apenas retornar se realmente impossível
+        // Mas a UI deve permitir criar
+        if (!currentPlanning) return;
 
         const subTaskNames = PHASE_CONFIG[phaseKey] || [];
-        const allTasks = currentPlanning.data.schedule;
+        const allTasks = currentPlanning.data?.schedule || [];
+
+        // Se schedule vazio e user clica, talvez devêssemos inicializar?
+        // Por enquanto, seguimos a lógica de filtrar. Se vazio, não abre nada.
+        // O ideal é o botão de "Editar Datas Realizadas" (lápis) inicializar tudo.
 
         // Filtrar tarefas que correspondem à fase
         const matchingTasks = subTaskNames.map(name => {
@@ -1320,15 +1397,83 @@ export default function Report() {
                         <div className="absolute top-4 left-6 right-6 flex justify-between items-center">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Cronograma Realizado</h3>
                             <button
-                                onClick={() => {
-                                    if (currentPlanning?.data?.schedule) {
-                                        setTempSchedule(JSON.parse(JSON.stringify(currentPlanning.data.schedule)));
-                                        setIsTimelineModalOpen(true);
+                                onClick={async () => {
+                                    if (!currentWork) return;
+
+                                    if (currentPlanning) {
+                                        // Planejamento existe. Verificar se tem schedule.
+                                        let baseSchedule = currentPlanning.data?.schedule;
+                                        
+                                        // Se não tiver schedule, tenta calcular/inicializar AGORA
+                                        if ((!baseSchedule || baseSchedule.length === 0) && currentWork.go_live_date) {
+                                            if (window.confirm("O planejamento existe mas está vazio. Deseja inicializar o cronograma padrão agora?")) {
+                                                baseSchedule = calculateInitialSchedule(currentWork.go_live_date);
+                                                
+                                                // Salvar imediatamente para persistir
+                                                const updatedPlanning = { ...currentPlanning, data: { ...currentPlanning.data, schedule: baseSchedule } };
+                                                try {
+                                                     const token = await auth.currentUser?.getIdToken();
+                                                     await fetch(`${import.meta.env.VITE_API_BASE_URL}/plannings/${currentPlanning.id}`, {
+                                                        method: "PUT",
+                                                        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                                                        body: JSON.stringify(updatedPlanning)
+                                                     });
+                                                     // Atualizar estado local
+                                                     setPlannings(prev => prev.map(p => p.id === currentPlanning.id ? updatedPlanning : p));
+                                                } catch (e) {
+                                                    console.error("Erro ao inicializar cronograma", e);
+                                                    alert("Erro ao salvar cronograma inicial.");
+                                                    return;
+                                                }
+                                            }
+                                        }
+
+                                        if (baseSchedule && baseSchedule.length > 0) {
+                                            setTempSchedule(JSON.parse(JSON.stringify(baseSchedule)));
+                                            setIsTimelineModalOpen(true);
+                                        } else {
+                                            alert("Não foi possível gerar um cronograma. Verifique se a obra tem 'Data Go Live' definida.");
+                                        }
+                                    } else {
+                                         // Planejamento NÃO existe. Criar?
+                                         if (window.confirm("Nenhum planejamento encontrado. Deseja criar um novo planejamento para esta obra agora?")) {
+                                             try {
+                                                const token = await auth.currentUser?.getIdToken();
+                                                const initialSchedule = currentWork.go_live_date ? calculateInitialSchedule(currentWork.go_live_date) : [];
+                                                
+                                                const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/plannings`, {
+                                                    method: "POST",
+                                                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        work_id: currentWork.id,
+                                                        status: "Draft",
+                                                        data: { schedule: initialSchedule }
+                                                    })
+                                                });
+                                                
+                                                if (res.ok) {
+                                                    const newPlanning = await res.json();
+                                                    setPlannings(prev => [...prev, newPlanning]);
+                                                    
+                                                    // Abrir modal com o novo schedule
+                                                    if (initialSchedule.length > 0) {
+                                                        setTempSchedule(initialSchedule);
+                                                        setIsTimelineModalOpen(true);
+                                                    } else {
+                                                        alert("Planejamento criado, mas cronograma vazio (Obra sem Data Go Live).");
+                                                    }
+                                                } else {
+                                                    alert("Erro ao criar planejamento.");
+                                                }
+                                             } catch (e) {
+                                                 console.error("Erro ao criar planejamento", e);
+                                                 alert("Erro ao conectar com servidor.");
+                                             }
+                                         }
                                     }
                                 }}
-                                disabled={!currentPlanning?.data?.schedule}
-                                className={`text-gray-300 hover:text-blue-500 transition-colors p-1 ${!currentPlanning?.data?.schedule ? 'opacity-30 cursor-not-allowed' : 'opacity-0 group-hover/timeline:opacity-100'}`}
-                                title={!currentPlanning?.data?.schedule ? "Nenhum planejamento disponível" : "Editar Datas Realizadas"}
+                                className={`text-gray-300 hover:text-blue-500 transition-colors p-1 opacity-0 group-hover/timeline:opacity-100`}
+                                title="Editar Datas Realizadas"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                             </button>

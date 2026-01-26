@@ -341,7 +341,8 @@ export default function Planning() {
     const calculateSchedule = (goLiveDate: string, currentSchedule: PlanningStage[] = []): PlanningStage[] => {
         if (!goLiveDate) return [];
 
-        const scheduleMap = new Map(currentSchedule.map(item => [item.name, item]));
+        const safeSchedule = Array.isArray(currentSchedule) ? currentSchedule : [];
+        const scheduleMap = new Map(safeSchedule.map(item => [item.name, item]));
         const calculated: PlanningStage[] = [];
         let currentEndDate = new Date(goLiveDate);
         const reversedStages = [...STAGES].reverse();
@@ -371,9 +372,10 @@ export default function Planning() {
 
     const handleScheduleChange = (planningId: string, stageName: string, field: keyof PlanningStage, value: string) => {
         const planning = plannings.find(p => p.id === planningId);
-        if (!planning) return;
+        if (!planning || !planning.data) return;
 
-        const newSchedule = planning.data.schedule.map((item) => {
+        const currentSchedule = Array.isArray(planning.data.schedule) ? planning.data.schedule : [];
+        const newSchedule = currentSchedule.map((item) => {
             if (item.name === stageName) {
                 return { ...item, [field]: value };
             }
@@ -495,8 +497,8 @@ export default function Planning() {
     // Gantt Render Helpers
     const renderGantt = (planning: PlanningItem) => {
         const schedule = ganttType === 'planning'
-            ? (planning.data?.schedule || [])
-            : (planning.data?.construction_schedule || []);
+            ? (Array.isArray(planning.data?.schedule) ? planning.data.schedule : [])
+            : (Array.isArray(planning.data?.construction_schedule) ? planning.data.construction_schedule : []);
 
         // Check for empty schedule ONLY for calculating dates, not for avoiding render of the whole component
         const isEmpty = schedule.length === 0;
@@ -797,7 +799,7 @@ export default function Planning() {
 
                         <div className="flex flex-col gap-6">
                             {paginatedPlannings.map((planning: PlanningItem) => {
-                                const metrics = calculateMetrics(planning.data?.schedule || []);
+                                const metrics = calculateMetrics(Array.isArray(planning.data?.schedule) ? planning.data.schedule : []);
                                 return (
                                     <div key={planning.id} className={`rounded-2xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-lg overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
                                         <div className="p-6 cursor-pointer flex items-center justify-between" onClick={() => toggleExpand(planning.id, planning)}>
