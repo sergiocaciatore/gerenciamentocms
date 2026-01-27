@@ -116,7 +116,7 @@ def chat_with_data(
 
     # 2. Primeira Chamada ao Modelo (Etapa de Decisão)
     response = client.chat.completions.create(
-        model="gpt-5-nano",
+        model="gpt-4o-mini",
         messages=messages,
         tools=TOOL_DEFINITIONS,
         tool_choice="auto",
@@ -178,7 +178,7 @@ def chat_with_data(
 
         # 4. Segunda Chamada ao Modelo (Geração de Resposta com Dados)
         final_response = client.chat.completions.create(
-            model="gpt-5-nano",
+            model="gpt-4o-mini",
             messages=messages,
             # Ferramentas ainda disponíveis se precisar encadear chamadas (opcional, geralmente uma rodada é suficiente para consultas básicas)
             tools=TOOL_DEFINITIONS,
@@ -227,7 +227,9 @@ def enhance_text(text: str, context: str = "") -> str:
     ]
 
     try:
-        response = client.chat.completions.create(model="gpt-5-nano", messages=messages)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini", messages=messages
+        )
         return response.choices[0].message.content
     except Exception as e:
         print(f"Erro ao melhorar texto: {e}")
