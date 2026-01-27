@@ -195,8 +195,11 @@ def enhance_text(text: str, context: str = "") -> str:
     """
     Melhora o texto com tom técnico, verificação ortográfica e formatação HTML.
     """
+    print(f"[enhance_text] Iniciando - Text: {text[:100]}... Context: {context}")
+
     client = get_client()
     if not client:
+        print("[enhance_text] ERRO: Cliente OpenAI não disponível")
         return text  # Fallback para o original
 
     system_prompt = """
@@ -227,10 +230,16 @@ def enhance_text(text: str, context: str = "") -> str:
     ]
 
     try:
+        print("[enhance_text] Chamando OpenAI com modelo gpt-4o-mini...")
         response = client.chat.completions.create(
             model="gpt-4o-mini", messages=messages
         )
-        return response.choices[0].message.content
+        resultado = response.choices[0].message.content
+        print(f"[enhance_text] Resposta recebida: {resultado[:100]}...")
+        return resultado
     except Exception as e:
-        print(f"Erro ao melhorar texto: {e}")
+        print(f"[enhance_text] ERRO ao melhorar texto: {type(e).__name__}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
         return text

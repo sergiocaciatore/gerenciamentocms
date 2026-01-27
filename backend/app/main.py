@@ -1412,7 +1412,23 @@ class EnhanceRequest(BaseModel):
 def enhance_text_endpoint(
     req: EnhanceRequest, current_user: dict = Depends(get_current_user)
 ):
-    return {"formatted_text": enhance_text(req.text, req.context)}
+    print(
+        f"[AI ENHANCE] Recebida requisição - Text length: {len(req.text)}, Context: {req.context}"
+    )
+    print(f"[AI ENHANCE] User: {current_user.get('email', 'unknown')}")
+
+    try:
+        resultado = enhance_text(req.text, req.context)
+        print(
+            f"[AI ENHANCE] Resposta gerada com sucesso - Length: {len(resultado) if resultado else 0}"
+        )
+        return {"formatted_text": resultado}
+    except Exception as e:
+        print(f"[AI ENHANCE] ERRO: {type(e).__name__}: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao processar IA: {str(e)}")
 
 
 # --- Supplier Public Access ---
