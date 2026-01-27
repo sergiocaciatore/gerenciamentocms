@@ -235,6 +235,10 @@ export default function Report() {
     const [tempSchedule, setTempSchedule] = useState<PlanningStage[]>([]);
     const [isEnhancing, setIsEnhancing] = useState<string | null>(null);
     const [isFlipped, setIsFlipped] = useState(false);
+    
+    // Refs para campos editáveis (AI Enhancement)
+    const highlightsRef = useRef<HTMLDivElement>(null);
+    const attentionRef = useRef<HTMLDivElement>(null);
 
     // Derivado
     const filteredWorks = useMemo(() => {
@@ -383,11 +387,15 @@ export default function Report() {
     const handleAIEnhance = async (field: 'presentation_highlights' | 'attention_points') => {
         if (!currentWork) return;
 
+        console.log(`[AI Enhance] Iniciando para campo: ${field}`);
         setIsEnhancing(field);
         const originalText = currentMgmt?.[field] || "";
+        console.log(`[AI Enhance] Texto original (${originalText.length} chars):`, originalText.substring(0, 100));
 
         try {
             const token = await auth.currentUser?.getIdToken();
+            console.log(`[AI Enhance] Token obtido, fazendo requisição...`);
+            
             const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/enhance`, {
                 method: "POST",
                 headers: {
@@ -400,20 +408,47 @@ export default function Report() {
                 })
             });
 
+            console.log(`[AI Enhance] Resposta recebida - Status: ${res.status}`);
+
             if (res.ok) {
                 const data = await res.json();
-                handleUpdateManagement(field, data.formatted_text);
+                console.log(`[AI Enhance] Dados parseados:`, data);
+                console.log(`[AI Enhance] formatted_text (${data.formatted_text?.length || 0} chars):`, data.formatted_text?.substring(0, 100));
+                
+                if (!data.formatted_text) {
+                    console.error("[AI Enhance] ERRO: formatted_text está vazio ou indefinido!");
+                    alert("Erro: A IA retornou resposta vazia.");
+                    return;
+                }
 
-                // Construct object if missing for save
+                // Atualizar estado local primeiro
+                handleUpdateManagement(field, data.formatted_text);
+                
+                // CRITICAL: Atualizar o DOM diretamente para forçar a visualização
+                const targetRef = field === 'presentation_highlights' ? highlightsRef : attentionRef;
+                if (targetRef.current) {
+                    targetRef.current.innerHTML = data.formatted_text;
+                    console.log(`[AI Enhance] DOM atualizado diretamente via ref`);
+                }
+
+                // Construir objeto e salvar
                 const newMgmt = currentMgmt
                     ? { ...currentMgmt, [field]: data.formatted_text }
                     : { work_id: currentWork.id, [field]: data.formatted_text };
 
-                saveManagement(newMgmt);
+                console.log(`[AI Enhance] Salvando no backend...`, newMgmt);
+                await saveManagement(newMgmt);
+                console.log(`[AI Enhance] Salvamento concluído com sucesso!`);
+            } else {
+                const errorText = await res.text();
+                console.error(`[AI Enhance] Erro HTTP ${res.status}:`, errorText);
+                alert(`Erro ao processar IA: ${res.status} - ${errorText}`);
             }
         } catch (e) {
-            console.error("AI Enhance failed", e);
+            console.error("[AI Enhance] Exceção capturada:", e);
+            alert(`Erro ao conectar com a IA: ${e}`);
         } finally {
+            console.log(`[AI Enhance] Finalizando, resetando estado isEnhancing`);
             setIsEnhancing(null);
         }
     };
@@ -1674,6 +1709,7 @@ export default function Report() {
                                 </button>
                             </div>
                             <div
+                                ref={highlightsRef}
                                 contentEditable
                                 suppressContentEditableWarning
                                 onBlur={(e) => {
@@ -1705,6 +1741,7 @@ export default function Report() {
                                 </button>
                             </div>
                             <div
+                                ref={attentionRef}
                                 contentEditable
                                 suppressContentEditableWarning
                                 onBlur={(e) => {
