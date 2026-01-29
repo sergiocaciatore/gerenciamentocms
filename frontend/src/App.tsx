@@ -1,26 +1,26 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import RootRedirect from "./components/RootRedirect";
-import Login from "./pages/Login";
-import RDLogin from "./pages/RDLogin";
-import RDDashboard from "./pages/RDDashboard";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Dashboard from "./pages/Dashboard";
-import SupplierLogin from "./pages/SupplierLogin";
+import Login from "./pages/meli/Login";
+import RDLogin from "./pages/meli/RDLogin";
+import RDDashboard from "./pages/meli/RDDashboard";
+import PrivacyPolicy from "./pages/meli/PrivacyPolicy";
+import Dashboard from "./pages/meli/Dashboard";
+import SupplierLogin from "./pages/meli/SupplierLogin";
 
 import Layout from "./components/Layout";
-import Assistant from "./pages/Assistant";
-import Registration from "./pages/Registration";
-import Engineering from "./pages/Engineering";
-import ProjectAvoidance from "./pages/ProjectAvoidance";
-import ControlTower from "./pages/ControlTower";
-import Planning from "./pages/Planning";
-import BackLog from "./pages/BackLog";
-import Residentes from "./pages/Residentes";
-import LPU from "./pages/LPU";
-import DiarioDeObra from "./pages/DiarioDeObra";
-import Report from "./pages/Report";
-import WorksPP from "./pages/WorksPP";
-import Settings from "./pages/Settings";
+import Assistant from "./pages/meli/Assistant";
+import Registration from "./pages/meli/Registration";
+import Engineering from "./pages/meli/Engineering";
+import ProjectAvoidance from "./pages/meli/ProjectAvoidance";
+import ControlTower from "./pages/meli/ControlTower";
+import Planning from "./pages/meli/Planning";
+import BackLog from "./pages/meli/BackLog";
+import Residentes from "./pages/meli/Residentes";
+import LPU from "./pages/meli/LPU";
+import DiarioDeObra from "./pages/meli/DiarioDeObra";
+import Report from "./pages/meli/Report";
+import WorksPP from "./pages/meli/WorksPP";
+import Settings from "./pages/meli/Settings";
 
 function App() {
   return (

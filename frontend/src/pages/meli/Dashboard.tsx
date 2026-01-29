@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { getAuthToken } from "../firebase";
-import Toast from "../components/Toast";
-import type { DashboardWork, DashboardOC, DashboardPlanning, DashboardOccurrence, DashboardScheduleStage } from "../types/Dashboard";
+import { getAuthToken } from "../../firebase";
+import Toast from "../../components/Toast";
+import type { DashboardWork, DashboardOC, DashboardPlanning, DashboardOccurrence, DashboardScheduleStage } from "../../types/Dashboard";
 
 export default function Dashboard() {
     const [works, setWorks] = useState<DashboardWork[]>([]);

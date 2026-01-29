@@ -1,4 +1,4 @@
-import { useUserSettings } from "../hooks/useUserSettings";
+import { useUserSettings } from "../../hooks/useUserSettings";
 
 export default function Settings() {
     const { settings, updateSetting, loading } = useUserSettings();

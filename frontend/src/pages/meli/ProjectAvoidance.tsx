@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from "react";
-import Modal from "../components/Modal";
-import { getAuthToken } from "../firebase";
-import { type RegistrationWork } from "../types/Registration";
+import Modal from "../../components/Modal";
+import { getAuthToken } from "../../firebase";
+import { type RegistrationWork } from "../../types/Registration";
 
 interface CapexItem {
     id: string;

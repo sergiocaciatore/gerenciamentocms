@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { LPU_STANDARD_ITEMS } from "../data/lpu_standard_items";
-import { LPU_PRICES } from "../data/lpu_prices";
-import Modal from "../components/Modal";
+import { LPU_STANDARD_ITEMS } from "../../data/lpu_standard_items";
+import { LPU_PRICES } from "../../data/lpu_prices";
+import Modal from "../../components/Modal";
 
 interface Work {
     id: string;

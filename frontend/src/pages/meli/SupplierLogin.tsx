@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import SupplierLPU from "./SupplierLPU";
-import type { SupplierLPUData } from "../types/Supplier";
+import type { SupplierLPUData } from "../../types/Supplier";
 
 export default function SupplierLogin() {
     const { token } = useParams<{ token: string }>();

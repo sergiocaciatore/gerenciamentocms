@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { getAuthToken } from "../firebase";
-import Modal from "../components/Modal";
+import { getAuthToken } from "../../firebase";
+import Modal from "../../components/Modal";
 import {
     type ResidentAssignment,
     type ResidentWork,
     type Resident,
     type ResidentEvaluation,
     type ResidentMetrics
-} from "../types/Residentes";
+} from "../../types/Residentes";
 
 export default function Residentes() {
     const [works, setWorks] = useState<ResidentWork[]>([]);

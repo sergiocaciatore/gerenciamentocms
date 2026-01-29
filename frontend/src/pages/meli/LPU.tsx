@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import Toast from "../components/Toast";
-import Modal from "../components/Modal";
-import { getAuthToken } from "../firebase";
+import Toast from "../../components/Toast";
+import Modal from "../../components/Modal";
+import { getAuthToken } from "../../firebase";
 import LPUCard from "./LPUCard";
-import LoadingSpinner from "../components/LoadingSpinner";
-import Pagination from "../components/Pagination";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 
 interface Work {
     id: string;

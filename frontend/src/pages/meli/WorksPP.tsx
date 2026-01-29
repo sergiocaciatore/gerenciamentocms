@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, auth } from "../firebase";
-import mllogo from '../assets/mllogo.png';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { storage, auth } from "../../firebase";
+import mllogo from '../../assets/mllogo.png';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Work {

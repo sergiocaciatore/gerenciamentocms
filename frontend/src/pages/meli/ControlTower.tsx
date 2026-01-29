@@ -2,14 +2,14 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
-import { auth } from "../firebase";
-import Modal from "../components/Modal";
-import Toast from "../components/Toast";
-import type { Oc, OcEvent, Alert, ControlTowerWork, OcEventDefinition, FinancialRecord } from "../types/ControlTower";
-import OcCard from "../components/ControlTower/OcCard";
-import GroupedOcCard from "../components/ControlTower/GroupedOcCard";
-import LoadingSpinner from "../components/LoadingSpinner";
-import Pagination from "../components/Pagination";
+import { auth } from "../../firebase";
+import Modal from "../../components/Modal";
+import Toast from "../../components/Toast";
+import type { Oc, OcEvent, Alert, ControlTowerWork, OcEventDefinition, FinancialRecord } from "../../types/ControlTower";
+import OcCard from "../../components/ControlTower/OcCard";
+import GroupedOcCard from "../../components/ControlTower/GroupedOcCard";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 
 
 

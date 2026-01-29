@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import LoadingSpinner from "../components/LoadingSpinner";
+import LoadingSpinner from "../../components/LoadingSpinner";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -7,10 +7,10 @@ import { createPortal } from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, auth } from "../firebase";
-import mllogo from '../assets/mllogo.png';
-import { type RegistrationTeam } from "../types/Registration";
-import type { PlanningStage, PlanningItem } from "../types/Planning";
+import { storage, auth } from "../../firebase";
+import mllogo from '../../assets/mllogo.png';
+import { type RegistrationTeam } from "../../types/Registration";
+import type { PlanningStage, PlanningItem } from "../../types/Planning";
 
 interface Work {
     id: string;

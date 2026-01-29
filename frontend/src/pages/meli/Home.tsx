@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, getAuthToken } from "../firebase";
+import { auth, getAuthToken } from "../../firebase";
 import { signOut } from "firebase/auth";
-import type { UserData } from "../types/Home";
+import type { UserData } from "../../types/Home";
 
 export default function Home() {
     const [userData, setUserData] = useState<UserData | null>(null);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { LPU_STANDARD_ITEMS } from "../data/lpu_standard_items";
-import type { SupplierLPUProps, SupplierLPUData } from "../types/Supplier";
+import { LPU_STANDARD_ITEMS } from "../../data/lpu_standard_items";
+import type { SupplierLPUProps, SupplierLPUData } from "../../types/Supplier";
 
 // Helper: Currency Input Component
 const CurrencyInput = ({ value, onChange, disabled }: { value: number, onChange: (val: string) => void, disabled?: boolean }) => {

@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getAuthToken } from "../firebase";
-import Toast from "../components/Toast";
-import Modal from "../components/Modal";
-import type { Message, AIConfig, GeneratedFile } from "../types/Assistant";
+import { getAuthToken } from "../../firebase";
+import Toast from "../../components/Toast";
+import Modal from "../../components/Modal";
+import type { Message, AIConfig, GeneratedFile } from "../../types/Assistant";
 
 const SUGGESTION_CHIPS = [
     "Resumir este documento",

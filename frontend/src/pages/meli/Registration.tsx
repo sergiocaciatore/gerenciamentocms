@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import Modal from "../components/Modal";
-import Toast from "../components/Toast";
-import { getAuthToken } from "../firebase";
+import Modal from "../../components/Modal";
+import Toast from "../../components/Toast";
+import { getAuthToken } from "../../firebase";
 import {
     type AddressData,
     type RegistrationWork,
@@ -9,10 +9,10 @@ import {
     type RegistrationSupplier,
     type RegistrationTeam,
     type RegistrationItem
-} from "../types/Registration";
-import RegistrationTable from "../components/RegistrationTable";
-import LoadingSpinner from "../components/LoadingSpinner";
-import Pagination from "../components/Pagination";
+} from "../../types/Registration";
+import RegistrationTable from "../../components/RegistrationTable";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 
 export default function Registration() {
     // UI State

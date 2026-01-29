@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
-import Modal from "../components/Modal";
-import Toast from "../components/Toast";
+import Modal from "../../components/Modal";
+import Toast from "../../components/Toast";
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { getAuthToken } from "../firebase";
-import type { PlanningItem, PlanningStage, PlanningActionPlan } from "../types/Planning";
-import type { EngineeringWork } from "../types/Engineering";
-import LoadingSpinner from "../components/LoadingSpinner";
-import Pagination from "../components/Pagination";
+import { getAuthToken } from "../../firebase";
+import type { PlanningItem, PlanningStage, PlanningActionPlan } from "../../types/Planning";
+import type { EngineeringWork } from "../../types/Engineering";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 
 export default function Planning() {
     // State

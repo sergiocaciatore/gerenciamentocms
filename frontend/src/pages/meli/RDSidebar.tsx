@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { db, auth } from "../firebase";
+import { db, auth } from "../../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 interface RDSidebarProps {
