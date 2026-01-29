@@ -1,16 +1,16 @@
 import { useState } from "react";
 import RDSidebar from "./RDSidebar";
-import Timesheet from "./rd/Timesheet";
-import MyRDs from "./rd/MyRDs";
-import Refunds from "./rd/Refunds";
-import type { RDData } from "./rd/MyRDs";
-import RDSettings from "./rd/RDSettings";
-import AdminPanel from "./rd/AdminPanel";
-import OperationsList from "./rd/OperationsList";
-import HistoryList from "./rd/HistoryList";
-import CompiledReport from "./rd/CompiledReport";
-import CostReport from "./rd/CostReport";
-import EmailConfigPage from "./rd/EmailConfigPage";
+import Timesheet from "../rd/Timesheet";
+import MyRDs from "../rd/MyRDs";
+import Refunds from "../rd/Refunds";
+import type { RDData } from "../rd/MyRDs";
+import RDSettings from "../rd/RDSettings";
+import AdminPanel from "../rd/AdminPanel";
+import OperationsList from "../rd/OperationsList";
+import HistoryList from "../rd/HistoryList";
+import CompiledReport from "../rd/CompiledReport";
+import CostReport from "../rd/CostReport";
+import EmailConfigPage from "../rd/EmailConfigPage";
 
 export default function RDDashboard() {
     const [activePage, setActivePage] = useState("available");

@@ -1,0 +1,8 @@
+/Users/sergiocaciatore/Documents/CMS/backend/target/debug/deps/compression_core-827818282ac738b3.d: /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/lib.rs /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/level.rs /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/unshared.rs /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/util.rs
+
+/Users/sergiocaciatore/Documents/CMS/backend/target/debug/deps/libcompression_core-827818282ac738b3.rmeta: /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/lib.rs /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/level.rs /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/unshared.rs /Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/util.rs
+
+/Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/lib.rs:
+/Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/level.rs:
+/Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/unshared.rs:
+/Users/sergiocaciatore/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/compression-core-0.4.31/src/util.rs:

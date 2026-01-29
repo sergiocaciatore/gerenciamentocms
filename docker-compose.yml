@@ -4,15 +4,18 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8080"
+      - "8000:8000"
     volumes:
       - ./backend:/app
-      # Service Account is now baked into /secrets/ via Dockerfile to avoid bind mount deadlocks
+      - /app/target_docker # Cache de build isolado do host
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
-      - GCLOUD_PROJECT=cms-expansao-e10c4
-      # Optional: Explicitly pointing to the key if our code uses this specific var too
+      - GOOGLE_CLOUD_PROJECT=cms-expansao-e10c4
+      - RUST_LOG=debug
       - FIREBASE_SERVICE_ACCOUNT_PATH=/app/serviceAccountKey.json
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
   frontend:
     build: ./frontend
     ports:

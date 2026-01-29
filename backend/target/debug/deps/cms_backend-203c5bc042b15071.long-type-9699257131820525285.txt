@@ -1,0 +1,2 @@
+FirestoreSelectDocBuilder<'a, D>
+FirestoreSelectDocBuilder<'_, FirestoreDb>

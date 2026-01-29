@@ -37,3 +37,5 @@ __pycache__/
 # Ignorar logs de documentação que podem conter segredos
 Padroes_iniciais/docs/Complementares/*.json
 backup
+backend_legado
+c.sh
