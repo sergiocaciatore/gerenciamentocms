@@ -56,7 +56,12 @@ async fn main() {
         );
 
     // 5. Iniciar Servidor
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
+    // Cloud Run usa a variável PORT, fallback para 8000 em desenvolvimento local
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| "8000".to_string())
+        .parse()
+        .expect("PORT deve ser um número válido");
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("Servidor ouvindo em {}", addr);
     
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

@@ -1,0 +1,23 @@
+# Controle de versão e sistema
+.git/
+.gitignore
+.DS_Store
+
+# Build artifacts do Rust (MUITO IMPORTANTE ignorar para não enviar GBs de dados)
+target/
+
+# Arquivos de ambiente e logs
+.env
+*.log
+logs/
+
+# Arquivos temporários
+tmp/
+temp/
+
+# Editor configs
+.vscode/
+.idea/
+
+# Outros
+README.md
