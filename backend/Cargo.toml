@@ -34,3 +34,13 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 reqwest = { version = "0.11", features = ["json"] } # Para chamadas externas se precisar
 time = "=0.3.36"
 base64 = "0.22.1"
+
+# AI (OpenAI) - Usando reqwest diretamente
+# (async-openai requer dependências incompatíveis com Rust 1.84)
+
+# Email (SMTP)
+lettre = { version = "0.11", features = ["tokio1-native-tls", "builder"] }
+
+# File Upload
+axum-extra = { version = "0.9", features = ["multipart"] }
+tempfile = "3.10"

@@ -1,4 +1,5 @@
-FROM rust:1.84
+# Usar Rust latest (1.85+) que suporta Edition 2024
+FROM rust:latest
 
 WORKDIR /app
 

@@ -212,7 +212,7 @@ async fn approve_lpu(
         
     lpu.status = Some("approved".to_string());
     
-    state.db.fluent().update().in_col(collection).document_id(&lpu_id).object(&lpu).execute().await
+    state.db.fluent().update().in_col(collection).document_id(&lpu_id).object(&lpu).execute::<()>().await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         
     Ok(Json(serde_json::json!({ "message": "Approved" })))

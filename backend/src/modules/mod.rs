@@ -16,6 +16,9 @@ pub mod project_avoidances;
 pub mod lpus;
 pub mod backlog;
 pub mod residents;
+pub mod ai;
+pub mod email;
+pub mod utils;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -34,8 +37,9 @@ pub fn routes() -> Router<AppState> {
         .nest("/backlog-items", backlog::routes())
         .nest("/residents", residents::routes())
         .nest("/public/supplier", lpus::public_routes())
+        .nest("/ai", ai::routes())
+        .merge(email::routes())
         .route("/cep/:cep", axum::routing::get(utils::get_cep))
         .merge(auth::routes())
 }
 
-pub mod utils;

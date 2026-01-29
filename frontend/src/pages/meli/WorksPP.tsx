@@ -1070,8 +1070,8 @@ export default function WorksPP() {
                             </button>
                         </div>
 
-                        <div className="flex-1 min-h-0 text-xs text-gray-800" style={{ minWidth: 0, minHeight: 0 }}>
-                            <ResponsiveContainer width="100%" height="100%">
+                        <div className="flex-1 min-h-0 text-xs text-gray-800" style={{ minWidth: 100, minHeight: 100 }}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                                 <LineChart data={curvePoints} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                                     <XAxis
