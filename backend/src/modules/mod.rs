@@ -15,6 +15,7 @@ pub mod event_definitions;
 pub mod project_avoidances;
 pub mod lpus;
 pub mod backlog;
+pub mod residents;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -31,5 +32,10 @@ pub fn routes() -> Router<AppState> {
         .nest("/project-avoidances", project_avoidances::routes())
         .nest("/lpus", lpus::routes())
         .nest("/backlog-items", backlog::routes())
+        .nest("/residents", residents::routes())
+        .nest("/public/supplier", lpus::public_routes())
+        .route("/cep/:cep", axum::routing::get(utils::get_cep))
         .merge(auth::routes())
 }
+
+pub mod utils;

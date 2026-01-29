@@ -1,1 +1,0 @@
-Pin<Box<dyn futures_core::stream::Stream<Item = Result<Work, FirestoreError>> + Send>>

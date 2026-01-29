@@ -39,3 +39,14 @@ Padroes_iniciais/docs/Complementares/*.json
 backup
 backend_legado
 c.sh
+
+# Arquivos sensíveis - NUNCA versionar
+backend/serviceAccountKey.json
+**/serviceAccountKey*.json
+*.pem
+*.key
+
+# Rust build artifacts
+backend/target/
+backend/target_docker/
+**/target/

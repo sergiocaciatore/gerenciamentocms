@@ -36,6 +36,17 @@ impl WorksRepository {
         }
     }
 
+    pub async fn update(db: &FirestoreDb, id: &str, work: WorkCreate) -> Result<WorkCreate, AppError> {
+        db.fluent()
+            .update()
+            .in_col(COLLECTION_NAME)
+            .document_id(id)
+            .object(&work)
+            .execute::<()>()
+            .await?;
+        Ok(work)
+    }
+
     pub async fn list(db: &FirestoreDb, limit: usize, offset: usize, regional: Option<String>) -> Result<Vec<Work>, AppError> {
         let mut query = db.fluent()
             .select()
@@ -72,12 +83,35 @@ impl WorksRepository {
     }
     
     pub async fn delete(db: &FirestoreDb, id: &str) -> Result<(), AppError> {
+        // 1. Deletar Obra
         db.fluent()
             .delete()
             .from(COLLECTION_NAME)
             .document_id(id)
             .execute()
             .await?;
+            
+        // 2. Deletar Planejamento Vinculado (ID == work_id)
+        // Ignoramos erro caso não exista
+        let _ = db.fluent()
+            .delete()
+            .from("plannings")
+            .document_id(id)
+            .execute()
+            .await;
+            
+        // 3. Deletar Gerenciamento Vinculado (ID == work_id)
+        let _ = db.fluent()
+            .delete()
+            .from("managements")
+            .document_id(id)
+            .execute()
+            .await;
+            
+        // 4. TODO: Deletar OCs e Occurrences (1:N)
+        // Requer query por work_id e iteração.
+        // Implementar se necessário consistência estrita imediata.
+            
         Ok(())
     }
 }
