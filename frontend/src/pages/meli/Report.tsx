@@ -56,7 +56,7 @@ interface OC {
 }
 
 // Carregar Imagens do Mapa
-const mapImagesGlob = import.meta.glob('../assets/estados/*.png', { eager: true });
+const mapImagesGlob = import.meta.glob('../../assets/estados/*.png', { eager: true });
 const mapImages = Object.entries(mapImagesGlob).map(([path, mod]: [string, unknown]) => ({
     name: path.split('/').pop()?.replace('.png', '') || '',
     url: (mod as { default: string }).default
@@ -289,6 +289,7 @@ export default function Report() {
     const currentOcs = ocs.filter(o => o.work_id === currentWork?.id);
 
     // --- Busca de Dados ---
+
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
@@ -536,6 +537,47 @@ export default function Report() {
         saveManagement(newMgmt);
         setIsMapModalOpen(false);
     };
+
+    // Auto-link map image based on Work location (State)
+    useEffect(() => {
+        if (!currentWork || isLoading) return;
+
+        // Verify if we already have a map set
+        if (currentMgmt?.map_image) return;
+
+        // Try to identify state from address or regional
+        // regional often contains state (e.g. "Sudeste", "SP")?
+        // Let's assume address.state is the most reliable if present.
+        // Fallback to regional if it looks like a state code (2 chars).
+
+        const stateCode = currentWork.address?.state?.toUpperCase() ||
+                          (currentWork.regional?.length === 2 ? currentWork.regional.toUpperCase() : null);
+
+        if (stateCode) {
+            const hasMap = mapImages.some(img => img.name === stateCode);
+            if (hasMap) {
+                // Create/Update management
+                 const newMgmt: Management = currentMgmt
+                    ? { ...currentMgmt, map_image: stateCode }
+                    : { work_id: currentWork.id, map_image: stateCode };
+
+                // Update State
+                setManagements(prev => {
+                    const exists = prev.find(m => m.work_id === currentWork.id);
+                    if (exists) {
+                         // Only update if changed (prevent loops although useEffect check above should handle it)
+                         if (exists.map_image === stateCode) return prev;
+                         return prev.map(m => m.work_id === currentWork.id ? newMgmt : m);
+                    } else {
+                        return [...prev, newMgmt];
+                    }
+                });
+
+                // Persist
+                saveManagement(newMgmt);
+            }
+        }
+    }, [currentWork, currentMgmt, isLoading, saveManagement]);
 
     // Auxiliar para resolver URL do mapa do valor armazenado (nome ou caminho legado)
     const getMapUrl = (val: string | undefined) => {
