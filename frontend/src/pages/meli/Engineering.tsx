@@ -537,26 +537,78 @@ export default function Engineering() {
     };
 
     return (
-        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+        <div className="relative min-h-full w-full flex flex-col font-sans text-gray-900">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
             {/* Main Content */}
             <div className={`flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col gap-6 ${viewMode === 'map' ? 'h-full' : ''}`}>
 
-                {/* View Toggle */}
-                <div className="flex justify-end mb-6">
-                    <div className="bg-white/40 backdrop-blur-md p-1 rounded-xl flex shadow-sm border border-white/50">
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}
+                {/* Sticky Toolbar */}
+                <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                    
+                    {/* Filters Group */}
+                    <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                        <div className="relative group w-full md:w-64">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <input 
+                                type="text" 
+                                value={searchText} 
+                                onChange={(e) => setSearchText(e.target.value)} 
+                                placeholder="Buscar obras..." 
+                                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium shadow-sm hover:shadow-md" 
+                            />
+                        </div>
+                        <select 
+                            value={filterRegional} 
+                            onChange={(e) => setFilterRegional(e.target.value)} 
+                            className="block w-full md:w-48 pl-3 pr-10 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium shadow-sm hover:shadow-md cursor-pointer text-gray-600"
                         >
-                            Lista
+                            <option value="">Todas Regionais</option>
+                            <option value="Rimes">Rimes</option>
+                            <option value="Noneco">Noneco</option>
+                            <option value="SPCIL">SPCIL</option>
+                            <option value="Sul">Sul</option>
+                        </select>
+                    </div>
+
+                    {/* Actions Group */}
+                    <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
+                        {/* View Toggles */}
+                        <div className="bg-gray-100/50 p-1 rounded-xl flex shadow-inner border border-gray-200">
+                             <button
+                                onClick={() => setViewMode('list')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Lista
+                            </button>
+                            <button
+                                onClick={() => setViewMode('map')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${viewMode === 'map' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Mapa
+                            </button>
+                        </div>
+
+                         <div className="h-8 w-px bg-gray-300 hidden lg:block self-center"></div>
+
+                        {/* Buttons */}
+                         <button 
+                            onClick={() => handleButtonClick("Nova Gestão")} 
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                            Nova Gestão
                         </button>
-                        <button
-                            onClick={() => setViewMode('map')}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode === 'map' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}
+                        <button 
+                            onClick={() => { setIsOccurrenceModalOpen(true); setOccurrenceForm({ id: '', work_id: '', date: '', description: '', type: 'Atividade', status: 'Active' }); }} 
+                            className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all hover:scale-105 active:scale-95 hover:border-gray-300"
                         >
-                            Mapa (Heatmap)
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-orange-500"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            Nova Ocorrência
                         </button>
                     </div>
                 </div>
@@ -566,18 +618,17 @@ export default function Engineering() {
                     {filteredManagements.map((m) => {
                         const isExpanded = expandedId === m.work_id;
                         return (
-                            <div key={m.work_id} className={`bg-white/40 backdrop-blur-md rounded-2xl border border-white/50 overflow-hidden transition-all duration-300 ${isExpanded ? 'shadow-2xl ring-2 ring-blue-500/20' : 'shadow-sm hover:shadow-md'}`}>
+                            <div key={m.work_id} className={`bg-white rounded-2xl border border-gray-200 overflow-hidden transition-all duration-300 ${isExpanded ? 'shadow-2xl ring-2 ring-blue-500/20' : 'shadow-sm hover:shadow-md'}`}>
                                 <div className="p-6 cursor-pointer" onClick={() => toggleExpand(m.work_id)}>
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
-                                            <h3 className="text-lg font-bold text-gray-900">{m.regional}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                                            <h3 className="text-lg font-bold text-gray-900">{m.work_id} - {m.regional}</h3>
+                                            <div className="flex flex-col gap-1 mt-1">
+                                                <span className="text-sm font-medium text-gray-700">
                                                     {m.work_type || 'N/A'}
                                                 </span>
-                                                <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                    {works.find(w => w.id === m.work_id)?.address?.city || 'Sem endereço'}
+                                                <span className="text-xs text-gray-500">
+                                                    {m.business_case || 'Sem Business Case'}
                                                 </span>
                                             </div>
                                         </div>
@@ -972,34 +1023,7 @@ export default function Engineering() {
                 }
             </div>
 
-            {/* Sidebar (Desktop Sticky / Mobile Stacked) */}
-            <div className="w-full lg:w-80 flex-shrink-0 p-4 lg:p-6 lg:border-l border-white/50 bg-white/30 lg:bg-transparent overflow-y-auto custom-scrollbar">
-                <div className="flex flex-col gap-6 sticky top-0">
-                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl">
-                    <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Ações</h3>
-                    <button onClick={() => handleButtonClick("Nova Gestão")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        Nova Gestão
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-600"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v6h6a1 1 0 110 2h-6v6a1 1 0 11-2 0v-6H3a1 1 0 110-2h6V3a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                    </button>
-                    <button onClick={() => { setIsOccurrenceModalOpen(true); setOccurrenceForm({ id: '', work_id: '', date: '', description: '', type: 'Atividade', status: 'Active' }); }} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        Nova Ocorrência
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity text-yellow-600"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                    </button>
-                </div>
 
-                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl">
-                    <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Filtros</h3>
-                    <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Buscar..." className="w-full rounded-xl bg-white/80 pl-4 pr-10 py-3 text-sm font-medium text-gray-900 shadow-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-500" />
-                    <select value={filterRegional} onChange={(e) => setFilterRegional(e.target.value)} className="w-full rounded-xl bg-white/80 px-4 py-3 text-sm font-medium text-gray-900 shadow-sm focus:bg-white outline-none">
-                        <option value="">Todas Regionais</option>
-                        <option value="Rimes">Rimes</option>
-                        <option value="Noneco">Noneco</option>
-                        <option value="SPCIL">SPCIL</option>
-                        <option value="Sul">Sul</option>
-                    </select>
-                </div>
-                </div>
-            </div>
             {/* Modals */}
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalType}>
                 <div className="space-y-4">

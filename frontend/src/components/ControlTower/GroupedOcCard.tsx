@@ -36,7 +36,7 @@ const GroupedOcCard = ({
     const work = works.find(w => w.id === workId);
 
     return (
-        <div className={`relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl transition-all ${isExpanded ? 'bg-white/60' : 'hover:bg-white/50'} group`}>
+        <div className={`relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-md transition-all ${isExpanded ? 'bg-white shadow-lg' : 'hover:shadow-lg'} group`}>
             <div className="p-6">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">

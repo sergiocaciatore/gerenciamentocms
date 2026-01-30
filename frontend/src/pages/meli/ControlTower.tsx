@@ -25,11 +25,11 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div
                 onClick={() => onFilterClick("all")}
-                className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-lg cursor-pointer hover:bg-white/60 transition-all group"
+                className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm cursor-pointer hover:shadow-md transition-all group"
             >
                 <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total OCs</span>
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                     </div>
                 </div>
@@ -40,11 +40,11 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
             </div>
 
             <div
-                className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-lg cursor-pointer hover:bg-white/60 transition-all group"
+                className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm cursor-pointer hover:shadow-md transition-all group"
             >
                 <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Valor Total</span>
-                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                 </div>
@@ -56,11 +56,11 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
             </div>
 
             <div
-                className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-lg cursor-pointer hover:bg-white/60 transition-all group"
+                className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm cursor-pointer hover:shadow-md transition-all group"
             >
                 <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status Crítico</span>
-                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                     </div>
                 </div>
@@ -71,11 +71,11 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
             </div>
 
             <div
-                className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-lg cursor-pointer hover:bg-white/60 hover:scale-[1.02] hover:shadow-xl transition-all duration-300 group"
+                className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-300 group"
             >
                 <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Sem Obra</span>
-                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 rounded-full bg-yellow-50 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                 </div>
@@ -1013,7 +1013,7 @@ export default function ControlTower() {
 
 
     return (
-        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+        <div className="relative min-h-full w-full flex flex-col items-start font-sans text-gray-900 pb-20">
             {toast && (
                 <Toast
                     message={toast.message}
@@ -1024,7 +1024,75 @@ export default function ControlTower() {
 
             {/* Main Content Area */}
             <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative">
-                {/* ... Header ... */}
+                
+                {/* Sticky Toolbar */}
+                <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                     {/* Left: Search + View Filters */}
+                     <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                         {/* Search Input */}
+                         <div className="relative w-full md:w-64 group">
+                            <input
+                                type="text"
+                                placeholder="Buscar OC ou Obra..."
+                                value={filterText}
+                                onChange={(e) => setFilterText(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border-0 rounded-xl text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-gray-400 group-hover:shadow-md"
+                            />
+                            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5 transition-colors group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                         
+                         {/* View Mode Selector */}
+                          <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-sm ring-1 ring-gray-200">
+                              <button onClick={() => {setIsGroupedView(false); setIsKanbanView(false); setIsTimelineView(false)}} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isGroupedView && !isKanbanView && !isTimelineView ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}>Lista</button>
+                              <button onClick={() => {setIsGroupedView(true); setIsKanbanView(false); setIsTimelineView(false)}} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isGroupedView ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}>Agrupado</button>
+                              <button onClick={() => {setIsGroupedView(false); setIsKanbanView(true); setIsTimelineView(false)}} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isKanbanView ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}>Kanban</button>
+                              <button onClick={() => {setIsGroupedView(false); setIsKanbanView(false); setIsTimelineView(true)}} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isTimelineView ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}>Timeline</button>
+                          </div>
+                     </div>
+
+                     {/* Right: Actions */}
+                     <div className="flex flex-wrap gap-2 w-full lg:w-auto justify-end">
+                         <button onClick={() => handleButtonClick("Nova OC")} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl shadow-md hover:bg-blue-700 transition-all hover:shadow-lg active:scale-95">
+                             <span className="text-lg font-bold leading-none">+</span> Nova OC
+                         </button>
+                         <button onClick={openManageEvents} className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 text-sm font-semibold rounded-xl shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 transition-all">
+                             <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                             Eventos
+                         </button>
+                         <button onClick={() => setIsAlertModalOpen(true)} className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 text-sm font-semibold rounded-xl shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 transition-all">
+                             <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                         </button>
+                     </div>
+                </div>
+
+                {/* Filter Bar (Smart Tags) */}
+                <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar items-center">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">Filtros Rápidos:</span>
+                    <button
+                        onClick={() => setFilterOverdue(!filterOverdue)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${filterOverdue ? 'bg-red-500 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                        🚨 Atrasado
+                    </button>
+                    <button
+                        onClick={() => setFilterNearDeadline(!filterNearDeadline)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1 ${filterNearDeadline ? 'bg-yellow-500 text-white border-yellow-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                        ⚠️ Próximo
+                    </button>
+                    <div className="w-px h-6 bg-gray-200 mx-2"></div>
+                    {availableStatuses.map(s => (
+                        <button
+                            key={s}
+                            onClick={() => setFilterStatus(filterStatus === s ? "" : s)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${filterStatus === s ? 'bg-blue-500 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
 
                 {/* HUD Section */}
                 <ControlTowerHUD ocs={ocs} onFilterClick={(type) => {
@@ -1112,142 +1180,7 @@ export default function ControlTower() {
                 )}
             </div>
 
-            {/* Sidebar (Responsive) */}
-            <div className="w-full lg:w-80 lg:shrink-0 p-4 lg:p-8 flex flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto custom-scrollbar z-20">
-                {/* Actions Section */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={() => handleButtonClick("Nova OC")}
-                            className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                <span className="text-blue-600 text-lg font-bold">+</span>
-                            </div>
-                            <span className="text-[10px] font-medium text-gray-600">Nova OC</span>
-                        </button>
-                        <button
-                            onClick={openManageEvents}
-                            className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                </svg>
-                            </div>
-                            <span className="text-[10px] font-medium text-gray-600">Eventos</span>
-                        </button>
-
-                        <button
-                            onClick={() => setIsAlertModalOpen(true)}
-                            className="col-span-2 flex items-center justify-center gap-2 p-2.5 bg-yellow-50/80 hover:bg-yellow-100/80 rounded-xl border border-yellow-200/50 shadow-sm hover:shadow-md transition-all group mt-1"
-                        >
-                            <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
-                            <span className="text-xs font-semibold text-yellow-700">Criar Alerta</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Filters Section (New) */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filtros</h3>
-
-                    <div className="space-y-3">
-                        {/* Text Search */}
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Buscar..."
-                                value={filterText}
-                                onChange={(e) => setFilterText(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 bg-white/60 border border-white/50 rounded-xl text-xs focus:ring-2 focus:ring-blue-400 focus:outline-none placeholder-gray-400"
-                            />
-                            <svg className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-
-                        {/* Toggles */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between px-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                    <span className="text-xs font-medium text-gray-700">Agrupar por Obra</span>
-                                </div>
-                                <ToggleSwitch checked={isGroupedView} onChange={(v) => { setIsGroupedView(v); if (v) { setIsKanbanView(false); setIsTimelineView(false); } }} />
-                            </div>
-                            <div className="flex items-center justify-between px-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                                    <span className="text-xs font-medium text-gray-700">Modo Kanban</span>
-                                </div>
-                                <ToggleSwitch checked={isKanbanView} onChange={(v) => { setIsKanbanView(v); if (v) { setIsGroupedView(false); setIsTimelineView(false); } }} />
-                            </div>
-                            <div className="flex items-center justify-between px-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                    <span className="text-xs font-medium text-gray-700">Modo Timeline</span>
-                                </div>
-                                <ToggleSwitch checked={isTimelineView} onChange={(v) => { setIsTimelineView(v); if (v) { setIsGroupedView(false); setIsKanbanView(false); } }} />
-                            </div>
-                        </div>
-
-                        {/* Smart Tags Filter */}
-                        <div className="pt-2">
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={() => setFilterOverdue(!filterOverdue)}
-                                    className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${filterOverdue ? 'bg-red-500 text-white border-red-600 shadow-md transform scale-105' : 'bg-white/40 text-gray-600 border-white/50 hover:bg-white/60'}`}
-                                >
-                                    🚨 Atrasado
-                                </button>
-                                <button
-                                    onClick={() => setFilterNearDeadline(!filterNearDeadline)}
-                                    className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${filterNearDeadline ? 'bg-yellow-500 text-white border-yellow-600 shadow-md transform scale-105' : 'bg-white/40 text-gray-600 border-white/50 hover:bg-white/60'}`}
-                                >
-                                    ⚠️ Próximo
-                                </button>
-
-                                {availableStatuses.map(s => (
-                                    <button
-                                        key={s}
-                                        onClick={() => setFilterStatus(filterStatus === s ? "" : s)}
-                                        className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${filterStatus === s ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-white/40 text-gray-600 border-white/50 hover:bg-white/60'}`}
-                                    >
-                                        {s}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Alerts Section (Sidebar) */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-4">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Meus Alertas</h3>
-                    {alerts.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">Nenhum alerta configurado.</p>
-                    ) : (
-                        <div className="space-y-2">
-                            {alerts.map(alert => (
-                                <div key={alert.id} className="bg-white/60 p-2 rounded-lg border border-white/50 shadow-sm flex justify-between items-center group">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-bold text-gray-700">{alert.workId === '' ? 'Todas Obras' : alert.workId}</span>
-                                        <span className="text-[10px] text-gray-500 truncate max-w-[120px]">{alert.eventFilter || "Qualquer evento"}</span>
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleEditAlert(alert)} className="p-1 hover:bg-blue-100 rounded text-blue-600"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                        <button onClick={() => handleDeleteAlert(alert.id)} className="p-1 hover:bg-red-100 rounded text-red-600"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Sidebar Removed */}
             {/* Modal for OC */}
             <Modal
                 isOpen={isModalOpen}
@@ -1616,6 +1549,28 @@ export default function ControlTower() {
                     <div className="mt-6 flex justify-end gap-3">
                         <button onClick={() => setIsAlertModalOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">Cancelar</button>
                         <button onClick={handleSaveAlert} className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all">Salvar Alerta</button>
+                    </div>
+
+                    <div className="mt-8 pt-4 border-t border-gray-100">
+                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Alertas Ativos</h4>
+                        {alerts.length === 0 ? (
+                            <p className="text-xs text-center text-gray-400 italic py-2">Nenhum alerta configurado.</p>
+                        ) : (
+                            <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                                {alerts.map(alert => (
+                                    <div key={alert.id} className="bg-white border border-gray-200 p-2 rounded-lg shadow-sm flex justify-between items-center group hover:border-blue-300 transition-all">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-gray-700">{alert.workId === '' ? 'Todas Obras' : alert.workId}</span>
+                                            <span className="text-[10px] text-gray-500 truncate max-w-[150px]">{alert.eventFilter || "Qualquer evento"}</span>
+                                        </div>
+                                        <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleEditAlert(alert)} className="p-1 hover:bg-blue-50 rounded text-blue-600 transition-colors" title="Editar"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                            <button onClick={() => handleDeleteAlert(alert.id)} className="p-1 hover:bg-red-50 rounded text-red-600 transition-colors" title="Excluir"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </Modal>

@@ -579,9 +579,55 @@ export default function ProjectAvoidance() {
     };
 
     return (
-        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
-            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col">
-                {/* Title Removed */}
+        <div className="relative min-h-full w-full flex flex-col items-start font-sans text-gray-900 pb-20">
+            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative">
+                
+                {/* Sticky Toolbar */}
+                <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                    {/* Filters Group */}
+                    <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                        <div className="relative w-full md:w-64 group">
+                            <input
+                                type="text"
+                                placeholder="Buscar obra..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border-0 rounded-xl text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-gray-400 group-hover:shadow-md"
+                            />
+                            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5 transition-colors group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+
+                        <div className="relative w-full md:w-48">
+                            <select
+                                value={filterRegional}
+                                onChange={(e) => setFilterRegional(e.target.value)}
+                                className="w-full pl-3 pr-10 py-2.5 bg-white border-0 rounded-xl text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer hover:shadow-md"
+                            >
+                                <option value="">Todas Regionais</option>
+                                <option value="Rimes">Rimes</option>
+                                <option value="Noneco">Noneco</option>
+                                <option value="SPCIL">SPCIL</option>
+                                <option value="Sul">Sul</option>
+                            </select>
+                            <svg className="w-5 h-5 text-gray-400 absolute right-3 top-2.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    {/* Actions Group */}
+                    <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-xl shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 hover:shadow-md transition-all active:scale-95"
+                        >
+                            <span className="text-blue-600 text-lg font-bold leading-none">+</span>
+                            Nova Obra
+                        </button>
+                    </div>
+                </div>
 
                 {/* Loading State */}
                 {loading ? (
@@ -600,7 +646,7 @@ export default function ProjectAvoidance() {
                             const capexItems = paItem.capex_items || [];
 
                             return (
-                                <div key={work.id} className={`relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl p-6 transition-all hover:bg-white/50 group flex flex-col ${isExpanded ? 'col-span-full' : 'col-span-1'}`}>
+                                <div key={work.id} className={`relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-md p-6 transition-all hover:shadow-lg group flex flex-col ${isExpanded ? 'col-span-full' : 'col-span-1'}`}>
 
                                     {/* Action Buttons */}
                                     <div className="absolute top-4 right-4 flex gap-2 z-20">
@@ -900,52 +946,7 @@ export default function ProjectAvoidance() {
                 }
             </div>
 
-            {/* Sidebar (Responsive) */}
-            <div className="w-full lg:w-80 flex-shrink-0 p-4 lg:p-6 lg:border-l border-white/50 bg-white/30 lg:bg-transparent flex flex-col gap-6 order-1 lg:order-2 overflow-y-auto custom-scrollbar">
-                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/40 lg:bg-white/20 backdrop-blur-xl border border-white/50 lg:border-white/30 shadow-sm lg:shadow-2xl">
-                    <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Ações</h3>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group"
-                    >
-                        Nova Obra
-                        <span className="text-blue-600 font-bold text-lg">+</span>
-                    </button>
-                </div>
-
-                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/40 lg:bg-white/20 backdrop-blur-xl border border-white/50 lg:border-white/30 shadow-sm lg:shadow-2xl">
-                    <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Filtros</h3>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Buscar obra..."
-                            value={searchText}
-                            onChange={(e) => setSearchText(e.target.value)}
-                            className="w-full rounded-xl bg-white/80 pl-4 pr-10 py-3 text-sm font-medium text-gray-900 shadow-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-500"
-                        />
-                        <svg className="w-5 h-5 absolute right-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1 ml-1">Regional</label>
-                        <select
-                            value={filterRegional}
-                            onChange={(e) => setFilterRegional(e.target.value)}
-                            className="w-full rounded-xl bg-white/80 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
-                        >
-                            <option value="">Todas Regionais</option>
-                            <option value="Rimes">Rimes</option>
-                            <option value="Baixada">Baixada</option>
-                            <option value="Litoral">Litoral</option>
-                            <option value="Capital">Capital</option>
-                            <option value="Vale">Vale</option>
-                            <option value="Interior">Interior</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+            {/* Sidebar Removed */}
 
 
 

@@ -350,11 +350,62 @@ export default function BackLog() {
     });
 
     return (
-        <div className="relative min-h-full w-full">
+        <div className="relative min-h-screen w-full font-sans text-gray-900">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+            {/* Sticky Toolbar */}
+            <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                    <div className="relative group flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Buscar (Descrição, Regional, ID...)"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 sm:text-sm shadow-sm hover:shadow-md"
+                        />
+                    </div>
+                    <div className="flex gap-2 min-w-[300px]">
+                        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg shadow-sm hover:shadow-md bg-white">
+                            <option value="Todos">Status: Todos</option>
+                            <option value="Novo">Novo</option>
+                            <option value="Em Andamento">Em Andamento</option>
+                            <option value="Concluído">Concluído</option>
+                        </select>
+                        <select value={regionalFilter} onChange={(e) => setRegionalFilter(e.target.value)} className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg shadow-sm hover:shadow-md bg-white">
+                            <option value="Todas">Regional: Todas</option>
+                            {uniqueRegionals.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
+                    <button
+                        onClick={() => { setSelectedItemForAction(null); setIsAnnotationModalOpen(true); }}
+                        className="inline-flex items-center px-4 py-2 border border-gray-200 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-sm hover:shadow-md"
+                    >
+                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 mr-2 text-amber-500"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        Nova Anotação
+                    </button>
+                    <button
+                        onClick={handleOpenNewItem}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                        <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        Novo Item
+                    </button>
+                </div>
+            </div>
+
             {/* Main Content Area */}
-            <div className="mr-80 px-8 py-8 w-auto mx-0">
+            <div className="w-full px-4 lg:px-8 pb-8 mx-0">
                 {/* List of Items */}
                 <div className="flex flex-col gap-4">
                     {filteredItems.map(item => {
@@ -365,7 +416,7 @@ export default function BackLog() {
                         return (
                             <div
                                 key={item.id}
-                                className={`rounded-xl border shadow-sm transition-all relative group overflow-hidden ${isCompleted ? 'bg-green-50 border-green-200' : 'bg-white/40 backdrop-blur-xl border-white/50 shadow-xl hover:bg-white/50'
+                                className={`rounded-xl border shadow-sm transition-all relative group overflow-hidden ${isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:shadow-md'
                                     }`}
                             >
                                 <div className="p-4 flex flex-col gap-4">
@@ -534,47 +585,7 @@ export default function BackLog() {
                 </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="fixed right-8 top-32 flex flex-col gap-6 w-72 z-20">
-                {/* Actions */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
-                    <button onClick={handleOpenNewItem} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        <div className="flex items-center gap-3">
-                            <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                            </div>
-                            Novo Item
-                        </div>
-                    </button>
-                    <button onClick={() => { setSelectedItemForAction(null); setIsAnnotationModalOpen(true); }} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        <div className="flex items-center gap-3">
-                            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
-                            </div>
-                            Nova Anotação
-                        </div>
-                    </button>
-                </div>
 
-                {/* Filters */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filtros</h3>
-                    <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border-gray-200 bg-white/50 text-sm pl-3 py-2 focus:ring-blue-500" />
-
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full rounded-xl border-gray-200 bg-white/50 text-sm py-2 px-3 focus:ring-blue-500">
-                        <option value="Todos">Status: Todos</option>
-                        <option value="Novo">Novo</option>
-                        <option value="Em Andamento">Em Andamento</option>
-                        <option value="Concluído">Concluído</option>
-                    </select>
-
-                    <select value={regionalFilter} onChange={(e) => setRegionalFilter(e.target.value)} className="w-full rounded-xl border-gray-200 bg-white/50 text-sm py-2 px-3 focus:ring-blue-500">
-                        <option value="Todas">Regional: Todas</option>
-                        {uniqueRegionals.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                </div>
-            </div>
 
             {/* --- Modals --- */}
 

@@ -738,41 +738,53 @@ export default function Planning() {
     };
 
     return (
-        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+        <div className="relative min-h-screen w-full flex flex-col font-sans text-gray-900">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-            {/* Sidebar & Toolbar */}
-            <div className="w-full lg:w-80 lg:shrink-0 p-4 lg:p-6 flex flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto custom-scrollbar z-20">
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mb-6">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
-                    <button onClick={() => { setSelectedWorkId(""); setIsModalOpen(true); }} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        <div className="flex items-center gap-3">
-                            <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                <span className="text-lg">+</span>
-                            </div>
-                            Novo Planejamento
+            {/* Sticky Toolbar */}
+            <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                    <div className="relative group flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                            </svg>
                         </div>
-                    </button>
-                    <div className="flex gap-2 mt-2 p-1 bg-white/50 rounded-xl border border-blue-50/50">
-                        <button onClick={() => setViewMode('list')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>Lista</button>
-                        <button onClick={() => setViewMode('kanban')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'kanban' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>Kanban</button>
+                        <input
+                            type="text"
+                            value={filterText}
+                            onChange={(e) => setFilterText(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 sm:text-sm shadow-sm hover:shadow-md"
+                            placeholder="Buscar planejamento (ID, Regional...)"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <input type="date" value={filterDateRange.start} onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })} className="block w-full pl-3 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white text-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md" />
+                        <input type="date" value={filterDateRange.end} onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })} className="block w-full pl-3 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white text-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md" />
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mb-6">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filtros</h3>
-                    <input type="text" value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Busca..." className="w-full text-sm border-gray-200 rounded-lg p-2.5" />
-                    <div className="grid grid-cols-2 gap-2">
-                        <input type="date" value={filterDateRange.start} onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })} className="w-full text-xs border-gray-200 rounded-lg p-2" />
-                        <input type="date" value={filterDateRange.end} onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })} className="w-full text-xs border-gray-200 rounded-lg p-2" />
+                <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
+                    <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex">
+                        <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-gray-100 text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Lista</button>
+                        <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'kanban' ? 'bg-gray-100 text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Kanban</button>
                     </div>
+                    <button
+                        onClick={() => { setSelectedWorkId(""); setIsModalOpen(true); }}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                        <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        Novo Planejamento
+                    </button>
                 </div>
             </div>
 
-            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative">
+            <div className="flex-1 w-full px-4 lg:px-8 pb-8 min-w-0 flex flex-col transition-all duration-300 relative">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     {['Rascunho', 'Ativo', 'Concluído'].map(status => (
-                        <div key={status} className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                        <div key={status} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
                             <div>
                                 <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">{status}</p>
                                 <p className="text-2xl font-bold text-gray-800">{filteredPlannings.filter(p => (p.status || 'Rascunho') === status).length}</p>
@@ -801,7 +813,7 @@ export default function Planning() {
                             {paginatedPlannings.map((planning: PlanningItem) => {
                                 const metrics = calculateMetrics(Array.isArray(planning.data?.schedule) ? planning.data.schedule : []);
                                 return (
-                                    <div key={planning.id} className={`rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm transition-all hover:bg-white/60 overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
+                                    <div key={planning.id} className={`rounded-2xl bg-white border border-gray-100 shadow-sm transition-all hover:shadow-lg overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
                                         <div className="p-6 cursor-pointer flex items-center justify-between" onClick={() => toggleExpand(planning.id, planning)}>
                                             <div>
                                                 <h3 className="text-lg font-bold text-gray-900">{getWorkName(planning.work_id)}</h3>
@@ -952,13 +964,13 @@ export default function Planning() {
                                 {['Rascunho', 'Ativo', 'Concluído'].map(status => (
                                     <Droppable key={status} droppableId={status}>
                                         {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.droppableProps} className="min-w-[260px] w-1/3 bg-white/30 backdrop-blur-md rounded-2xl p-4 flex flex-col h-full border border-white/40 shadow-lg">
+                                            <div ref={provided.innerRef} {...provided.droppableProps} className="min-w-[260px] w-1/3 bg-gray-100 rounded-2xl p-4 flex flex-col h-full border border-gray-200 shadow-inner">
                                                 <h3 className="text-sm font-bold text-gray-700 mb-4">{status}</h3>
                                                 <div className="flex-1 space-y-3">
                                                     {filteredPlannings.filter(p => (p.status || 'Rascunho') === status).map((planning, index) => (
                                                         <Draggable key={planning.id} draggableId={planning.id} index={index}>
                                                             {(provided) => (
-                                                                <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="p-4 rounded-xl bg-white border border-white shadow-sm" onClick={() => toggleExpand(planning.id, planning)}>
+                                                                <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow" onClick={() => toggleExpand(planning.id, planning)}>
                                                                     <p className="font-bold text-sm">{getWorkName(planning.work_id)}</p>
                                                                 </div>
                                                             )}

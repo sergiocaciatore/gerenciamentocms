@@ -271,7 +271,7 @@ export default function LPU() {
     }, [filterText]);
 
     return (
-        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+        <div className="relative min-h-screen w-full font-sans text-gray-900">
             {toast && (
                 <Toast
                     message={toast.message}
@@ -280,20 +280,52 @@ export default function LPU() {
                 />
             )}
 
-            {/* Main Content Area - Center if focused or no sidebar */}
-            <div className={`flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative ${focusedLpuId ? 'w-full' : ''}`}>
+            {/* Sticky Toolbar */}
+            <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                    <div className="relative group flex-1 max-w-md">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Buscar obra, regional..."
+                            value={filterText}
+                            onChange={(e) => setFilterText(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 sm:text-sm shadow-sm hover:shadow-md"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
+                    <button
+                        onClick={openNewLpuModal}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                        <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        Nova LPU
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 w-full px-4 lg:px-8 pb-8 min-w-0 flex flex-col">
 
                 {isLoading ? (
                     <LoadingSpinner message="Carregando LPUs..." />
                 ) : filteredLpus.length === 0 ? (
-                    <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="p-12 text-center rounded-2xl bg-white border border-gray-100 shadow-sm mt-6">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
                         </div>
                         <h3 className="text-sm font-bold text-gray-900 mb-1">Nenhuma LPU encontrada</h3>
-                        <p className="text-xs text-gray-500">Utilize o menu lateral para cadastrar uma nova.</p>
+                        <p className="text-xs text-gray-500">Utilize o botão acima para cadastrar uma nova.</p>
                     </div>
                 ) : (
 
@@ -325,52 +357,7 @@ export default function LPU() {
                 </div>
             </div>
 
-            {/* Floating Sidebar - Hide when focused */}
-            <div className={`w-full lg:w-80 lg:shrink-0 p-4 lg:p-6 flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto custom-scrollbar z-20 ${focusedLpuId ? 'hidden' : 'flex'}`}>
-                {/* Actions Section */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={openNewLpuModal}
-                            className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-1">
-                                <span className="text-blue-600 text-lg font-bold">+</span>
-                            </div>
-                            <span className="text-[10px] font-medium text-gray-600">Nova LPU</span>
-                        </button>
-                        <button
-                            onClick={() => setToast({ message: "Observações - Em Breve!", type: "success" })}
-                            className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center mb-1">
-                                <span className="text-blue-600 text-lg font-bold right-0 top-0">i</span>
-                            </div>
-                            <span className="text-[10px] font-medium text-gray-600">Observações</span>
-                        </button>
-                    </div>
-                </div>
 
-                {/* Filters Section */}
-                <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filtros</h3>
-                    <div className="space-y-3">
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Buscar..."
-                                value={filterText}
-                                onChange={(e) => setFilterText(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 bg-white/60 border border-white/50 rounded-xl text-xs focus:ring-2 focus:ring-blue-400 focus:outline-none placeholder-gray-400"
-                            />
-                            <svg className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* LPU Modal */}
             <Modal

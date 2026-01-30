@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAuthToken } from "../../firebase";
 import Modal from "../../components/Modal";
+import Toast from "../../components/Toast";
 import {
     type ResidentAssignment,
     type ResidentWork,
@@ -312,22 +313,41 @@ export default function Residentes() {
     };
 
     return (
-        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
-            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col">
-            {/* Toast Notification */}
-            {toast && (
-                <div className={`fixed top-4 right-4 px-6 py-3 rounded-xl shadow-2xl backdrop-blur-md border z-50 animate-fade-in-down ${toast.type === "success" ? "bg-green-500/90 text-white border-green-400" : "bg-red-500/90 text-white border-red-400"
-                    }`}>
-                    <div className="flex items-center gap-2">
-                        {toast.type === "success" ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
-                        )}
-                        <span className="font-semibold">{toast.message}</span>
+        <div className="relative min-h-screen w-full font-sans text-gray-900">
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+            {/* Sticky Toolbar */}
+            <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
+                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+                    <div className="relative group flex-1 max-w-md">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Buscar obras ou residentes..."
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 sm:text-sm shadow-sm hover:shadow-md"
+                        />
                     </div>
                 </div>
-            )}
+
+                <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
+                    <button
+                        onClick={openNewResidentModal}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                        <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                        Novo Residente
+                    </button>
+                </div>
+            </div>
+
+            <div className="w-full px-4 lg:px-8 pb-8 mx-0 flex flex-col">
+
 
             {/* Split Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -339,7 +359,7 @@ export default function Residentes() {
                             key={work.id}
                             onDragOver={handleDragOver}
                             onDrop={() => handleDrop(work)}
-                            className="relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl p-5 hover:bg-white/50 transition-all group hover:border-blue-300 hover:shadow-2xl"
+                            className="relative overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm p-5 transition-all group hover:shadow-lg"
                         >
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3">
@@ -407,7 +427,7 @@ export default function Residentes() {
                     ))}
 
                     {works.length === 0 && (
-                        <div className="p-8 text-center text-gray-500 bg-white/30 rounded-xl border border-dashed border-gray-300">
+                        <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-300">
                             Nenhuma obra encontrada.
                         </div>
                     )}
@@ -415,13 +435,8 @@ export default function Residentes() {
 
                 {/* Right Panel: Residents (1/3) */}
                 <div className="col-span-1 lg:col-span-4 flex flex-col gap-4 order-1 lg:order-2">
-                    <button
-                        onClick={openNewResidentModal}
-                        className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                        Novo Residente
-                    </button>
+                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Residentes Disponíveis</h3>
 
                     {/* Residents List */}
                     <div className="flex flex-col gap-3">
@@ -430,7 +445,7 @@ export default function Residentes() {
                                 key={resident.id}
                                 draggable
                                 onDragStart={() => handleDragStart(resident)}
-                                className="rounded-xl bg-white/40 backdrop-blur-xl p-4 border border-white/50 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing hover:scale-[1.02] group"
+                                className="rounded-xl bg-gray-50 p-4 border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing hover:scale-[1.02] group"
                             >
                                 <div className="flex flex-col">
                                     <div className="flex items-center justify-between">
@@ -470,6 +485,7 @@ export default function Residentes() {
                                 Nenhum residente cadastrado.
                             </div>
                         )}
+                    </div>
                     </div>
                 </div>
             </div>
