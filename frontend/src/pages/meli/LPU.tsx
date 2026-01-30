@@ -271,7 +271,7 @@ export default function LPU() {
     }, [filterText]);
 
     return (
-        <div className="relative min-h-full w-full font-sans text-gray-900">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
             {toast && (
                 <Toast
                     message={toast.message}
@@ -281,7 +281,7 @@ export default function LPU() {
             )}
 
             {/* Main Content Area - Center if focused or no sidebar */}
-            <div className={`transition-all duration-300 px-8 py-8 ${focusedLpuId ? 'w-[95%] mx-auto' : 'mr-80 w-auto ml-0'}`}>
+            <div className={`flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative ${focusedLpuId ? 'w-full' : ''}`}>
 
                 {isLoading ? (
                     <LoadingSpinner message="Carregando LPUs..." />
@@ -326,7 +326,7 @@ export default function LPU() {
             </div>
 
             {/* Floating Sidebar - Hide when focused */}
-            <div className={`fixed right-8 top-32 flex flex-col gap-4 w-72 z-20 transition-opacity duration-300 ${focusedLpuId ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <div className={`w-full lg:w-80 lg:shrink-0 p-4 lg:p-6 flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto custom-scrollbar z-20 ${focusedLpuId ? 'hidden' : 'flex'}`}>
                 {/* Actions Section */}
                 <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>

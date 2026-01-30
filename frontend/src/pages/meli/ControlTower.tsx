@@ -22,7 +22,7 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
     const totalValue = ocs.reduce((acc, oc) => acc + (oc.value || 0), 0);
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div
                 onClick={() => onFilterClick("all")}
                 className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-lg cursor-pointer hover:bg-white/60 transition-all group"
@@ -1013,7 +1013,7 @@ export default function ControlTower() {
 
 
     return (
-        <div className="relative min-h-full w-full">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
             {toast && (
                 <Toast
                     message={toast.message}
@@ -1023,7 +1023,7 @@ export default function ControlTower() {
             )}
 
             {/* Main Content Area */}
-            <div className="mr-80 px-8 py-8 w-auto mx-0">
+            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative">
                 {/* ... Header ... */}
 
                 {/* HUD Section */}
@@ -1099,23 +1099,21 @@ export default function ControlTower() {
                         itemsPerPage={itemsPerPage}
                     />
                 )}
+                {!isLoading && filteredOcs.length === 0 && (
+                    <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-gray-900 mb-1">Nenhum resultado encontrado</h3>
+                        <p className="text-xs text-gray-500">Tente ajustar seus filtros de busca.</p>
+                    </div>
+                )}
             </div>
 
-            {!isLoading && filteredOcs.length === 0 && (
-                <div className="p-12 text-center rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mt-6">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-1">Nenhum resultado encontrado</h3>
-                    <p className="text-xs text-gray-500">Tente ajustar seus filtros de busca.</p>
-                </div>
-            )}
-
-
-            {/* Floating Sidebar */}
-            <div className="fixed right-8 top-32 flex flex-col gap-4 w-72 z-20">
+            {/* Sidebar (Responsive) */}
+            <div className="w-full lg:w-80 lg:shrink-0 p-4 lg:p-8 flex flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto custom-scrollbar z-20">
                 {/* Actions Section */}
                 <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>

@@ -738,11 +738,11 @@ export default function Planning() {
     };
 
     return (
-        <div className="relative min-h-full w-full">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-            {/* Sidebar & Toolbar skipped in parts for brevity in my thought, but rendered here fully if I write it all... */}
-            <div className="fixed right-0 top-20 h-[calc(100vh-5rem)] w-80 p-6 overflow-y-auto z-10 hidden lg:block custom-scrollbar">
+            {/* Sidebar & Toolbar */}
+            <div className="w-full lg:w-80 lg:shrink-0 p-4 lg:p-6 flex flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto custom-scrollbar z-20">
                 <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl mb-6">
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
                     <button onClick={() => { setSelectedWorkId(""); setIsModalOpen(true); }} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
@@ -769,7 +769,7 @@ export default function Planning() {
                 </div>
             </div>
 
-            <div className="mr-0 lg:mr-80 px-4 sm:px-8 py-8 w-auto mx-0">
+            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col transition-all duration-300 relative">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     {['Rascunho', 'Ativo', 'Concluído'].map(status => (
                         <div key={status} className="bg-white/40 backdrop-blur-xl border border-white/50 p-4 rounded-2xl shadow-sm flex items-center justify-between">
@@ -801,7 +801,7 @@ export default function Planning() {
                             {paginatedPlannings.map((planning: PlanningItem) => {
                                 const metrics = calculateMetrics(Array.isArray(planning.data?.schedule) ? planning.data.schedule : []);
                                 return (
-                                    <div key={planning.id} className={`rounded-2xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-lg overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
+                                    <div key={planning.id} className={`rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm transition-all hover:bg-white/60 overflow-hidden ${expandedId === planning.id ? 'ring-2 ring-blue-500/20' : ''}`}>
                                         <div className="p-6 cursor-pointer flex items-center justify-between" onClick={() => toggleExpand(planning.id, planning)}>
                                             <div>
                                                 <h3 className="text-lg font-bold text-gray-900">{getWorkName(planning.work_id)}</h3>

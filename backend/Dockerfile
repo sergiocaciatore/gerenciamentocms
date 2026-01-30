@@ -56,5 +56,8 @@ USER appuser
 # Cloud Run define PORT=8080 automaticamente
 EXPOSE 8080
 
+# Configurar Project ID correto para evitar fallback para "mel"
+ENV GCP_PROJECT_ID=cms-expansao-e10c4
+
 # Executar o binário
 CMD ["/app/cms-backend"]

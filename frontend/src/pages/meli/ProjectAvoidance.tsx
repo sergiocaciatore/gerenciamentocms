@@ -579,66 +579,11 @@ export default function ProjectAvoidance() {
     };
 
     return (
-        <div className="relative min-h-full w-full">
-            <div className="mr-80 px-8 py-8 w-auto mx-0">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col">
                 {/* Title Removed */}
 
-                {/* Floating Sidebar */}
-                <div className="fixed right-8 top-32 flex flex-col gap-4 w-72 z-20">
-                    {/* Actions Section */}
-                    <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Ações</h3>
-                        <div className="grid grid-cols-1 gap-2">
-                            <button
-                                onClick={() => setIsModalOpen(true)}
-                                className="flex flex-col items-center justify-center p-3 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all group"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                    <span className="text-blue-600 text-lg font-bold">+</span>
-                                </div>
-                                <span className="text-[10px] font-medium text-gray-600">Novo</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Filters Section */}
-                    <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filtros</h3>
-
-                        {/* Search */}
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Buscar obra..."
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-white/50 border border-white/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 placeholder-gray-500"
-                            />
-                            <svg className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-
-                        {/* Regional Filter */}
-                        <div>
-                            <select
-                                value={filterRegional}
-                                onChange={(e) => setFilterRegional(e.target.value)}
-                                className="w-full px-4 py-2 bg-white/50 border border-white/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-700 appearance-none cursor-pointer"
-                                style={{ backgroundImage: 'none' }}
-                            >
-                                <option value="">Todas Regionais</option>
-                                <option value="Rimes">Rimes</option>
-                                <option value="Baixada">Baixada</option>
-                                <option value="Litoral">Litoral</option>
-                                <option value="Capital">Capital</option>
-                                <option value="Vale">Vale</option>
-                                <option value="Interior">Interior</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
+                {/* Loading State */}
                 {loading ? (
                     <div className="flex justify-center py-20">
                         <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -684,7 +629,9 @@ export default function ProjectAvoidance() {
                                                 </svg>
                                             )}
                                         </button>
-                                    </div>
+                                        </div>
+
+
 
                                     {/* Card Content */}
                                     <div className="relative z-10 flex-1 flex flex-col">
@@ -951,6 +898,53 @@ export default function ProjectAvoidance() {
                     </div>
                 )
                 }
+            </div>
+
+            {/* Sidebar (Responsive) */}
+            <div className="w-full lg:w-80 flex-shrink-0 p-4 lg:p-6 lg:border-l border-white/50 bg-white/30 lg:bg-transparent flex flex-col gap-6 order-1 lg:order-2 overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/40 lg:bg-white/20 backdrop-blur-xl border border-white/50 lg:border-white/30 shadow-sm lg:shadow-2xl">
+                    <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Ações</h3>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group"
+                    >
+                        Nova Obra
+                        <span className="text-blue-600 font-bold text-lg">+</span>
+                    </button>
+                </div>
+
+                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/40 lg:bg-white/20 backdrop-blur-xl border border-white/50 lg:border-white/30 shadow-sm lg:shadow-2xl">
+                    <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Filtros</h3>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Buscar obra..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            className="w-full rounded-xl bg-white/80 pl-4 pr-10 py-3 text-sm font-medium text-gray-900 shadow-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-500"
+                        />
+                        <svg className="w-5 h-5 absolute right-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1 ml-1">Regional</label>
+                        <select
+                            value={filterRegional}
+                            onChange={(e) => setFilterRegional(e.target.value)}
+                            className="w-full rounded-xl bg-white/80 px-3 py-2 text-sm font-medium text-gray-900 shadow-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+                        >
+                            <option value="">Todas Regionais</option>
+                            <option value="Rimes">Rimes</option>
+                            <option value="Baixada">Baixada</option>
+                            <option value="Litoral">Litoral</option>
+                            <option value="Capital">Capital</option>
+                            <option value="Vale">Vale</option>
+                            <option value="Interior">Interior</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
 

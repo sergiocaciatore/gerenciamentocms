@@ -556,11 +556,11 @@ export default function Registration() {
         }`;
 
     return (
-        <div className="relative min-h-full w-full">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
             {/* Main Content */}
-            <div className="mr-80 px-8 py-8 w-auto mx-0">
+            <div className="flex-1 w-full px-4 py-6 md:px-8 md:py-8 min-w-0 order-2 lg:order-1">
                 {/* Visual View Toggle & Actions */}
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex bg-white/50 rounded-lg p-1 shadow-sm border border-gray-100">
@@ -612,7 +612,7 @@ export default function Registration() {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-6 pb-20">
-                        <div className="grid grid-cols-1 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {paginatedWorks.map((item, index) => (
                                 <div key={`${item.id}-${index}`} className="relative overflow-hidden rounded-xl bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm p-4 transition-all hover:bg-white/50 group">
                                     <div className="flex justify-between items-center">
@@ -668,29 +668,31 @@ export default function Registration() {
                 )}
             </div>
 
-            {/* Sidebar */}
-            <div className="fixed right-8 top-32 flex flex-col gap-6 w-64 z-10">
-                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl">
+            {/* Sidebar (Responsive) */}
+            <div className="w-full lg:w-80 lg:shrink-0 p-4 lg:p-8 flex flex-col gap-6 order-1 lg:order-2 bg-gray-50/50 lg:bg-transparent border-b lg:border-b-0 border-gray-200 lg:sticky lg:top-20 lg:h-[calc(100vh-80px)] lg:overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/40 lg:bg-white/20 backdrop-blur-xl border border-white/50 lg:border-white/30 shadow-sm lg:shadow-2xl">
                     <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Novo Cadastro</h3>
-                    <button onClick={() => handleOpenModal("Cadastrar Obra")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        Obra
-                        <span className="text-blue-600 font-bold text-lg">+</span>
-                    </button>
-                    <button onClick={() => handleOpenModal("Cadastrar Evento")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        Evento
-                        <span className="text-purple-600 font-bold text-lg">+</span>
-                    </button>
-                    <button onClick={() => handleOpenModal("Cadastrar Fornecedor")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        Fornecedor
-                        <span className="text-green-600 font-bold text-lg">+</span>
-                    </button>
-                    <button onClick={() => handleOpenModal("Cadastrar Equipe")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
-                        Equipe
-                        <span className="text-orange-600 font-bold text-lg">+</span>
-                    </button>
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+                        <button onClick={() => handleOpenModal("Cadastrar Obra")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
+                            Obra
+                            <span className="text-blue-600 font-bold text-lg">+</span>
+                        </button>
+                        <button onClick={() => handleOpenModal("Cadastrar Evento")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
+                            Evento
+                            <span className="text-purple-600 font-bold text-lg">+</span>
+                        </button>
+                        <button onClick={() => handleOpenModal("Cadastrar Fornecedor")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
+                            Fornecedor
+                            <span className="text-green-600 font-bold text-lg">+</span>
+                        </button>
+                        <button onClick={() => handleOpenModal("Cadastrar Equipe")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
+                            Equipe
+                            <span className="text-orange-600 font-bold text-lg">+</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl">
+                <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/40 lg:bg-white/20 backdrop-blur-xl border border-white/50 lg:border-white/30 shadow-sm lg:shadow-2xl">
                     <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Filtros</h3>
                     <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="w-full rounded-xl bg-white/80 pl-4 pr-10 py-3 text-sm font-medium text-gray-900 shadow-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-500" />
                     <div className="grid grid-cols-2 gap-2">

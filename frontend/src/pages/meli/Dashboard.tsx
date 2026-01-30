@@ -111,14 +111,14 @@ export default function Dashboard() {
             )}
 
             {/* Container Principal */}
-            <div className="p-6 max-w-[1920px] mx-auto space-y-6">
+            <div className="p-3 md:p-6 lg:p-8 max-w-[1920px] mx-auto space-y-4 md:space-y-6">
 
                 {/* Navegação por Abas */}
                 <div className="flex justify-center mb-4">
-                    <div className="bg-white/40 p-1.5 rounded-xl flex gap-1 shadow-sm border border-white/50 backdrop-blur-md">
+                    <div className="bg-white/40 p-1 md:p-1.5 rounded-xl flex gap-1 shadow-sm border border-white/50 backdrop-blur-md overflow-x-auto max-w-full">
                         <button
                             onClick={() => setActiveTab('gerencial')}
-                            className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'gerencial'
+                            className={`px-4 py-2 md:px-8 md:py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'gerencial'
                                 ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5'
                                 : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
                                 }`}
@@ -127,7 +127,7 @@ export default function Dashboard() {
                         </button>
                         <button
                             onClick={() => setActiveTab('estrategico')}
-                            className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'estrategico'
+                            className={`px-4 py-2 md:px-8 md:py-2.5 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'estrategico'
                                 ? 'bg-white text-purple-600 shadow-sm ring-1 ring-black/5'
                                 : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
                                 }`}
@@ -147,7 +147,7 @@ export default function Dashboard() {
                                 <select
                                     value={selectedWorkId}
                                     onChange={(e) => setSelectedWorkId(e.target.value)}
-                                    className="appearance-none bg-white/60 border border-gray-200 text-gray-700 py-1.5 pl-3 pr-8 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-white transition-colors"
+                                    className="appearance-none bg-white/60 border border-gray-200 text-gray-700 py-1.5 pl-3 pr-8 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm hover:bg-white transition-colors max-w-[150px] md:max-w-none truncate"
                                 >
                                     <option value="all">Todas as Obras</option>
                                     {works.map(work => (
@@ -207,7 +207,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Grade de Gráficos Financeiros */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                             {/* CHART: Comparativo por Obra */}
                             <div className="bg-white/60 rounded-xl shadow-sm border border-white/60 p-5 flex flex-col h-full">
                                 <div className="flex justify-between items-center mb-4">
@@ -224,7 +224,7 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar flex-1">
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar flex-1 overflow-x-hidden">
                                     {loading ? (
                                         <div className="h-full flex items-center justify-center text-gray-400 text-xs">Carregando...</div>
                                     ) : financialData.length === 0 ? (
@@ -365,8 +365,8 @@ export default function Dashboard() {
                                     </span>
                                     Eficiência de Processo
                                 </h3>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                                    <table className="w-full text-left">
+                                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 overflow-x-auto">
+                                    <table className="w-full text-left min-w-[300px]">
                                         <thead className="text-[10px] text-gray-500 uppercase border-b border-gray-200/50">
                                             <tr>
                                                 <th className="pb-2 font-medium">Etapa (Gargalos)</th>
@@ -475,7 +475,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Seção Dashboard de Obras */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                             {/* Coluna Esquerda: Contagem Regressiva GoLive */}
                             <div className="bg-white/40 backdrop-blur-xl border border-white/50 shadow-xl rounded-2xl p-6 flex flex-col h-full">
                                 <div className="flex items-center justify-between mb-6">
@@ -549,7 +549,7 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="overflow-x-auto rounded-xl border border-gray-200/60 flex-1">
-                                    <table className="w-full text-sm text-left">
+                                    <table className="w-full text-sm text-left min-w-[500px]">
                                         <thead className="bg-gray-50/80 text-gray-500 font-medium border-b border-gray-200 text-xs uppercase tracking-wider sticky top-0 backdrop-blur-sm z-10">
                                             <tr>
                                                 <th className="px-4 py-3">Obra</th>

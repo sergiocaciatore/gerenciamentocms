@@ -989,7 +989,8 @@ export default function Report() {
     if (isLoading) return <LoadingSpinner message="Carregando relatório..." subMessage="Aguarde enquanto preparamos o relatório para você." />;
 
     return (
-        <div className="relative flex flex-col h-full gap-4">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col gap-6">
 
             {/* Modal for Reordering Works */}
             {/* Modal para Reordenar Obras */}
@@ -1220,7 +1221,7 @@ export default function Report() {
                     <img src={mllogo} alt="Logo" className="h-8 grayscale hover:grayscale-0 transition-all" />
                 </div>
 
-                <div className="flex items-center gap-4 z-10 w-[500px] justify-between bg-[#ffffff80] p-1.5 rounded-full border border-[#ffffff4d]">
+                <div className="flex items-center gap-4 z-10 w-full sm:w-[500px] justify-between bg-[#ffffff80] p-1.5 rounded-full border border-[#ffffff4d]">
                     <button onClick={handlePrev} disabled={currentIndex === 0} className="p-2 bg-[#ffffffcc] rounded-full shadow-sm hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-all shrink-0" title="Obra anterior" aria-label="Obra anterior">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
@@ -1276,10 +1277,10 @@ export default function Report() {
             </div>
 
             {/* Grade de Conteúdo Principal - Layout Padrão */}
-            <div id="report-content" className="flex-1 grid grid-cols-12 gap-6 min-h-0 pb-2">
+            <div id="report-content" className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 pb-2">
 
                 {/* ESQUERDA: Visuais (3 cols) */}
-                <div className="col-span-3 flex flex-col gap-6">
+                <div className="col-span-1 lg:col-span-3 flex flex-col gap-6">
                     {/* Cartão do Mapa */}
                     <div className="bg-[#ffffff99] backdrop-blur-xl rounded-2xl shadow-sm border border-[#ffffff80] h-36 relative overflow-hidden group">
                         <span className="text-[10px] text-gray-400 absolute top-2 left-3 bg-[#ffffffcc] px-2 py-0.5 rounded backdrop-blur-sm z-10 pointer-events-none uppercase font-bold tracking-wider">Localização</span>
@@ -1356,7 +1357,7 @@ export default function Report() {
                 </div>
 
                 {/* CENTRO: Equipe e Cronograma (5 cols) */}
-                <div className="col-span-5 flex flex-col gap-6">
+                <div className="col-span-1 lg:col-span-5 flex flex-col gap-6">
 
                     {/* Seção de Equipe (Topo) */}
                     <div
@@ -1584,7 +1585,7 @@ export default function Report() {
                 </div>
 
                 {/* DIREITA: Financeiro e Notas (4 cols) */}
-                <div className="col-span-4 flex flex-col gap-6 overflow-hidden pr-1 pb-1">
+                <div className="col-span-1 lg:col-span-4 flex flex-col gap-6 overflow-hidden pr-1 pb-1">
 
                     {/* Cartão Giratório Financeiro */}
                     <div className="relative h-[220px] w-full group/flip" style={{ perspective: '1000px' }}>
@@ -2135,5 +2136,6 @@ export default function Report() {
 
             </div>
         </div>
+    </div>
     );
 }

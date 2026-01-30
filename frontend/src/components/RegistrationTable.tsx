@@ -65,7 +65,7 @@ export default function RegistrationTable({ items, onEdit, onDelete, onInlineUpd
 
     return (
         <div className="overflow-x-auto rounded-xl border border-white/50 shadow-sm bg-white/40 backdrop-blur-xl">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-[800px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50/50">
                     <tr>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 text-transform uppercase tracking-wider">ID</th>

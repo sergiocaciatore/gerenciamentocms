@@ -537,12 +537,11 @@ export default function Engineering() {
     };
 
     return (
-        <div className="relative min-h-full w-full">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-
             {/* Main Content */}
-            <div className={`mr-80 px-8 py-8 w-auto mx-0 transition-all duration-500 ${viewMode === 'map' ? 'h-[calc(100vh-2rem)]' : ''}`}>
+            <div className={`flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col gap-6 ${viewMode === 'map' ? 'h-full' : ''}`}>
 
                 {/* View Toggle */}
                 <div className="flex justify-end mb-6">
@@ -832,7 +831,7 @@ export default function Engineering() {
                                                         </thead>
                                                         <tbody className="divide-y divide-gray-100">
                                                             {m.supply_schedule?.map((item, idx) => (
-                                                                <tr key={idx} className="hover:bg-white/40 transition-colors">
+                                                                <tr key={idx} className="hover:bg-white/10 transition-colors">
                                                                     <td className="py-2 text-gray-700">{item.name}</td>
                                                                     <td className="text-center py-2">
                                                                         <input type="date" value={item.start_planned || ""} onChange={(e) => handleInlineUpdate(m.work_id, 'supply_schedule', idx, 'start_planned', e.target.value)} className="bg-transparent text-center border-none w-24 p-0 focus:ring-0 text-xs text-gray-500" />
@@ -973,8 +972,9 @@ export default function Engineering() {
                 }
             </div>
 
-            {/* Floating Sidebar */}
-            <div className="fixed right-8 top-32 flex flex-col gap-6 w-64 z-10">
+            {/* Sidebar (Desktop Sticky / Mobile Stacked) */}
+            <div className="w-full lg:w-80 flex-shrink-0 p-4 lg:p-6 lg:border-l border-white/50 bg-white/30 lg:bg-transparent overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col gap-6 sticky top-0">
                 <div className="flex flex-col gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl">
                     <h3 className="text-sm font-bold text-gray-700 px-2 mb-1 uppercase tracking-wider">Ações</h3>
                     <button onClick={() => handleButtonClick("Nova Gestão")} className="w-full text-left rounded-xl bg-white/80 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 flex items-center justify-between group">
@@ -997,6 +997,7 @@ export default function Engineering() {
                         <option value="SPCIL">SPCIL</option>
                         <option value="Sul">Sul</option>
                     </select>
+                </div>
                 </div>
             </div>
             {/* Modals */}

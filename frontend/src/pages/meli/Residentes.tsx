@@ -312,7 +312,8 @@ export default function Residentes() {
     };
 
     return (
-        <div className="mr-0 px-8 py-8 w-auto mx-0 min-h-screen font-sans text-gray-900">
+        <div className="relative min-h-full w-full flex flex-col lg:flex-row items-start font-sans text-gray-900">
+            <div className="flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col">
             {/* Toast Notification */}
             {toast && (
                 <div className={`fixed top-4 right-4 px-6 py-3 rounded-xl shadow-2xl backdrop-blur-md border z-50 animate-fade-in-down ${toast.type === "success" ? "bg-green-500/90 text-white border-green-400" : "bg-red-500/90 text-white border-red-400"
@@ -329,10 +330,10 @@ export default function Residentes() {
             )}
 
             {/* Split Layout */}
-            <div className="grid grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                 {/* Left Panel: Works List (2/3) */}
-                <div className="col-span-8 flex flex-col gap-4">
+                <div className="col-span-1 lg:col-span-8 flex flex-col gap-4 order-2 lg:order-1">
                     {works.map(work => (
                         <div
                             key={work.id}
@@ -413,7 +414,7 @@ export default function Residentes() {
                 </div>
 
                 {/* Right Panel: Residents (1/3) */}
-                <div className="col-span-4 flex flex-col gap-4">
+                <div className="col-span-1 lg:col-span-4 flex flex-col gap-4 order-1 lg:order-2">
                     <button
                         onClick={openNewResidentModal}
                         className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
@@ -429,7 +430,7 @@ export default function Residentes() {
                                 key={resident.id}
                                 draggable
                                 onDragStart={() => handleDragStart(resident)}
-                                className="rounded-xl bg-white/60 p-4 border border-white/50 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing hover:scale-[1.02] group"
+                                className="rounded-xl bg-white/40 backdrop-blur-xl p-4 border border-white/50 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing hover:scale-[1.02] group"
                             >
                                 <div className="flex flex-col">
                                     <div className="flex items-center justify-between">
@@ -642,6 +643,7 @@ export default function Residentes() {
                     </div>
                 </div>
             </Modal>
+            </div>
         </div>
     );
 }

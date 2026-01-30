@@ -491,7 +491,7 @@ export default function WorksPP() {
     if (isLoading) return <LoadingSpinner message="Carregando apresentação..." fullScreen />;
 
     return (
-        <div className="relative flex flex-col h-full gap-4">
+        <div className="relative min-h-full w-full flex flex-col font-sans text-gray-900 gap-4 p-4 lg:p-8">
 
             {/* Modal for Reordering Works */}
             {/* Modal for Reordering Works */}
@@ -709,7 +709,7 @@ export default function WorksPP() {
                     <img src={mllogo} alt="Logo" className="h-8 grayscale hover:grayscale-0 transition-all" />
                 </div>
 
-                <div className="flex items-center gap-4 z-10 w-[500px] justify-between bg-white/50 p-1.5 rounded-full border border-white/30">
+                <div className="flex items-center gap-4 z-10 w-full max-w-[500px] justify-between bg-white/50 p-1.5 rounded-full border border-white/30">
                     <button onClick={handlePrev} disabled={currentIndex === 0} className="p-2 bg-white/80 rounded-full shadow-sm hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 transition-all shrink-0" title="Obra anterior" aria-label="Obra anterior">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
@@ -744,12 +744,12 @@ export default function WorksPP() {
             </div>
 
             {/* Main Content Grid - Standard Layout */}
-            <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 pb-2">
+            <div className="flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 pb-2">
 
                 {/* LEFT: Visuals (3 cols) */}
-                <div className="col-span-3 flex flex-col gap-6">
+                <div className="lg:col-span-3 flex flex-col gap-6">
                     {/* Map Card */}
-                    <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 h-36 relative overflow-hidden group">
+                    <div className="bg-white/40 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 h-36 relative overflow-hidden group">
                         <span className="text-[10px] text-gray-400 absolute top-2 left-3 bg-white/80 px-2 py-0.5 rounded backdrop-blur-sm z-10 pointer-events-none uppercase font-bold tracking-wider">Localização</span>
                         <div
                             className="absolute inset-0 flex items-center justify-center cursor-pointer hover:bg-white/40 transition-colors"
@@ -770,7 +770,7 @@ export default function WorksPP() {
                     {/* Photos */}
                     <div className="flex-1 grid grid-rows-2 gap-4">
                         {/* Photo 1 */}
-                        <label className="bg-white/60 backdrop-blur-xl rounded-2xl relative overflow-hidden group border border-white/50 cursor-pointer hover:border-blue-300 transition-colors shadow-sm h-full w-full block">
+                        <label className="bg-white/40 backdrop-blur-xl rounded-2xl relative overflow-hidden group border border-white/50 cursor-pointer hover:border-blue-300 transition-colors shadow-sm h-full w-full block">
                             <input
                                 type="file"
                                 className="hidden"
@@ -796,7 +796,7 @@ export default function WorksPP() {
                         </label>
 
                         {/* Photo 2 */}
-                        <label className="bg-white/60 backdrop-blur-xl rounded-2xl relative overflow-hidden group border border-white/50 cursor-pointer hover:border-blue-300 transition-colors shadow-sm h-full w-full block">
+                        <label className="bg-white/40 backdrop-blur-xl rounded-2xl relative overflow-hidden group border border-white/50 cursor-pointer hover:border-blue-300 transition-colors shadow-sm h-full w-full block">
                             <input
                                 type="file"
                                 className="hidden"
@@ -824,7 +824,7 @@ export default function WorksPP() {
                 </div>
 
                 {/* CENTRO: Cronograma (6 colunas) */}
-                <div className="col-span-6 flex flex-col gap-6">
+                <div className="lg:col-span-6 flex flex-col gap-6">
                     <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-white/50 relative flex flex-col flex-1 min-h-0">
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -1058,7 +1058,7 @@ export default function WorksPP() {
                     </div>
 
                     {/* Schedule Curve Chart */}
-                    <div className="bg-white/60 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 h-56 relative overflow-hidden flex flex-col p-3">
+                    <div className="lg:col-span-9 flex flex-col gap-6 bg-white/40 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 p-6 relative overflow-hidden flex flex-col p-3">
                         <div className="flex justify-between items-start mb-1">
                             <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block">Curva de Avanço Físico</span>
                             <button
