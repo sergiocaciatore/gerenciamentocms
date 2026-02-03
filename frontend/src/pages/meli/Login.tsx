@@ -60,7 +60,7 @@ export default function Login() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="flex min-h-screen items-center justify-center p-4 meli-animated-bg">
             <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl bg-white/20 shadow-2xl backdrop-blur-xl ring-1 ring-white/30 transition-all duration-500 hover:shadow-3xl hover:bg-white/25 flex flex-row items-center h-80">
                 {/* Decorative elements inside the card */}
                 <div className="absolute -top-10 -left-10 h-32 w-32 rounded-full bg-purple-500/30 blur-2xl"></div>

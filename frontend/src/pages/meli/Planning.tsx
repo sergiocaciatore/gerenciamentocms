@@ -112,7 +112,13 @@ export default function Planning() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (response.ok) {
-                setPlannings(await response.json());
+                const data = await response.json();
+                console.log("FETCH DEBUG: Raw Plannings Data:", data);
+                if (data.length > 0) {
+                    console.log("FETCH DEBUG: First Item Keys:", Object.keys(data[0]));
+                    console.log("FETCH DEBUG: First Item ID:", data[0].id, " _id:", data[0]._id);
+                }
+                setPlannings(data);
             }
         } catch (error) {
             console.error("Error fetching plannings:", error);
@@ -162,9 +168,18 @@ export default function Planning() {
     };
 
     const handleUpdatePlanning = async (id: string, updatedPlanning: PlanningItem) => {
+        console.log("handleUpdatePlanning called", { idToUpdate: id, newWorkId: updatedPlanning.work_id, newStatus: updatedPlanning.status });
         try {
             const token = await getAuthToken();
-            setPlannings(prev => prev.map(p => p.id === id ? updatedPlanning : p));
+            setPlannings(prev => {
+                const newState = prev.map(p => {
+                     const isMatch = p.id === id;
+                     if (isMatch) console.log("Updating item:", p.id);
+                     return isMatch ? updatedPlanning : p;
+                });
+                console.log("New Plannings State Sample:", newState.slice(0, 3));
+                return newState;
+            });
 
             await fetch(`${import.meta.env.VITE_API_BASE_URL}/plannings/${id}`, {
                 method: "PUT",
@@ -879,7 +894,7 @@ export default function Planning() {
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-gray-100 bg-white text-xs">
-                                                                        {planning.data.schedule.map((item, idx) => {
+                                                                        {(Array.isArray(planning.data?.schedule) ? planning.data.schedule : []).map((item, idx) => {
                                                                             let startStatus = null;
                                                                             if (item.start_real && item.start_planned) {
                                                                                 const diff = (new Date(item.start_real).getTime() - new Date(item.start_planned).getTime()) / (1000 * 3600 * 24);

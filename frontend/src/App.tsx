@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import RootRedirect from "./components/RootRedirect";
+import Landing from "./pages/Landing";
 import Login from "./pages/meli/Login";
 import RDLogin from "./pages/meli/RDLogin";
 import RDDashboard from "./pages/meli/RDDashboard";
@@ -30,7 +30,7 @@ function App() {
         <Route path="/rd" element={<RDLogin />} />
         <Route path="/rd/:userId" element={<RDDashboard />} />
         <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/:userId" element={<Layout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="assistant" element={<Assistant />} />

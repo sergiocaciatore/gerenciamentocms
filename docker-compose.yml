@@ -5,9 +5,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - /app/target_docker # Cache de build isolado do host
+    # Volumes removidos para usar o binário da imagem de produção
+    # volumes:
+    #   - ./backend:/app
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
       - GOOGLE_CLOUD_PROJECT=cms-expansao-e10c4

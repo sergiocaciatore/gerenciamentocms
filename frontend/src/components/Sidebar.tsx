@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, getAuthToken } from "../firebase";
+import { useAnimation } from "../context/AnimationContext";
 
 interface UserData {
     uid: string;
@@ -118,7 +119,8 @@ const menuItems = [
 export default function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [userData, setUserData] = useState<UserData | null>(null);
-    const [isAnimationEnabled, setIsAnimationEnabled] = useState(true);
+    // const [isAnimationEnabled, setIsAnimationEnabled] = useState(true); // Moved to Context
+    const { isAnimationEnabled, toggleAnimation } = useAnimation();
     const { userId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -147,34 +149,7 @@ export default function Sidebar() {
         fetchUserData();
     }, []);
 
-    // Load Animation Preference
-    useEffect(() => {
-        if (userData?.uid) {
-            const prefKey = `anim_pref_${userData.uid}`;
-            const stored = localStorage.getItem(prefKey);
-            // Default to true if not set
-            if (stored !== null) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setIsAnimationEnabled(stored === 'true');
-            }
-        }
-    }, [userData]);
-
-    // Apply Animation Class
-    useEffect(() => {
-        if (isAnimationEnabled) {
-            document.body.classList.remove('static-background');
-        } else {
-            document.body.classList.add('static-background');
-        }
-    }, [isAnimationEnabled]);
-
-    const toggleAnimation = () => {
-        if (!userData?.uid) return;
-        const newState = !isAnimationEnabled;
-        setIsAnimationEnabled(newState);
-        localStorage.setItem(`anim_pref_${userData.uid}`, String(newState));
-    };
+    // Animation preferences logic moved to AnimationContext
 
     const handleLogout = async () => {
         try {
