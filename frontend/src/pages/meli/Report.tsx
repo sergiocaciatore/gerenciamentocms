@@ -172,7 +172,7 @@ const SubTaskItem = React.memo(({ task, index, onUpdate }: { task: PlanningStage
 });
 
 export default function Report() {
-    // --- State ---
+    // --- Estado ---
     const [works, setWorks] = useState<Work[]>([]);
     const [hiddenWorkIds, setHiddenWorkIds] = useState<Set<string>>(() => {
         const saved = localStorage.getItem('hiddenWorkIds');
@@ -184,7 +184,7 @@ export default function Report() {
     const [ocs, setOcs] = useState<OC[]>([]);
     const [teamMembers, setTeamMembers] = useState<RegistrationTeam[]>([]);
 
-    // UI
+    // Interface do Usuário
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isMapModalOpen, setIsMapModalOpen] = useState(false); // Novo estado para modal de mapa
@@ -457,18 +457,42 @@ export default function Report() {
     const saveManagement = useCallback(async (mgmt: Management) => {
         try {
             const token = await auth.currentUser?.getIdToken();
-            await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
-                method: "POST",
+            if (!token) return;
+
+            // Verificar se já existe em nosso estado local para decidir o Método
+            // Nota: o estado 'managements' está disponível no escopo, mas pode estar desatualizado no callback se não estiver nas deps.
+            // No entanto, passamos 'mgmt' que deve ser o atualizado.
+            // Melhor estratégia: Verificar se estamos ATUALIZANDO (existe) ou CRIANDO (novo).
+            // Maneira confiável: Verificar se o backend possui este work_id.
+            // Como sincronizamos o estado 'managements' ao carregar, podemos verificar isso.
+            // Mas para ser seguro e atômico, podemos confiar em lógica específica ou try/catch, mas mudar o método é mais limpo.
+            
+            // Precisamos saber se existia ANTES deste salvamento.
+            // Vamos assumir que se estamos editando, pode existir.
+            // Uma maneira simples de verificar o array 'managements' do estado do componente exigiria adicioná-lo às dependências, o que pode acionar re-renderizações.
+            // Em vez disso, vamos usar uma abordagem robusta: verificar a lista.
+            
+            const method = managements.some(m => m.work_id === mgmt.work_id) ? "PUT" : "POST";
+            const url = method === "PUT" 
+                ? `${import.meta.env.VITE_API_BASE_URL}/managements/${mgmt.work_id}`
+                : `${import.meta.env.VITE_API_BASE_URL}/managements`;
+
+            const res = await fetch(url, {
+                method: method,
                 headers: {
                     "Authorization": `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify(mgmt)
             });
+            
+            if (!res.ok) {
+                console.error("Failed to save management:", await res.text());
+            }
         } catch (error) {
             console.error("Error saving management", error);
         }
-    }, []);
+    }, [managements]);
 
     const handleTeamEditClick = () => {
         if (!currentWork) return;
@@ -538,17 +562,17 @@ export default function Report() {
         setIsMapModalOpen(false);
     };
 
-    // Auto-link map image based on Work location (State)
+    // Vincular automaticamente imagem do mapa com base na localização da Obra (Estado)
     useEffect(() => {
         if (!currentWork || isLoading) return;
 
-        // Verify if we already have a map set
+        // Verificar se já temos um mapa definido
         if (currentMgmt?.map_image) return;
 
-        // Try to identify state from address or regional
-        // regional often contains state (e.g. "Sudeste", "SP")?
-        // Let's assume address.state is the most reliable if present.
-        // Fallback to regional if it looks like a state code (2 chars).
+        // Tentar identificar o estado pelo endereço ou regional
+        // regional frequentemente contém o estado (ex: "Sudeste", "SP")?
+        // Vamos assumir address.state como o mais confiável se presente.
+        // Fallback para regional se parecer um código de estado (2 chars).
 
         const stateCode = currentWork.address?.state?.toUpperCase() ||
                           (currentWork.regional?.length === 2 ? currentWork.regional.toUpperCase() : null);
@@ -556,16 +580,16 @@ export default function Report() {
         if (stateCode) {
             const hasMap = mapImages.some(img => img.name === stateCode);
             if (hasMap) {
-                // Create/Update management
+                // Criar/Atualizar gestão
                  const newMgmt: Management = currentMgmt
                     ? { ...currentMgmt, map_image: stateCode }
                     : { work_id: currentWork.id, map_image: stateCode };
 
-                // Update State
+                // Atualizar Estado
                 setManagements(prev => {
                     const exists = prev.find(m => m.work_id === currentWork.id);
                     if (exists) {
-                         // Only update if changed (prevent loops although useEffect check above should handle it)
+                         // Atualizar apenas se alterado (prevenir loops, embora a verificação do useEffect acima deva lidar com isso)
                          if (exists.map_image === stateCode) return prev;
                          return prev.map(m => m.work_id === currentWork.id ? newMgmt : m);
                     } else {
@@ -573,7 +597,7 @@ export default function Report() {
                     }
                 });
 
-                // Persist
+                // Persistir
                 saveManagement(newMgmt);
             }
         }
@@ -602,7 +626,7 @@ export default function Report() {
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'image_1' | 'image_2') => {
         const file = event.target.files?.[0];
         if (!file || !currentWork) return;
-        // Logic: if !currentMgmt, we proceed to create
+        // Lógica: se !currentMgmt, prosseguimos para criar
 
         setIsUploading(true);
         try {
@@ -626,7 +650,7 @@ export default function Report() {
         }
     };
 
-    // --- PDF Generation Logic ---
+    // --- Lógica de Geração de PDF ---
     const generatePdf = async () => {
         if (selectedWorksForPdf.size === 0) return;
 
@@ -634,7 +658,7 @@ export default function Report() {
         setPdfProgress(0);
         const originalIndex = currentIndex;
 
-        // Filter visible works that are selected
+        // Filtrar obras visíveis que estão selecionadas
         const worksToPrint = visibleWorks.filter(w => selectedWorksForPdf.has(w.id));
 
         if (worksToPrint.length === 0) {
@@ -654,21 +678,21 @@ export default function Report() {
                 const idx = visibleWorks.findIndex(w => w.id === work.id);
                 if (idx !== -1) {
                     setCurrentIndex(idx);
-                    // Wait for render
+                    // Aguardar renderização
                     await new Promise(resolve => setTimeout(resolve, 800));
 
                     const element = document.getElementById('report-content');
                     if (element) {
-                        // Capture
+                        // Capturar
                         const canvas = await html2canvas(element, {
                             scale: 2,
                             useCORS: true,
                             logging: false,
-                            backgroundColor: '#f3f4f6' // Match bg-gray-100
+                            backgroundColor: '#f3f4f6' // Combinar com bg-gray-100
                         });
                         const imgData = canvas.toDataURL('image/png');
 
-                        // Calculate dimensions to fit "contain" style in landscape
+                        // Calcular dimensões para ajustar estilo "contain" em paisagem
                         const imgProps = pdf.getImageProperties(imgData);
                         const ratio = imgProps.width / imgProps.height;
 
@@ -681,7 +705,7 @@ export default function Report() {
                             printWidth = pdfHeight * ratio;
                         }
 
-                        // Center image
+                        // Centralizar imagem
                         const x = (pdfWidth - printWidth) / 2;
                         const y = (pdfHeight - printHeight) / 2;
 
@@ -708,7 +732,7 @@ export default function Report() {
         }
     };
 
-    // --- DnD Handler ---
+    // --- Manipulador DnD ---
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
 

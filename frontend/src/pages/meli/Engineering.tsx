@@ -22,31 +22,31 @@ import {
 // import type { Oc, OcEvent } from "../../types/ControlTower";
 
 export default function Engineering() {
-    // UI State
+    // Estado da UI
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalType, setModalType] = useState("");
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [isOccurrenceModalOpen, setIsOccurrenceModalOpen] = useState(false);
 
-    // Data State
+    // Estado dos Dados
     const [works, setWorks] = useState<EngineeringWork[]>([]);
     const [managements, setManagements] = useState<EngineeringManagement[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [occurrences, setOccurrences] = useState<EngineeringOccurrence[]>([]);
 
-    // Control Tower Data
+    // Dados da Torre de Controle
     // const [ocs, setOcs] = useState<Oc[]>([]);
     // const [ocEvents, setOcEvents] = useState<OcEvent[]>([]);
 
-    // Management Form State
+    // Estado do Formulário de Gestão
     const [selectedWorkId, setSelectedWorkId] = useState("");
 
-    // Derived state for selected work
+    // Estado derivado para obra selecionada
     const selectedWork = useMemo(() =>
         works.find(item => item.id === selectedWorkId) || null
         , [works, selectedWorkId]);
 
-    // Initializers
+    // Inicializadores
     const initOwnerWorks = (): EngineeringOwnerWork[] => [
         { name: "Assinatura de contrato", date: "", status: "⚪️" },
         { name: "Leitura de contrato", date: "", status: "⚪️" },
@@ -121,27 +121,27 @@ export default function Engineering() {
         special_attention: "", action_plans: "", relevant_activities: "", observations: ""
     });
 
-    // Management Data Structure - Simplified for Modal
+    // Estrutura de Dados de Gestão - Simplificado para Modal
     const [operator, setOperator] = useState("");
     const [engineer, setEngineer] = useState("");
     const [coordinator, setCoordinator] = useState("");
     const [controlTower, setControlTower] = useState("");
 
-    // Expanded Card State
+    // Estado do Card Expandido
     const [cardTab, setCardTab] = useState("overview");
 
-    // Occurrences State
+    // Estado das Ocorrências
     const [occurrenceForm, setOccurrenceForm] = useState<EngineeringOccurrence>({
         id: '', work_id: '', date: '', description: '', type: 'Atividade', status: 'Active'
     });
 
 
-    // Filter State
+    // Estado do Filtro
     const [searchText, setSearchText] = useState("");
     const [filterRegional, setFilterRegional] = useState("");
 
-    // Pagination & Filter State
-    const [page, setPage] = useState(0); // Kept for API pagination compatibility if needed, but we use client-side now
+    // Estado de Paginação e Filtro
+    const [page, setPage] = useState(0); // Mantido para compatibilidade de paginação da API se necessário, mas usamos client-side agora
     // const [currentPage, setCurrentPage] = useState(1);
     // const [itemsPerPage] = useState(20);
     const [hasMore, setHasMore] = useState(true);
@@ -159,7 +159,7 @@ export default function Engineering() {
     const isLoadingRef = useRef(false);
 
     const fetchWorks = useCallback(async (pageToFetch: number, reset: boolean, searchVal: string, regionalVal: string) => {
-        if (isLoadingRef.current) return; // Prevent double fetch
+        if (isLoadingRef.current) return; // Prevenir busca dupla
         isLoadingRef.current = true;
         setIsLoading(true);
         try {
@@ -197,7 +197,7 @@ export default function Engineering() {
             setIsLoading(false);
             isLoadingRef.current = false;
         }
-    }, []); // No deps needed now
+    }, []); // Nenhuma dependência necessária agora
 
     const fetchManagements = useCallback(async () => {
         try {
@@ -254,7 +254,7 @@ export default function Engineering() {
     }, []);
 
     // Initial Fetch & Filter Change
-    // Initial Fetch (No auto-refetch on search/filter change because we filter client-side now)
+    // Busca Inicial (Sem nova busca automática ao alterar busca/filtro porque filtramos no client-side agora)
     useEffect(() => {
         fetchWorks(0, true, "", "");
         fetchManagements();
@@ -262,7 +262,7 @@ export default function Engineering() {
         fetchControlTowerData();
     }, [fetchWorks, fetchManagements, fetchOccurrences, fetchControlTowerData]);
 
-    // Form Population Effect (Replaces fetchManagementData)
+    // Efeito de População do Formulário (Substitui fetchManagementData)
     useEffect(() => {
         if (selectedWorkId && managements.length > 0) {
             const m = managements.find(mg => mg.work_id === selectedWorkId);
@@ -272,7 +272,7 @@ export default function Engineering() {
                 setCoordinator(m.coordinator || "");
                 setControlTower(m.control_tower || "");
             } else {
-                // Reset if no management exists (new)
+                // Resetar se não existir gestão (novo)
                 setOperator("");
                 setEngineer("");
                 setCoordinator("");
@@ -295,25 +295,25 @@ export default function Engineering() {
             if (m.work_id !== workId) return m;
             const updated = { ...m };
 
-            // Handle Array Updates (Schedule, Log, OwnerWorks, Licenses, Thermometer, Info)
+            // Lidar com Atualizações de Array (Cronograma, Log, OwnerWorks, Licenças, Termômetro, Info)
             const arrayFields = ['macro_schedule', 'supply_schedule', 'daily_log', 'owner_works', 'licenses', 'thermometer', 'complementary_info'];
 
             if (arrayFields.includes(section) && Array.isArray(updated[section]) && typeof indexOrField === 'number') {
                 const list = [...(updated[section] as unknown as unknown[])];
                 if (list[indexOrField] && typeof list[indexOrField] === 'object') {
-                    // Assert list item as Record to update key
+                    // Declarar item da lista como Record para atualizar chave
                     const item = { ...(list[indexOrField] as Record<string, unknown>) };
                     if (subField) {
                         item[subField] = value;
                     } else {
-                        // Fallback or specific logic if needed, though for these types usually subField is required
+                        // Fallback ou lógica específica se necessário, embora para esses tipos geralmente subField seja obrigatório
                     }
 
                     list[indexOrField] = item;
                     (updated as unknown as Record<string, unknown>)[section] = list;
                 }
             }
-            // Handle Object Updates (Docs, Highlights)
+            // Lidar com Atualizações de Objeto (Docs, Destaques)
             else if (typeof updated[section] === 'object' && updated[section] !== null) {
                 const key = typeof indexOrField === 'string' ? indexOrField : subField;
                 if (key) {
@@ -322,7 +322,7 @@ export default function Engineering() {
                     (updated as unknown as Record<string, unknown>)[section] = sectionObj;
                 }
             }
-            // Handle Primitive Updates
+            // Lidar com Atualizações Primitivas
             else {
                 (updated as unknown as Record<string, unknown>)[section] = value;
             }
@@ -331,7 +331,7 @@ export default function Engineering() {
     };
 
     const handleSaveManagement = async (specificWorkId?: string) => {
-        // Determine ID to save: specific (from card button) or selected (from modal)
+        // Determinar ID para salvar: específico (do botão do card) ou selecionado (do modal)
         const targetId = specificWorkId || selectedWorkId;
         if (!targetId) return;
 
@@ -339,22 +339,22 @@ export default function Engineering() {
             // Find current state in managements array
             const currentMgmt = managements.find(m => m.work_id === targetId);
 
-            // Construct payload merging current state with form state (if modal is open)
-            // If modal is open, form state (operator, etc) takes precedence for those fields
-            // If saving from card, we use the data in the managements array (updated by inline edits)
+            // Construir payload mesclando estado atual com estado do formulário (se modal estiver aberto)
+            // Se modal estiver aberto, estado do formulário (operador, etc) tem precedência para esses campos
+            // Se salvando do card, usamos os dados no array de gestões (atualizado por edições inline)
             
             let payload: EngineeringManagement;
 
             if (currentMgmt) {
                  payload = {
                     ...currentMgmt,
-                    // If modal is open and we are saving that specific work, overwrite with form values
+                    // Se modal estiver aberto e estamos salvando essa obra específica, sobrescrever com valores do formulário
                     ...(isModalOpen && selectedWorkId === targetId ? {
                         operator, engineer, coordinator, control_tower: controlTower
                     } : {})
                 };
             } else {
-                // New management (from Modal)
+                // Nova gestão (do Modal)
                 payload = {
                     work_id: targetId,
                     operator, engineer, coordinator, control_tower: controlTower,
@@ -372,8 +372,13 @@ export default function Engineering() {
             }
 
             const token = await getAuthToken();
-            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/managements`, {
-                method: 'POST',
+            const method = currentMgmt ? 'PUT' : 'POST';
+            const url = currentMgmt 
+                ? `${import.meta.env.VITE_API_BASE_URL}/managements/${targetId}`
+                : `${import.meta.env.VITE_API_BASE_URL}/managements`;
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
@@ -381,7 +386,7 @@ export default function Engineering() {
             if (res.ok) {
                 setToast({ message: "Dados salvos com sucesso!", type: "success" });
                 if (isModalOpen) setIsModalOpen(false);
-                fetchManagements(); // Refresh data
+                fetchManagements(); // Atualizar dados
             } else {
                 setToast({ message: "Erro ao salvar.", type: "error" });
             }
@@ -423,7 +428,7 @@ export default function Engineering() {
         fetchWorks(page + 1, false, debouncedSearch, filterRegional);
     };
 
-    // MERGE Logic: Works (Driver) + Managements (Data)
+    // Lógica de MERGE: Obras (Driver) + Gestões (Dados)
     const filteredManagements = useMemo(() => {
         return works.filter(w => {
             const searchLower = searchText.toLowerCase();
@@ -438,7 +443,7 @@ export default function Engineering() {
             return matchesSearch && matchesRegional;
         }).map(w => {
             const m = managements.find(mg => mg.work_id === w.id);
-            // Default Structure if m is missing
+            // Estrutura Padrão se m estiver faltando
             const defaultM: EngineeringManagement = {
                 work_id: w.id,
                 owner_works: initOwnerWorks(),
@@ -453,7 +458,7 @@ export default function Engineering() {
                 daily_log: initDailyLog(),
                 highlights: initHighlights(),
                 presentation_highlights: "", attention_points: "", image_1: "", image_2: "", map_image: "",
-                // Preserve work properties in the merged object for UI to use (regional, work_type)
+                // Preservar propriedades da obra no objeto mesclado para uso da UI (regional, work_type)
                 ...w
             } as EngineeringManagement;
 
@@ -471,7 +476,7 @@ export default function Engineering() {
         // setActiveTab(0);
     };
 
-    // Status Icon Helper
+    // Auxiliar de Ícone de Status
     const renderStatusIcon = (status: string) => {
         switch (status) {
             case "🟢": return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-green-500"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>;
@@ -498,7 +503,7 @@ export default function Engineering() {
         });
     };
 
-    // Navigation for Ask AI
+    // Navegação para Ask AI
     // const navigate = useNavigate();
 
     // const handleAskAI = (work: EngineeringWork | undefined, m: EngineeringManagement) => {
@@ -521,11 +526,11 @@ export default function Engineering() {
         setToast({ message: "Relatório copiado para a área de transferência!", type: "success" });
     };
 
-    // Map State
+    // Estado do Mapa
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
     // const [heatmapFilter, setHeatmapFilter] = useState<'all' | 'delayed' | 'critical'>('all');
 
-    // Weather Mock Logic
+    // Lógica Mock de Clima
     const getWeather = (regional: string) => {
         const weathers = {
             'Sul': { temp: '18°C', icon: '🌧️', condition: 'Chuvoso' },
@@ -540,13 +545,13 @@ export default function Engineering() {
         <div className="relative min-h-full w-full flex flex-col font-sans text-gray-900">
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-            {/* Main Content */}
+            {/* Conteúdo Principal */}
             <div className={`flex-1 w-full px-4 lg:px-8 py-8 min-w-0 order-2 lg:order-1 flex flex-col gap-6 ${viewMode === 'map' ? 'h-full' : ''}`}>
 
-                {/* Sticky Toolbar */}
+                {/* Barra de Ferramentas Fixa */}
                 <div className="sticky top-0 z-30 pb-4 pt-4 px-4 -mx-4 lg:-mx-8 lg:px-8 mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center transition-all duration-300">
                     
-                    {/* Filters Group */}
+                    {/* Grupo de Filtros */}
                     <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
                         <div className="relative group w-full md:w-64">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -575,9 +580,9 @@ export default function Engineering() {
                         </select>
                     </div>
 
-                    {/* Actions Group */}
+                    {/* Grupo de Ações */}
                     <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
-                        {/* View Toggles */}
+                        {/* Alternar Visualização */}
                         <div className="bg-gray-100/50 p-1 rounded-xl flex shadow-inner border border-gray-200">
                              <button
                                 onClick={() => setViewMode('list')}
@@ -595,7 +600,7 @@ export default function Engineering() {
 
                          <div className="h-8 w-px bg-gray-300 hidden lg:block self-center"></div>
 
-                        {/* Buttons */}
+                        {/* Botões */}
                          <button 
                             onClick={() => handleButtonClick("Nova Gestão")} 
                             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95"
@@ -648,10 +653,10 @@ export default function Engineering() {
                                         </div>
                                     </div>
 
-                                    {/* Expanded Content */}
+                                    {/* Conteúdo Expandido */}
                                     {isExpanded && (
                                         <div className="mt-8 pt-6 border-t border-gray-200/50 animate-fadeIn cursor-auto" onClick={(e) => e.stopPropagation()}>
-                                            {/* Tabs Navigation */}
+                                            {/* Navegação por Abas */}
                                             <div className="flex flex-col md:flex-row justify-between items-center mb-6 border-b border-gray-200/50 pb-2 gap-4">
                                                 <div className="flex flex-wrap gap-4">
                                                     {['overview', 'macro', 'supply', 'docs', 'daily', 'occurrences', 'highlights'].map(tab => (
@@ -675,7 +680,7 @@ export default function Engineering() {
                                                 </button>
                                             </div>
 
-                                            {/* Overview */}
+                                            {/* Visão Geral */}
                                             {cardTab === "overview" && (
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                                     <div className="col-span-full flex justify-end gap-2">

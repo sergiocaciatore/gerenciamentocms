@@ -14,11 +14,11 @@ import Pagination from "../../components/Pagination";
 
 
 
-// --- HUD Component ---
+// --- Componente HUD ---
 const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (type: string) => void }) => {
     const total = ocs.length;
 
-    // Calculate metrics
+    // Calcular métricas
     const totalValue = ocs.reduce((acc, oc) => acc + (oc.value || 0), 0);
 
     return (
@@ -88,14 +88,14 @@ const ControlTowerHUD = ({ ocs, onFilterClick }: { ocs: Oc[], onFilterClick: (ty
     );
 };
 
-// --- Timeline Component ---
+// --- Componente Timeline ---
 const TimelineView = ({ ocs, events }: { ocs: Oc[], events: OcEvent[] }) => {
-    // Filter events for visible OCs
+    // Filtrar eventos para OCs visíveis
     const visibleEvents = events.filter(evt => ocs.some(oc => oc.id === evt.oc_id));
 
     if (visibleEvents.length === 0) return <div className="p-8 text-center text-gray-500 bg-white/40 rounded-2xl backdrop-blur-md">Nenhum evento com data encontrado para as OCs filtradas.</div>;
 
-    // Dates
+    // Datas
     const dates = visibleEvents.map(e => [
         e.start_date ? new Date(e.start_date) : null,
         e.end_date ? new Date(e.end_date) : null
@@ -106,7 +106,7 @@ const TimelineView = ({ ocs, events }: { ocs: Oc[], events: OcEvent[] }) => {
     const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
     const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
 
-    // Add buffer (7 days)
+    // Adicionar margem (7 dias)
     minDate.setDate(minDate.getDate() - 7);
     maxDate.setDate(maxDate.getDate() + 7);
 
@@ -124,12 +124,12 @@ const TimelineView = ({ ocs, events }: { ocs: Oc[], events: OcEvent[] }) => {
         const e = new Date(end);
         if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
         const width = ((e.getTime() - s.getTime()) / totalMs) * 100;
-        return Math.max(width, 0.5); // Min 0.5% visibility
+        return Math.max(width, 0.5); // Mínimo 0.5% visibilidade
     };
 
     return (
         <div className="bg-white/40 backdrop-blur-xl border border-white/50 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[calc(100vh-250px)]">
-            {/* Header Dates */}
+            {/* Datas do Cabeçalho */}
             <div className="flex border-b border-white/30 p-4 bg-white/20">
                 <div className="w-48 shrink-0 font-bold text-gray-600 text-xs uppercase">OC / Obra</div>
                 <div className="flex-1 relative h-6">
@@ -171,24 +171,24 @@ const TimelineView = ({ ocs, events }: { ocs: Oc[], events: OcEvent[] }) => {
     );
 };
 
-// --- Kanban Component ---
+// --- Componente Kanban ---
 const KanbanBoard = ({ ocs, statuses, onDragEnd }: { ocs: Oc[], statuses: string[], onDragEnd: (result: DropResult) => void }) => {
-    // Group OCs by status
+    // Agrupar OCs por status
     const columns = statuses.reduce((acc: Record<string, Oc[]>, status) => {
         acc[status] = ocs.filter(oc => (oc.status || "Pendente") === status);
         return acc;
     }, {});
 
-    // Ensure "Pendente" or missing status are handled if not in statuses list
-    // If we assume statuses list covers everything, fine. If not, maybe a "Outros" column?
-    // For simplicity, we just iterate provided statuses.
+    // Garantir "Pendente" ou status ausente sejam tratados se não estiverem na lista
+    // Se assumirmos que a lista de status cobre tudo, ótimo. Se não, talvez uma coluna "Outros"?
+    // Por simplicidade, iteramos apenas os status fornecidos.
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
             <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-250px)]">
                 {statuses.map(status => (
                     <div key={status} className="min-w-[300px] w-[300px] flex flex-col bg-white/20 backdrop-blur-md rounded-2xl border border-white/30">
-                        {/* Column Header */}
+                        {/* Cabeçalho da Coluna */}
                         <div className="p-4 border-b border-white/20 bg-white/10 rounded-t-2xl flex justify-between items-center sticky top-0 backdrop-blur-md z-10">
                             <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wider">{status}</h3>
                             <span className="bg-white/40 px-2 py-0.5 rounded-full text-xs font-bold text-gray-600">
@@ -196,7 +196,7 @@ const KanbanBoard = ({ ocs, statuses, onDragEnd }: { ocs: Oc[], statuses: string
                             </span>
                         </div>
 
-                        {/* Droppable Area */}
+                        {/* Área Soltável */}
                         <Droppable droppableId={status}>
                             {(provided, snapshot) => (
                                 <div
@@ -252,44 +252,44 @@ const KanbanBoard = ({ ocs, statuses, onDragEnd }: { ocs: Oc[], statuses: string
 };
 
 export default function ControlTower() {
-    // UI State
+    // Estado da UI
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalType, setModalType] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
     const [expandedOcId, setExpandedOcId] = useState<string | null>(null);
 
-    // Data State
+    // Estado dos Dados
     const [works, setWorks] = useState<ControlTowerWork[]>([]);
     const [ocs, setOcs] = useState<Oc[]>([]);
     const [existingEvents, setExistingEvents] = useState<OcEventDefinition[]>([]);
     const [ocEvents, setOcEvents] = useState<OcEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Form State (OC)
+    // Estado do Formulário (OC)
     const [selectedWorkId, setSelectedWorkId] = useState("");
     const [ocType, setOcType] = useState("");
     const [ocDescription, setOcDescription] = useState("Projeto Elétrico");
     const [ocDetails, setOcDetails] = useState("");
     const [ocValue, setOcValue] = useState("");
 
-    // Edit State (OC)
+    // Estado de Edição (OC)
     const [editingOcId, setEditingOcId] = useState<string | null>(null);
 
-    // Event Modal State
+    // Estado do Modal de Eventos
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [currentOcId, setCurrentOcId] = useState<string | null>(null);
 
-    // Event Management Modal State
+    // Estado do Modal de Gestão de Eventos
     const [isManageEventsModalOpen, setIsManageEventsModalOpen] = useState(false);
     const [editingDefinitionId, setEditingDefinitionId] = useState<string | null>(null);
 
-    // Event Form State
-    // Shared with Management Modal for creating/editing definitions
+    // Estado do Formulário de Eventos
+    // Compartilhado com Modal de Gestão para criar/editar definições
     const [eventDescription, setEventDescription] = useState("");
     const [selectedDefinitionId, setSelectedDefinitionId] = useState("");
 
-    // Optional Fields (Restored for Defaults in Templates)
+    // Campos Opcionais (Restaurados para Padrões em Modelos)
     const [useStartDate, setUseStartDate] = useState(false);
     const [eventStartDate, setEventStartDate] = useState("");
 
@@ -302,12 +302,12 @@ export default function ControlTower() {
     const [useProtocol, setUseProtocol] = useState(false);
     const [eventProtocol, setEventProtocol] = useState("");
 
-    // Financial Record State
+    // Estado de Registro Financeiro
     const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
     const [activeOcIdForFinancial, setActiveOcIdForFinancial] = useState<string | null>(null);
     const [editingFinancialRecord, setEditingFinancialRecord] = useState<FinancialRecord | null>(null);
 
-    // Financial Form State
+    // Estado do Formulário Financeiro
     const [finInvoiceNumber, setFinInvoiceNumber] = useState("");
     const [finValue, setFinValue] = useState("");
     const [finIssuanceDate, setFinIssuanceDate] = useState("");
@@ -319,11 +319,11 @@ export default function ControlTower() {
     const [finRetention, setFinRetention] = useState(false);
     const [finNotes, setFinNotes] = useState("");
 
-    // Status Options for Management
+    // Opções de Status para Gestão
     const [customStatusOptions, setCustomStatusOptions] = useState<string[]>([]);
     const [newStatusOption, setNewStatusOption] = useState("");
 
-    // --- Alerts State ---
+    // --- Estado de Alertas ---
     const [alerts, setAlerts] = useState<Alert[]>(() => {
         const saved = localStorage.getItem('controlTowerAlerts');
         return saved ? JSON.parse(saved) : [];
@@ -337,14 +337,14 @@ export default function ControlTower() {
     const [alertLeadTimeDays, setAlertLeadTimeDays] = useState(3);
     const [alertLeadTimeActive, setAlertLeadTimeActive] = useState(false);
 
-    // Persist Alerts
+    // Persistir Alertas
     useEffect(() => {
         localStorage.setItem('controlTowerAlerts', JSON.stringify(alerts));
     }, [alerts]);
 
-    // Check Alerts (Mock Logic)
+    // Verificar Alertas (Lógica Mock)
     useEffect(() => {
-        // Backend Sync: In production, fetch from /api/alerts
+        // Sincronização Backend: Em produção, buscar de /api/alerts
         if (alerts.length > 0) {
             setToast({ message: `${alerts.length} alertas ativos monitorando suas obras.`, type: "success" });
         }
@@ -405,19 +405,19 @@ export default function ControlTower() {
 
 
 
-    // Filter State
+    // Estado do Filtro
     const [filterText, setFilterText] = useState("");
     const [filterOverdue, setFilterOverdue] = useState(false);
     const [filterNearDeadline, setFilterNearDeadline] = useState(false);
     const [filterStatus, setFilterStatus] = useState("");
 
-    // View Mode State
-    const [isGroupedView, setIsGroupedView] = useState(false); // Existing
-    const [isKanbanView, setIsKanbanView] = useState(false);   // Existing
-    const [isTimelineView, setIsTimelineView] = useState(false); // New
+    // Estado do Modo de Visualização
+    const [isGroupedView, setIsGroupedView] = useState(false); // Existente
+    const [isKanbanView, setIsKanbanView] = useState(false);   // Existente
+    const [isTimelineView, setIsTimelineView] = useState(false); // Novo
 
 
-    // Pagination State
+    // Estado de Paginação
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(20);
 
@@ -427,15 +427,15 @@ export default function ControlTower() {
         const { source, destination, draggableId } = result;
 
         if (source.droppableId !== destination.droppableId) {
-            // Moved to new status
+            // Movido para novo status
             const newStatus = destination.droppableId;
 
-            // Optimistic Update
+            // Atualização Otimista
             setOcs(prev => prev.map(oc =>
                 oc.id === draggableId ? { ...oc, status: newStatus } : oc
             ));
 
-            // API Call (Mocked/Future)
+            // Chamada API (Mock/Futuro)
             console.log(`Moved OC ${draggableId} to ${newStatus} `);
             // await updateOcStatus(draggableId, newStatus);
         }
@@ -455,7 +455,7 @@ export default function ControlTower() {
         "Outros"
     ];
 
-    // Helper: Calculate Time Elapsed Percentage
+    // Auxiliar: Calcular Porcentagem de Tempo Decorrido
     const calculateTimeElapsed = (startStr: string, endStr: string): number => {
         if (!startStr || !endStr) return 0;
         const start = new Date(startStr).getTime();
@@ -470,51 +470,51 @@ export default function ControlTower() {
         return (elapsed / totalDuration) * 100;
     };
 
-    // Helper: Check if Overdue
+    // Auxiliar: Verificar se Atrasado
     const isOverdue = (endStr: string): boolean => {
         if (!endStr) return false;
         const end = new Date(endStr).getTime();
         const now = new Date().getTime();
-        // Overdue if end date is in the past (ignoring today?) -> usually < now
-        // Let's assume strict inequality
+        // Atrasado se a data final for no passado (ignorando hoje?) -> geralmente < agora
+        // Vamos assumir desigualdade estrita
         return end < now;
     };
 
-    // Filter Logic
+    // Lógica de Filtro
     const availableStatuses = useMemo(() => Array.from(new Set(ocEvents.map(e => e.status).filter((s): s is string => !!s))), [ocEvents]);
 
     const filteredOcs = useMemo(() => ocs.filter(oc => {
         const work = works.find(w => w.id === oc.work_id);
         const searchString = `${oc.description} ${oc.type} ${work?.id} ${work?.regional} `.toLowerCase();
 
-        // 1. Text Filter
+        // 1. Filtro de Texto
         if (filterText && !searchString.includes(filterText.toLowerCase())) {
-            // Deep check: Do any events match?
+            // Verificação profunda: Algum evento corresponde?
             const events = ocEvents.filter(e => e.oc_id === oc.id);
             const hasEventMatch = events.some(e => e.description.toLowerCase().includes(filterText.toLowerCase()));
             if (!hasEventMatch) return false;
         }
 
-        // Get events for this OC to check toggle criteria
+        // Obter eventos para esta OC para verificar critérios de alternância
         const events = ocEvents.filter(e => e.oc_id === oc.id);
 
-        // 2. Overdue Toggle
+        // 2. Alternância de Atrasados
         if (filterOverdue) {
             const hasOverdueEvent = events.some(e => isOverdue(e.end_date || ""));
             if (!hasOverdueEvent) return false;
         }
 
-        // 3. Near Deadline Toggle (>= 50% elapsed)
+        // 3. Alternância Perto do Prazo (>= 50% decorrido)
         if (filterNearDeadline) {
             const hasNearDeadlineEvent = events.some(e => {
                 const pct = calculateTimeElapsed(e.start_date || "", e.end_date || "");
-                return pct >= 50 && !isOverdue(e.end_date || ""); // Only "Near" deadline, exclude already overdue? OR include?
-                // User said "a partir de 50% entra nesse ponto". Usually simpler to just say >= 50.
+                return pct >= 50 && !isOverdue(e.end_date || ""); // Apenas "Perto" do prazo, excluir já atrasado? OU incluir?
+                // Usuário disse "a partir de 50% entra nesse ponto". Geralmente mais simples dizer apenas >= 50.
             });
             if (!hasNearDeadlineEvent) return false;
         }
 
-        // 4. Status Filter
+        // 4. Filtro de Status
         if (filterStatus) {
             const hasStatusMatch = events.some(e => e.status === filterStatus);
             if (!hasStatusMatch) return false;
@@ -531,7 +531,7 @@ export default function ControlTower() {
 
     const totalPages = Math.ceil(filteredOcs.length / itemsPerPage);
 
-    // Reset page when filters change
+    // Resetar página quando filtros mudam
     useEffect(() => {
         setCurrentPage(1);
     }, [filterText, filterOverdue, filterNearDeadline, filterStatus, isGroupedView, isKanbanView, isTimelineView]);
@@ -569,7 +569,7 @@ export default function ControlTower() {
     const handleAddFinancialRecord = (ocId: string) => {
         setActiveOcIdForFinancial(ocId);
         setEditingFinancialRecord(null);
-        // Reset form
+        // Resetar formulário
         setFinInvoiceNumber("");
         setFinValue("");
         setFinIssuanceDate("");
@@ -585,7 +585,7 @@ export default function ControlTower() {
     const handleEditFinancialRecord = (record: FinancialRecord, ocId: string) => {
         setActiveOcIdForFinancial(ocId);
         setEditingFinancialRecord(record);
-        // Populate form
+        // Popular formulário
         setFinInvoiceNumber(record.invoiceNumber);
         setFinValue(record.value ? record.value.toString() : "");
         setFinIssuanceDate(record.issuanceDate || "");
@@ -606,8 +606,8 @@ export default function ControlTower() {
 
         if (!activeOcIdForFinancial) return;
 
-        // Temporary local save logic until backend is ready
-        // Find OC and update its financial_records array
+        // Lógica temporária de salvamento local até que o backend esteja pronto
+        // Encontrar OC e atualizar seu array financial_records
         const updatedOcs = ocs.map(oc => {
             if (oc.id === activeOcIdForFinancial) {
                 const newRecord: FinancialRecord = {
@@ -634,28 +634,28 @@ export default function ControlTower() {
         });
 
         setOcs(updatedOcs);
-        // Persist to filteredOcs as well if separate? filteredOcs is derived from ocs usually or updated via useEffect.
-        // But here filteredOcs logic is inside render or derived.
-        // If filteredOcs is state: 
-        // In this file, filteredOcs is derived? checking...
-        // lines 320ish: const filteredOcs = useMemo(() => { ... }, [ocs, ...])
-        // So updating `ocs` triggers update. Good.
+        // Persistir em filteredOcs também se separado? filteredOcs é derivado de ocs geralmente ou atualizado via useEffect.
+        // Mas aqui a lógica de filteredOcs está dentro do render ou derive.
+        // Se filteredOcs for estado:
+        // Neste arquivo, filteredOcs é derivado? verificando...
+        // linhas 320ish: const filteredOcs = useMemo(() => { ... }, [ocs, ...])
+        // Então atualizar ocs aciona atualização. Bom.
 
-        // TODO: Backend integration
+        // TODO: Integração Backend
         // await fetch(...)
 
         setToast({ message: "Registro financeiro salvo!", type: "success" });
         setIsFinancialModalOpen(false);
     }, [finInvoiceNumber, activeOcIdForFinancial, finValue, finIssuanceDate, finApprovalDate, finBillingDate, finPaymentDate, finSupplier, finRetention, finNotes, editingFinancialRecord, ocs]);
 
-    // Keyboard shortcuts for Financial Modal
+    // Atalhos de teclado para Modal Financeiro
     useEffect(() => {
         if (!isFinancialModalOpen) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 setIsFinancialModalOpen(false);
-            } else if (e.key === 'Enter' && e.ctrlKey) { // Using Ctrl+Enter to prevent accidental submits on date inputs etc.
+            } else if (e.key === 'Enter' && e.ctrlKey) { // Usando Ctrl+Enter para prevenir envios acidentais em inputs de data etc.
                 handleSaveFinancialRecord();
             }
         };
@@ -671,7 +671,7 @@ export default function ControlTower() {
     const handleButtonClick = (label: string) => {
         setEditingOcId(null);
         setModalType(label);
-        // Reset form
+        // Resetar formulário
         setSelectedWorkId("");
         setOcType("");
         setOcDescription("Projeto Elétrico");
@@ -747,6 +747,7 @@ export default function ControlTower() {
             }
 
             const payload = {
+                id: editingOcId || undefined, // Enviar ID se editando
                 work_id: selectedWorkId,
                 type: ocType,
                 description: ocDescription,
@@ -785,10 +786,10 @@ export default function ControlTower() {
         }
     };
 
-    // --- Event Logic ---
+    // --- Lógica de Eventos ---
     const handleAddEvent = (ocId: string) => {
         setCurrentOcId(ocId);
-        // Default to selection mode
+        // Padrão para modo de seleção
         setEventDescription("");
         setSelectedDefinitionId("");
 
