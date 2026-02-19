@@ -15,10 +15,10 @@ function LayoutContent() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (!user) {
-                navigate("/login");
+                navigate("/mercadolivre/login");
             } else if (userId && user.uid !== userId) {
-                // Se o ID da URL não bater com o usuário logado, redireciona para a URL correta
-                navigate(`/${user.uid}/dashboard`, { replace: true });
+                // Se o ID da URL não bater com o usuário logado, redireciona para a URL correta com prefixo mercadolivre
+                navigate(`/mercadolivre/${user.uid}/dashboard`, { replace: true });
             }
             setIsLoading(false);
         });

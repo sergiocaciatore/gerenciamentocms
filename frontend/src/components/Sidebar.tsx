@@ -155,7 +155,7 @@ export default function Sidebar() {
         try {
             await signOut(auth);
             localStorage.removeItem("idToken");
-            navigate("/login");
+            navigate("/mercadolivre/login");
         } catch (error) {
             console.error("Logout failed:", error);
         }
@@ -229,13 +229,13 @@ export default function Sidebar() {
                     let linkPath = item.path;
                     if (userId) {
                         if (item.path === "/") {
-                            linkPath = `/${userId}/dashboard`;
+                            linkPath = `/mercadolivre/${userId}/dashboard`;
                         } else {
-                            linkPath = `/${userId}${item.path}`;
+                            linkPath = `/mercadolivre/${userId}${item.path}`;
                         }
                     }
 
-                    const isActive = location.pathname === linkPath || (item.path === "/" && location.pathname === `/${userId}`); // Handle exact match logic if needed
+                    const isActive = location.pathname === linkPath || (item.path === "/" && location.pathname === `/mercadolivre/${userId}`); // Handle exact match logic if needed
 
                     return (
                         <Link

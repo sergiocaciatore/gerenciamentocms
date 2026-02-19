@@ -49,7 +49,7 @@ export default function Login() {
             const user = result.user;
             const token = await user.getIdToken();
             localStorage.setItem("idToken", token);
-            navigate(`/${user.uid}/dashboard`);
+            navigate(`/mercadolivre/${user.uid}/dashboard`);
         } catch (error) {
             console.error("Login failed:", error);
             alert("Falha no login. Verifique se você concedeu as permissões necessárias.");

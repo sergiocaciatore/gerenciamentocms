@@ -869,6 +869,7 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                                 data={data}
                                 onChange={handleDataChange}
                                 readOnly={effectiveReadOnly}
+                                subOpsList={subOpsList}
                             />
                         );
                     })}
@@ -888,7 +889,7 @@ export default function Timesheet({ viewMode = false, initialData, onBack }: Tim
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                isAlert={modalConfig.isAlert}
+                singleButton={modalConfig.isAlert}
                 confirmText={modalConfig.confirmText}
             />
         </div >

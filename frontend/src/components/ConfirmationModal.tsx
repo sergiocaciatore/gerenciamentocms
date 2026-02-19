@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { ExclamationTriangleIcon, CheckCircleIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -10,7 +11,7 @@ interface ConfirmationModalProps {
     type?: "success" | "danger" | "warning" | "info";
     confirmText?: string;
     cancelText?: string;
-    isAlert?: boolean; // Se verdadeiro, mostra apenas um botão (OK)
+    singleButton?: boolean; 
 }
 
 export default function ConfirmationModal({
@@ -22,19 +23,21 @@ export default function ConfirmationModal({
     type = "info",
     confirmText = "Confirmar",
     cancelText = "Cancelar",
-    isAlert = false,
+    singleButton = false,
 }: ConfirmationModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
 
-    // Atalhos de teclado: Esc (Fechar), Enter (Confirmar)
+    // Keyboard shortcuts: Esc (Close), Enter (Confirm)
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
                 onClose();
-            } else if (event.key === "Enter" && onConfirm) {
-                // Prevenir comportamento padrão para evitar submissões duplicadas acidentais se o foco estiver no botão
+            } else if (event.key === "Enter" && onConfirm && !singleButton) {
                 event.preventDefault();
                 onConfirm();
+                onClose();
+            } else if (event.key === "Enter" && singleButton) {
+                event.preventDefault();
                 onClose();
             }
         };
@@ -47,35 +50,34 @@ export default function ConfirmationModal({
             document.removeEventListener("keydown", handleKeyDown);
             document.body.style.overflow = "unset";
         };
-    }, [isOpen, onClose, onConfirm]);
+    }, [isOpen, onClose, onConfirm, singleButton]);
 
     if (!isOpen) return null;
 
-    // Definir cores/ícones baseados no tipo
     const styles = {
         success: {
             iconBg: "bg-green-100",
             iconColor: "text-green-600",
-            icon: "check_circle",
-            buttonBg: "bg-green-600 hover:bg-green-700",
+            icon: <CheckCircleIcon className="h-6 w-6 text-green-600" aria-hidden="true" />,
+            buttonBg: "bg-green-600 hover:bg-green-700 focus:ring-green-500",
         },
         danger: {
             iconBg: "bg-red-100",
             iconColor: "text-red-600",
-            icon: "error",
-            buttonBg: "bg-red-600 hover:bg-red-700",
+            icon: <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />,
+            buttonBg: "bg-red-600 hover:bg-red-700 focus:ring-red-500",
         },
         warning: {
-            iconBg: "bg-orange-100",
-            iconColor: "text-orange-600",
-            icon: "warning",
-            buttonBg: "bg-orange-600 hover:bg-orange-700",
+            iconBg: "bg-yellow-100",
+            iconColor: "text-yellow-600",
+            icon: <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />,
+            buttonBg: "bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500",
         },
         info: {
             iconBg: "bg-blue-100",
             iconColor: "text-blue-600",
-            icon: "info",
-            buttonBg: "bg-blue-600 hover:bg-blue-700",
+            icon: <InformationCircleIcon className="h-6 w-6 text-blue-600" aria-hidden="true" />,
+            buttonBg: "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500",
         },
     };
 
@@ -83,26 +85,24 @@ export default function ConfirmationModal({
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-            {/* Fundo (Backdrop) */}
+            {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+                className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
                 onClick={onClose}
             ></div>
 
-            {/* Conteúdo do Modal */}
+            {/* Modal Content */}
             <div
                 ref={modalRef}
                 className="relative w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all animate-bounce-in"
             >
                 <div className="flex flex-col items-center text-center">
-                    {/* Ícone */}
+                    {/* Icon */}
                     <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-full ${currentStyle.iconBg}`}>
-                        <span className={`material-symbols-rounded text-2xl ${currentStyle.iconColor}`}>
-                            {currentStyle.icon}
-                        </span>
+                        {currentStyle.icon}
                     </div>
 
-                    {/* Texto */}
+                    {/* Text */}
                     <h3 className="mb-2 text-lg font-bold text-gray-900 leading-tight">
                         {title}
                     </h3>
@@ -110,9 +110,9 @@ export default function ConfirmationModal({
                         {message}
                     </div>
 
-                    {/* Botões */}
+                    {/* Buttons */}
                     <div className="flex w-full gap-3">
-                        {!isAlert && (
+                        {!singleButton && (
                             <button
                                 onClick={onClose}
                                 className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 focus:outline-none transition-colors"

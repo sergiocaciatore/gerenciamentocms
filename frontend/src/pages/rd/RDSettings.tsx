@@ -497,7 +497,7 @@ export default function RDSettings() {
                 title={modalConfig.title}
                 message={modalConfig.message}
                 type={modalConfig.type}
-                isAlert={modalConfig.isAlert}
+                singleButton={modalConfig.isAlert}
                 confirmText={modalConfig.confirmText}
             />
         </div >

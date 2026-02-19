@@ -44,8 +44,8 @@ const Landing: React.FC = () => {
       >
         {[
           { name: "Residentes", src: "/cms.svg", path: "/rd" },
-          { name: "Mercado Livre", src: "/MERCADOLIVRE.png", path: "/login" },
-          { name: "Amazon", src: "/AMAZON.png", path: "/login" },
+          { name: "Mercado Livre", src: "/MERCADOLIVRE.png", path: "/mercadolivre/login" },
+          { name: "Amazon", src: "/AMAZON.png", path: "/amazon" },
           { name: "Shopee", src: "/SHOPEE.png", path: "/login" },
           { name: "Drogasil", src: "/DROGASIL.png", path: "/login" },
           { name: "Renner", src: "/RENNER.png", path: "/login" },
@@ -64,16 +64,20 @@ const Landing: React.FC = () => {
                 onClick={() => navigate(item.path)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                className="group flex flex-col items-center gap-4 cursor-pointer"
+                className="group flex flex-col items-center gap-4 cursor-pointer relative hover:z-50"
             >
-                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)] transition-all duration-300 overflow-hidden p-5">
+                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)] transition-all duration-300 overflow-hidden p-5 z-10 relative">
                     <img 
                         src={item.src} 
                         alt={item.name} 
                         className="w-full h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity"
                     />
                 </div>
-                {/* <span className="text-white font-medium text-lg tracking-tight drop-shadow-md">{item.name}</span> */}
+                
+                {/* Tooltip */}
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute -bottom-8 bg-black/70 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
+                    {item.name}
+                </span>
             </motion.button>
         ))}
       </motion.div>

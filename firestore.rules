@@ -33,5 +33,21 @@ service cloud.firestore {
     match /scheduled_emails/{document=**} {
       allow read, write: if isAdmin();
     }
+
+    match /AMZ_Projects/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /AMZ_Suppliers/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /AMZ_Residents/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /AMZ_Collaborators/{document=**} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
